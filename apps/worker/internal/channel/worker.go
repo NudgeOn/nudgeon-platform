@@ -16,6 +16,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/ondahq/onda/apps/worker/internal/metrics"
 	libqueue "github.com/ondahq/onda/packages/libqueue-go"
 )
 
@@ -158,6 +159,7 @@ func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) []any {
 		return base("failed", "retryable", "멱등 선점 오류: "+err.Error())
 	}
 	if !acquired {
+		metrics.ChannelSends.WithLabelValues("duplicate").Inc()
 		return base("duplicate", "", "")
 	}
 
@@ -182,8 +184,10 @@ func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) []any {
 		Credentials:    creds,
 	})
 	if sendErr == nil {
+		metrics.ChannelSends.WithLabelValues("sent").Inc()
 		return base("sent", "", "")
 	}
+	metrics.ChannelSends.WithLabelValues("failed").Inc()
 
 	class := w.plugin.ClassifyError(sendErr)
 	switch class {

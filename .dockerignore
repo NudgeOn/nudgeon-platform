@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+apps/worker/bin
+docs
+.git
+*.log
+scratchpad

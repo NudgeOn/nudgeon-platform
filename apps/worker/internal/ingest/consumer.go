@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/ondahq/onda/apps/worker/internal/metrics"
 	libqueue "github.com/ondahq/onda/packages/libqueue-go"
 )
 
@@ -279,6 +280,7 @@ func (c *Consumer) handleTrack(ctx context.Context, tenantID, appID string, p *I
 		rows.events = append(rows.events, []any{
 			tenantID, appID, e.Event, userID, deviceID, props, e.ClientTS, e.ServerTS, e.InsertID,
 		})
+		metrics.IngestProcessed.WithLabelValues(tenantID).Inc()
 		rows.touch(userID)
 		rows.normEvents = append(rows.normEvents, normEvent{
 			tenantID: tenantID, appID: appID, userID: userID, eventName: e.Event, serverTS: e.ServerTS,

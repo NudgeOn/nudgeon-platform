@@ -6,7 +6,8 @@ import {
 } from "@nestjs/common";
 import * as argon2 from "argon2";
 import type { Pool } from "pg";
-import { PG } from "../infra/infra.module";
+import { CONFIG, PG } from "../infra/infra.module";
+import type { AppConfig } from "../config";
 import { generateApiKey } from "./api-key.service";
 
 export interface SignupInput {
@@ -22,9 +23,29 @@ export interface SignupInput {
  */
 @Injectable()
 export class AuthService {
-  constructor(@Inject(PG) private readonly pg: Pool) {}
+  private readonly mode: AppConfig["mode"];
+
+  constructor(
+    @Inject(PG) private readonly pg: Pool,
+    @Inject(CONFIG) cfg: AppConfig,
+  ) {
+    this.mode = cfg.mode;
+  }
+
+  /** 전체 멤버 수 — single_tenant 부트스트랩 잠금 판정용 */
+  async countMembers(): Promise<number> {
+    const { rows } = await this.pg.query(`SELECT count(*)::int AS n FROM members`);
+    return rows[0].n as number;
+  }
 
   async signup(input: SignupInput) {
+    if (this.mode === "single_tenant") {
+      // 셀프호스팅은 부트스트랩 경로로만 계정 생성 (가입 비활성)
+      const existing = await this.countMembers();
+      if (existing > 0) {
+        throw new ConflictException("셀프호스팅 모드에서는 추가 가입이 비활성화됩니다");
+      }
+    }
     const client = await this.pg.connect();
     try {
       await client.query("BEGIN");

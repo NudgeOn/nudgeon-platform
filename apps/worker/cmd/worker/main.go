@@ -16,6 +16,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
@@ -162,6 +163,7 @@ func serveHealth(ctx context.Context, addr string, logger *slog.Logger) error {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	})
+	r.Handle("/metrics", promhttp.Handler()) // Prometheus (PRD-08 §5)
 	srv := &http.Server{Addr: addr, Handler: r}
 	go func() {
 		<-ctx.Done()
