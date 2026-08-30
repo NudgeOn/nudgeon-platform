@@ -123,6 +123,20 @@ export class OndaClient {
       this.request<{ ok: true }>("DELETE", `/v1/apps/${appId}/journeys/${id}`),
   };
 
+  readonly analytics = {
+    dashboard: (appId: string) =>
+      this.request<DashboardData>("GET", `/v1/apps/${appId}/dashboard`),
+    journeyReport: (appId: string, id: string) =>
+      this.request<JourneyReport>("GET", `/v1/apps/${appId}/journeys/${id}/report`),
+    usage: (appId: string) => this.request<UsageData>("GET", `/v1/apps/${appId}/usage`),
+  };
+
+  readonly appSettings = {
+    get: (appId: string) => this.request<AppSettings>("GET", `/v1/apps/${appId}/settings`),
+    update: (appId: string, input: AppSettings) =>
+      this.request<{ ok: true }>("PUT", `/v1/apps/${appId}/settings`, input),
+  };
+
   readonly messageLog = {
     list: (appId: string, params?: { status?: string; journey_id?: string; limit?: number }) => {
       const q = new URLSearchParams();
@@ -238,6 +252,34 @@ export interface JourneyDetail extends JourneySummary {
 export interface JourneyValidation {
   issues: Array<{ level: "error" | "warning"; message: string; node_index?: number }>;
   estimated_count: number | null;
+}
+
+export interface DashboardData {
+  today: { sent: number; failed: number; skipped: number; by_status: Record<string, number> };
+  active_journeys: number;
+}
+
+export interface JourneyReport {
+  name: string;
+  status: string;
+  state_distribution: Record<string, number>;
+  sends: Array<{ status: string; node_index: number; count: number }>;
+}
+
+export interface UsageData {
+  mau_30d: number;
+  sends_30d: Array<{ channel: string; sent: number }>;
+}
+
+export interface AppSettings {
+  timezone: string;
+  quiet_hours: {
+    enabled: boolean;
+    start: string;
+    end: string;
+    policy: "delay_until_open" | "skip";
+  };
+  frequency_cap: { enabled: boolean; max_per_24h: number };
 }
 
 export interface MessageLogEntry {

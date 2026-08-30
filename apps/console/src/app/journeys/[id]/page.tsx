@@ -43,6 +43,11 @@ export default function EditJourneyPage() {
             활성 저니는 읽기 전용입니다 — 수정하려면 일시정지하세요.
           </p>
         )}
+        {journey.data.status !== "draft" && (
+          <Link href={`/journeys/${journey.data.id}/report`} className="mt-1 inline-block text-sm text-primary underline">
+            📊 리포트 보기
+          </Link>
+        )}
       </header>
       <JourneyEditor
         appId={appId}

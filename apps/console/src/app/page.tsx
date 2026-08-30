@@ -4,12 +4,24 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { api } from "@/lib/api";
+import { useAppId } from "./use-app-id";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function DashboardPage() {
   const router = useRouter();
   const me = useQuery({ queryKey: ["me"], queryFn: () => api.auth.me(), retry: false });
+  const appId = useAppId();
+  const dashboard = useQuery({
+    queryKey: ["dashboard", appId],
+    queryFn: () => api.analytics.dashboard(appId!),
+    enabled: !!appId,
+  });
+  const usage = useQuery({
+    queryKey: ["usage", appId],
+    queryFn: () => api.analytics.usage(appId!),
+    enabled: !!appId,
+  });
   const logout = useMutation({
     mutationFn: () => api.auth.logout(),
     onSuccess: () => router.push("/login"),
@@ -41,6 +53,21 @@ export default function DashboardPage() {
         </Button>
       </header>
 
+      {/* 오늘 지표 위젯 (PRD-07) */}
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <Stat label="오늘 발송" value={dashboard.data?.today.sent ?? 0} />
+        <Stat label="오늘 실패" value={dashboard.data?.today.failed ?? 0} accent={(dashboard.data?.today.failed ?? 0) > 0} />
+        <Stat label="오늘 생략" value={dashboard.data?.today.skipped ?? 0} />
+        <Stat label="활성 저니" value={dashboard.data?.active_journeys ?? 0} />
+      </div>
+      <div className="mb-6 grid grid-cols-2 gap-4">
+        <Stat label="MAU (30일)" value={usage.data?.mau_30d ?? 0} />
+        <Stat
+          label="발송량 (30일)"
+          value={usage.data?.sends_30d.reduce((a, b) => a + b.sent, 0) ?? 0}
+        />
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>시작하기</CardTitle>
@@ -62,8 +89,24 @@ export default function DashboardPage() {
           <Button variant="outline" onClick={() => router.push("/users")}>
             유저 검색
           </Button>
+          <Button variant="outline" onClick={() => router.push("/settings")}>
+            앱 설정
+          </Button>
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+function Stat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className={`mt-1 text-2xl font-bold ${accent ? "text-destructive" : ""}`}>
+          {value.toLocaleString()}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

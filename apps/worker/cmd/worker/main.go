@@ -122,7 +122,7 @@ func run(role string, logger *slog.Logger) error {
 		sched := journey.NewScheduler(
 			libqueue.NewConsumer(rdb, libqueue.StreamJourneyEntry, libqueue.GroupScheduler, "sched-"+hostname),
 			libqueue.NewProducer(rdb, 0),
-			pg, ch, clk, "sched-"+hostname, logger.With("component", "scheduler"),
+			pg, ch, rdb, clk, "sched-"+hostname, logger.With("component", "scheduler"),
 		)
 		g.Go(func() error { return sched.RunEntryConsumer(gctx) })
 		g.Go(func() error { return sched.RunTick(gctx) })

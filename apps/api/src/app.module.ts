@@ -12,8 +12,10 @@ import { CredentialsController } from "./credentials/credentials.controller";
 import { TestPushController } from "./messaging/test-push.controller";
 import { MessageLogController } from "./messaging/message-log.controller";
 import { UsersController } from "./users/users.controller";
+import { AnalyticsController } from "./analytics/analytics.controller";
 import { SessionGuard } from "./auth/session.guard";
 import { AppsController } from "./apps/apps.controller";
+import { AppSettingsController } from "./apps/app-settings.controller";
 import { SegmentsController } from "./segments/segments.controller";
 import { JourneysController } from "./journeys/journeys.controller";
 import { RateLimitGuard } from "./rate-limit/rate-limit.guard";
@@ -28,10 +30,12 @@ import { RateLimitService } from "./rate-limit/rate-limit.service";
     CredentialsController,
     TestPushController,
     AppsController,
+    AppSettingsController,
     SegmentsController,
     JourneysController,
     MessageLogController,
     UsersController,
+    AnalyticsController,
   ],
   providers: [
     ApiKeyGuard,

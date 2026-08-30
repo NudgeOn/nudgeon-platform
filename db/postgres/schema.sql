@@ -85,6 +85,10 @@ CREATE TABLE apps (
   tenant_id  uuid NOT NULL REFERENCES tenants(id),
   name       text NOT NULL,
   timezone   text NOT NULL DEFAULT 'Asia/Seoul',   -- quiet hours 기준 시간대 (PRD-03 6.1)
+  -- 발송 정책 (PRD-03 6장). quiet_hours: {enabled, start "HH:MM", end "HH:MM", policy "delay_until_open"|"skip"}
+  quiet_hours    jsonb NOT NULL DEFAULT '{"enabled": false, "start": "21:00", "end": "08:00", "policy": "delay_until_open"}',
+  -- frequency_cap: {enabled, max_per_24h}
+  frequency_cap  jsonb NOT NULL DEFAULT '{"enabled": false, "max_per_24h": 3}',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, name)

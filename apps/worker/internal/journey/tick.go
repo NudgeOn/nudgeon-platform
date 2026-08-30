@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/ondahq/onda/apps/worker/internal/policy"
 )
 
 // RunTick은 상태머신 틱 루프다. next_wake_at 도래한 상태를 클레임해 노드를 실행한다.
@@ -106,9 +108,33 @@ func (s *Scheduler) executeNode(ctx context.Context, c *claimedState) error {
 		}
 
 	case "message":
-		// 메시지: 도달 가능 디바이스별 outbox send.push (전이와 동일 트랜잭션 — 4.3)
-		if err := s.enqueueSends(ctx, tx, c, def, node); err != nil {
+		// 정책 검사: quiet hours가 delay면 전이하지 않고 다음 open까지 대기 (노드 유지)
+		pol, err := s.loadAppPolicy(ctx, c.appID)
+		if err != nil {
 			return err
+		}
+		cat := policy.Category(def.Settings.Category)
+		qd, err := policy.EvaluateQuietHours(cat, pol.quietHours, pol.tz, s.clk.Now())
+		if err != nil {
+			return err
+		}
+		if qd.Action == policy.ActionDelay {
+			// 발송 보류 — 노드 유지, 다음 허용 시각에 재실행 (PRD-03 6.1 delay_until_open)
+			if _, err := tx.Exec(ctx, `
+				UPDATE journey_states SET status = 'waiting', next_wake_at = $2,
+				       claimed_by = NULL, claimed_at = NULL, updated_at = $3
+				 WHERE id = $1`, c.id, qd.DelayUntil, s.clk.Now()); err != nil {
+				return err
+			}
+			return tx.Commit(ctx)
+		}
+		// send 또는 skip(quiet_hours skip 정책) — 어느 쪽이든 노드는 전진
+		if qd.Action == policy.ActionSend {
+			if err := s.enqueueSends(ctx, tx, c, def, node, pol); err != nil {
+				return err
+			}
+		} else {
+			s.logSkip(ctx, c, "skipped_quiet_hours")
 		}
 		nextStatus := "active"
 		if c.currentNode+1 >= len(def.Nodes) {
@@ -129,9 +155,10 @@ func (s *Scheduler) executeNode(ctx context.Context, c *claimedState) error {
 }
 
 // enqueueSends는 유저의 도달 가능 디바이스마다 send.push outbox 행을 기록한다.
-// 도달성 검사(카테고리 반영)는 메시지 노드 실행 시점 (PRD-03 3.1).
-func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState, def *Definition, node Node) error {
-	marketing := def.Settings.Category != "transactional"
+// 도달성·정책 검사(카테고리 반영)는 메시지 노드 실행 시점 (PRD-03 3.1, 6장).
+func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState, def *Definition, node Node, pol *appPolicy) error {
+	cat := policy.Category(def.Settings.Category)
+	marketing := cat != policy.Transactional
 
 	// 도달 가능 디바이스 + 렌더용 속성 조회
 	var stdAttrs, customAttrs []byte
@@ -142,13 +169,23 @@ func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState
 	if err != nil {
 		return fmt.Errorf("유저 조회: %w", err)
 	}
-	// marketing이면 opt-in 필수
+	// marketing이면 opt-in 필수 (transactional은 우회)
 	if marketing {
 		var sub map[string]string
 		_ = json.Unmarshal(subscriptions, &sub)
 		if sub["push"] != "opted_in" {
-			return nil // opt-out — 발송 없음 (skip). message_log skip 기록은 fan-out/S6
+			s.logSkip(ctx, c, "skipped_unreachable") // opt-out
+			return nil
 		}
+	}
+	// frequency cap (유저당 24h N건, transactional 우회) — 원자 검사+증가
+	allowed, err := s.freqCap.Allow(ctx, cat, pol.freqCap, c.appID, c.userID)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		s.logSkip(ctx, c, "skipped_cap")
+		return nil
 	}
 	attrs := mergeAttrs(stdAttrs, customAttrs)
 	title := Render(node.Push.Title, attrs)
@@ -200,6 +237,24 @@ func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState
 		}
 	}
 	return nil
+}
+
+// logSkip은 발송 생략 사유를 message_log에 기록한다 (PRD-04 5장 — "왜 안 갔는지").
+// 디바이스 단위가 아닌 유저 단위 skip이므로 device_id는 0.
+func (s *Scheduler) logSkip(ctx context.Context, c *claimedState, status string) {
+	idemKey := fmt.Sprintf("%s:%d:%s:%d:skip", c.journeyID, c.version, c.userID, c.currentNode)
+	err := s.ch.Exec(ctx, `
+		INSERT INTO message_log (tenant_id, app_id, message_id, idempotency_key,
+			journey_id, journey_version, node_index, campaign_ref,
+			user_id, device_id, channel, status, failure_class, failure_detail, sent_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, '00000000-0000-0000-0000-000000000000',
+		        'push', ?, '', '', ?)`,
+		c.tenantID, c.appID, uuidString(), idemKey,
+		c.journeyID, uint32(c.version), uint16(c.currentNode),
+		c.userID, status, s.clk.Now())
+	if err != nil {
+		s.logger.Error("skip 로그 기록 실패", "err", err, "state", c.id, "status", status)
+	}
 }
 
 func (s *Scheduler) complete(ctx context.Context, stateID string) error {

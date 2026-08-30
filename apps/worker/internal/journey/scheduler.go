@@ -11,8 +11,10 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/ondahq/onda/apps/worker/internal/policy"
 	libqueue "github.com/ondahq/onda/packages/libqueue-go"
 )
 
@@ -30,6 +32,8 @@ type Scheduler struct {
 	producer   *libqueue.Producer
 	pg         *pgxpool.Pool
 	ch         driver.Conn
+	rdb        redis.Cmdable
+	freqCap    *policy.FreqCapChecker
 	clk        clock.Clock
 	logger     *slog.Logger
 	consumer   string
@@ -43,15 +47,47 @@ func NewScheduler(
 	producer *libqueue.Producer,
 	pg *pgxpool.Pool,
 	ch driver.Conn,
+	rdb redis.Cmdable,
 	clk clock.Clock,
 	consumer string,
 	logger *slog.Logger,
 ) *Scheduler {
 	return &Scheduler{
 		entryQueue: entryQueue, producer: producer, pg: pg, ch: ch,
+		rdb: rdb, freqCap: policy.NewFreqCapChecker(rdb),
 		clk: clk, consumer: consumer, logger: logger,
 		defs: map[string]*Definition{},
 	}
+}
+
+// appPolicy — 앱의 발송 정책 (quiet hours·freq cap·timezone). 매 message 노드에서 조회.
+type appPolicy struct {
+	quietHours policy.QuietHours
+	freqCap    policy.FrequencyCap
+	tz         *time.Location
+}
+
+func (s *Scheduler) loadAppPolicy(ctx context.Context, appID string) (*appPolicy, error) {
+	var tzName string
+	var qhRaw, fcRaw []byte
+	if err := s.pg.QueryRow(ctx,
+		`SELECT timezone, quiet_hours, frequency_cap FROM apps WHERE id = $1`, appID).
+		Scan(&tzName, &qhRaw, &fcRaw); err != nil {
+		return nil, err
+	}
+	qh, err := policy.ParseQuietHours(qhRaw)
+	if err != nil {
+		return nil, err
+	}
+	fc, err := policy.ParseFrequencyCap(fcRaw)
+	if err != nil {
+		return nil, err
+	}
+	tz, err := time.LoadLocation(tzName)
+	if err != nil {
+		tz = time.UTC
+	}
+	return &appPolicy{quietHours: qh, freqCap: fc, tz: tz}, nil
 }
 
 // RunEntryConsumer는 journey.entry를 소비해 journey_states를 벌크 생성한다 (IT-2).
