@@ -1,0 +1,3 @@
+# Onda 콘솔 — 관리자 전용. 크롤링 비허용.
+User-agent: *
+Disallow: /

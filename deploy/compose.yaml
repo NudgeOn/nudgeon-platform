@@ -76,7 +76,17 @@ services:
       dockerfile: apps/worker/Dockerfile
     image: onda-worker
     profiles: [app]
-    command: ["/onda-migrate", "/db"]
+    # Dockerfile ENTRYPOINT는 /onda-worker 고정 — 마이그레이터는 entrypoint를 덮어써야 한다
+    # (미설정 시 command가 onda-worker의 인자로 삼켜져 워커가 기동됨)
+    entrypoint: ["/onda-migrate"]
+    command: ["/db"]
+    # 콜드 스타트 경합 방지 — PG·CH가 healthy가 될 때까지 대기 후 마이그레이션
+    # (미지정 시 DB 미기동 상태에서 connection refused로 exit 1 → 원-커맨드 기동 실패)
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgres://onda:onda@postgres:5432/onda}
       CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://onda:onda@clickhouse:8123/onda}

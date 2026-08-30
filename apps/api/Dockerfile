@@ -13,7 +13,7 @@ COPY packages/journey-model/package.json ./packages/journey-model/
 RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm --filter @onda/api... build \
- && pnpm --filter @onda/api --prod deploy /app
+ && pnpm --filter @onda/api --prod deploy --legacy /app
 
 FROM node:22-slim AS runtime
 WORKDIR /app
