@@ -101,6 +101,28 @@ export class OndaClient {
       this.request<SegmentPreview>("POST", `/v1/apps/${appId}/segments/preview`, input),
   };
 
+  readonly journeys = {
+    list: (appId: string) =>
+      this.request<{ journeys: JourneySummary[] }>("GET", `/v1/apps/${appId}/journeys`),
+    get: (appId: string, id: string) =>
+      this.request<JourneyDetail>("GET", `/v1/apps/${appId}/journeys/${id}`),
+    create: (appId: string, input: { name: string; definition: unknown }) =>
+      this.request<{ id: string }>("POST", `/v1/apps/${appId}/journeys`, input),
+    update: (appId: string, id: string, input: { name: string; definition: unknown }) =>
+      this.request<{ ok: true }>("PATCH", `/v1/apps/${appId}/journeys/${id}`, input),
+    validate: (appId: string, id: string) =>
+      this.request<JourneyValidation>("POST", `/v1/apps/${appId}/journeys/${id}/validate`),
+    activate: (appId: string, id: string) =>
+      this.request<{ version: number; entry: string; audience_ref?: string }>(
+        "POST",
+        `/v1/apps/${appId}/journeys/${id}/activate`,
+      ),
+    pause: (appId: string, id: string) =>
+      this.request<{ ok: true }>("POST", `/v1/apps/${appId}/journeys/${id}/pause`),
+    archive: (appId: string, id: string) =>
+      this.request<{ ok: true }>("DELETE", `/v1/apps/${appId}/journeys/${id}`),
+  };
+
   readonly credentials = {
     list: (appId: string) =>
       this.request<{ credentials: CredentialSummary[] }>(
@@ -174,6 +196,24 @@ export interface SegmentDetail {
 export interface SegmentPreview {
   approx_count: number;
   sample: Array<{ user_id: string; external_id: string | null; platforms: string[] }>;
+}
+
+export interface JourneySummary {
+  id: string;
+  name: string;
+  status: "draft" | "active" | "paused" | "archived";
+  category: "marketing" | "transactional";
+  active_version: number | null;
+  updated_at: string;
+}
+
+export interface JourneyDetail extends JourneySummary {
+  draft_definition: unknown;
+}
+
+export interface JourneyValidation {
+  issues: Array<{ level: "error" | "warning"; message: string; node_index?: number }>;
+  estimated_count: number | null;
 }
 
 export interface FcmCredentialInput {

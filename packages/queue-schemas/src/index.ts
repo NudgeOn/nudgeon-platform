@@ -101,6 +101,15 @@ export interface IngestBatchPayload {
   user_delete?: { external_id: string };
 }
 
+/** journey.entry 스트림 payload */
+export interface JourneyEntryPayload {
+  journey_id: string;
+  version: number;
+  source: "blast" | "trigger";
+  audience_ref?: string | null;
+  user_id?: string | null;
+}
+
 /** send.push 스트림 payload — 멱등 키에 device_id 포함 (PRD-03 4.3 v0.2) */
 export interface SendPushPayload {
   idempotency_key: string;
@@ -136,4 +145,5 @@ export const envelopeSchema = loadSchema("envelope.schema.json");
 export const payloadSchemas: Partial<Record<MessageType, Record<string, unknown>>> = {
   "ingest.batch": loadSchema("ingest.batch.schema.json"),
   "send.push": loadSchema("send.push.schema.json"),
+  "journey.enter": loadSchema("journey.entry.schema.json"),
 };

@@ -13,6 +13,7 @@ import { TestPushController } from "./messaging/test-push.controller";
 import { SessionGuard } from "./auth/session.guard";
 import { AppsController } from "./apps/apps.controller";
 import { SegmentsController } from "./segments/segments.controller";
+import { JourneysController } from "./journeys/journeys.controller";
 import { RateLimitGuard } from "./rate-limit/rate-limit.guard";
 import { RateLimitService } from "./rate-limit/rate-limit.service";
 
@@ -26,6 +27,7 @@ import { RateLimitService } from "./rate-limit/rate-limit.service";
     TestPushController,
     AppsController,
     SegmentsController,
+    JourneysController,
   ],
   providers: [
     ApiKeyGuard,

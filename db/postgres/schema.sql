@@ -187,6 +187,9 @@ CREATE TABLE attribute_registry (
 -- 세그먼트 (PRD-02) — 정의(DSL)는 jsonb, 멤버십은 저장하지 않음(발송 시 스냅샷)
 -- ---------------------------------------------------------------------------
 CREATE TYPE segment_status AS ENUM ('active', 'broken');
+CREATE TYPE journey_status AS ENUM ('draft', 'active', 'paused', 'archived');
+CREATE TYPE journey_state_status AS ENUM ('active', 'waiting', 'claimed', 'completed', 'exited', 'failed');
+CREATE TYPE message_category AS ENUM ('marketing', 'transactional');
 
 CREATE TABLE segments (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -204,6 +207,73 @@ CREATE TABLE segments (
   UNIQUE (app_id, name)
 );
 CREATE INDEX segments_app_idx ON segments (app_id, status);
+
+-- ---------------------------------------------------------------------------
+-- 오케스트레이션 (PRD-03) — 단발 캠페인 = 1노드 저니로 통합 모델링
+-- ---------------------------------------------------------------------------
+CREATE TABLE journeys (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id    uuid NOT NULL REFERENCES tenants(id),
+  app_id       uuid NOT NULL REFERENCES apps(id),
+  name         text NOT NULL,
+  status       journey_status NOT NULL DEFAULT 'draft',
+  category     message_category NOT NULL DEFAULT 'marketing',
+  -- 편집 중(draft) 정의. 활성화 시 journey_versions로 불변 스냅샷 (2.2)
+  draft_definition jsonb NOT NULL DEFAULT '{}',
+  active_version   int,               -- 현재 활성 버전 (journey_versions.version)
+  created_by   uuid REFERENCES members(id),
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (app_id, name)
+);
+
+-- 활성화 시점마다 증가하는 불변 버전 스냅샷 (진행 중 유저는 진입 버전으로 완주 — 2.2)
+CREATE TABLE journey_versions (
+  journey_id   uuid NOT NULL REFERENCES journeys(id),
+  version      int NOT NULL,
+  definition   jsonb NOT NULL,        -- 불변
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (journey_id, version)
+);
+
+CREATE TABLE journey_states (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id      uuid NOT NULL REFERENCES tenants(id),
+  app_id         uuid NOT NULL REFERENCES apps(id),
+  journey_id     uuid NOT NULL,
+  journey_version int NOT NULL,
+  user_id        uuid NOT NULL,
+  current_node   int NOT NULL DEFAULT 0,
+  status         journey_state_status NOT NULL DEFAULT 'active',
+  next_wake_at   timestamptz,         -- delay 노드 기상 시각 (즉시 실행이면 NULL/과거)
+  claimed_by     text,
+  claimed_at     timestamptz,
+  fail_reason    text,
+  entered_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+-- 동일 유저는 동일 저니에 동시 1개 인스턴스만 (진행 중 = active|waiting|claimed)
+CREATE UNIQUE INDEX journey_states_active_uniq
+  ON journey_states (journey_id, user_id)
+  WHERE status IN ('active', 'waiting', 'claimed');
+-- 스케줄러 클레임 인덱스: 기상 시각 도래한 대기 상태
+CREATE INDEX journey_states_wake_idx
+  ON journey_states (next_wake_at)
+  WHERE status IN ('active', 'waiting');
+
+-- outbox: 상태 전이와 발송 잡 발행의 원자성 (4.3 정확히-한-번의 구현체)
+CREATE TABLE journey_outbox (
+  id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  tenant_id    uuid NOT NULL,
+  app_id       uuid NOT NULL,
+  stream       text NOT NULL,         -- 발행 대상 스트림 (send.push 등)
+  idempotency_key text NOT NULL,      -- (journey_id, version, user_id, node_index, device_id)
+  payload      jsonb NOT NULL,        -- envelope payload
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  published_at timestamptz
+);
+CREATE INDEX journey_outbox_unpublished_idx
+  ON journey_outbox (id) WHERE published_at IS NULL;
 
 CREATE TABLE user_merges (
   tenant_id    uuid NOT NULL REFERENCES tenants(id),

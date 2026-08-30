@@ -20,6 +20,7 @@
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@onda/libqueue": "workspace:*",
+    "@onda/journey-model": "workspace:*",
     "@onda/queue-schemas": "workspace:*",
     "@onda/segment-dsl": "workspace:*",
     "argon2": "^0.41.0",

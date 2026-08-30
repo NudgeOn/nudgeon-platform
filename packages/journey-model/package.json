@@ -1,0 +1,21 @@
+{
+  "name": "@onda/journey-model",
+  "version": "0.1.0",
+  "private": true,
+  "description": "저니 정의 타입 + 검증. API·콘솔 공유. Go scheduler와 동형 구조.",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "echo 'no lint yet'"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

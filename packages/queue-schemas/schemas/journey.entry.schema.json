@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onda.dev/schemas/queue/journey.entry.json",
+  "title": "JourneyEntryPayload",
+  "description": "journey.entry 스트림 payload (DEV-MAIN §5). source=blast: audience_ref로 벌크 진입. source=trigger(S5): user_id 단건 진입.",
+  "type": "object",
+  "required": ["journey_id", "version", "source"],
+  "properties": {
+    "journey_id": { "type": "string", "format": "uuid" },
+    "version": { "type": "integer", "minimum": 1 },
+    "source": { "type": "string", "enum": ["blast", "trigger"] },
+    "audience_ref": { "type": ["string", "null"], "format": "uuid" },
+    "user_id": { "type": ["string", "null"], "format": "uuid" }
+  },
+  "additionalProperties": false
+}

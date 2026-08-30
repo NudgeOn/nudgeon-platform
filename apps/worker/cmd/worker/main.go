@@ -23,6 +23,7 @@ import (
 	"github.com/ondahq/onda/apps/worker/internal/clock"
 	"github.com/ondahq/onda/apps/worker/internal/config"
 	"github.com/ondahq/onda/apps/worker/internal/ingest"
+	"github.com/ondahq/onda/apps/worker/internal/journey"
 	libqueue "github.com/ondahq/onda/packages/libqueue-go"
 )
 
@@ -115,7 +116,19 @@ func run(role string, logger *slog.Logger) error {
 		}
 	}
 
-	for _, stub := range []string{"scheduler", "trigger-matcher", "segment"} {
+	if has("scheduler") {
+		sched := journey.NewScheduler(
+			libqueue.NewConsumer(rdb, libqueue.StreamJourneyEntry, libqueue.GroupScheduler, "sched-"+hostname),
+			libqueue.NewProducer(rdb, 0),
+			pg, ch, clk, "sched-"+hostname, logger.With("component", "scheduler"),
+		)
+		g.Go(func() error { return sched.RunEntryConsumer(gctx) })
+		g.Go(func() error { return sched.RunTick(gctx) })
+		g.Go(func() error { return sched.RunRelay(gctx) })
+		g.Go(func() error { return sched.RunReaper(gctx) })
+	}
+
+	for _, stub := range []string{"trigger-matcher", "segment"} {
 		if has(stub) && role != "all" {
 			logger.Warn("role 미구현 — S3~S5 예정", "role", stub)
 		}
@@ -127,7 +140,7 @@ func run(role string, logger *slog.Logger) error {
 
 func roleList(role string) string {
 	if role == "all" {
-		return strings.Join([]string{"ingest-consumer", "channel"}, ",") + " (+미구현 stub 생략)"
+		return strings.Join([]string{"ingest-consumer", "channel", "scheduler"}, ",") + " (+미구현 stub 생략)"
 	}
 	return role
 }
