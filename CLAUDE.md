@@ -34,5 +34,8 @@ docker compose -f deploy/compose.yaml --profile full up -d   # 로컬 dev 환경
 ## 네이밍
 
 - 제품명 **Onda** 확정. 패키지: `@onda/*`(npm), `github.com/ondahq/onda/*`(Go), `io.onda`(모바일).
+- **이 repo는 `onda-platform`** (api·console·worker·db). SDK는 형제 repo로 분리:
+  `../onda-ios-sdk`, `../onda-android-sdk`, `../onda-rn-sdk`, `../onda-flutter-sdk`.
+  SDK 인터페이스 명세는 `docs/prd/PRD-01A` (제품명 Onda로 읽음).
 - Prometheus 지표: `onda_<component>_<metric>`.
 - 문서의 `engage-*` 표기는 `onda-*`로 읽는다 (PRD-00 Q1).
