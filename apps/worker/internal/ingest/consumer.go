@@ -1,5 +1,5 @@
 // Package ingest — ingest-consumer 역할 (DEV-sub-01 §2).
-// 배치 클레임 → 트랜잭션: users/devices upsert → CH 마이크로배치 insert → XACK.
+// 배치 클레임 → users/devices upsert·병합·속성·토큰 → CH 마이크로배치 insert → XACK.
 // 크래시 시 pending 재클레임(XAUTOCLAIM, idle 30s). 멱등은 Redis dedup + CH 엔진 2중.
 package ingest
 
@@ -84,15 +84,22 @@ func (c *Consumer) Run(ctx context.Context) error {
 			continue
 		}
 		if err := c.processBatch(ctx, msgs); err != nil {
-			// 배치 실패 — ack 없이 재시도 (at-least-once, dedup이 멱등 보장)
+			// 배치 실패 — ack 없이 재시도 (at-least-once, dedup·upsert가 멱등 보장)
 			c.logger.Error("배치 처리 실패 — 재시도 예정", "err", err, "count", len(msgs))
 			time.Sleep(time.Second)
 		}
 	}
 }
 
+// chRows — CH 마이크로배치 적재 대기 행 (테이블별)
+type chRows struct {
+	events  [][]any
+	changes [][]any
+	errors  [][]any
+}
+
 func (c *Consumer) processBatch(ctx context.Context, msgs []libqueue.Message) error {
-	rows := make([][]any, 0, len(msgs)) // CH events 마이크로배치
+	rows := &chRows{}
 	ackIDs := make([]string, 0, len(msgs))
 
 	for _, m := range msgs {
@@ -104,65 +111,148 @@ func (c *Consumer) processBatch(ctx context.Context, msgs []libqueue.Message) er
 			ackIDs = append(ackIDs, m.StreamID)
 			continue
 		}
-		fresh, err := c.dedup.FilterNew(ctx, m.Envelope.TenantID, payload.Events)
-		if err != nil {
-			return err
-		}
-		for _, e := range fresh {
-			userID, err := c.upsertUser(ctx, m.Envelope.TenantID, m.Envelope.AppID, e)
-			if err != nil {
-				return fmt.Errorf("user upsert: %w", err)
-			}
-			deviceID, err := c.upsertDevice(ctx, m.Envelope.TenantID, m.Envelope.AppID, userID, payload.Device)
-			if err != nil {
-				return fmt.Errorf("device upsert: %w", err)
-			}
-			props := "{}"
-			if len(e.Properties) > 0 {
-				props = string(e.Properties)
-			}
-			rows = append(rows, []any{
-				m.Envelope.TenantID, m.Envelope.AppID, e.Event,
-				userID, deviceID, props, e.ClientTS, e.ServerTS, e.InsertID,
-			})
+		if err := c.handle(ctx, m.Envelope.TenantID, m.Envelope.AppID, payload, rows); err != nil {
+			return fmt.Errorf("%s 처리: %w", payload.Endpoint, err)
 		}
 		ackIDs = append(ackIDs, m.StreamID)
 	}
 
-	if len(rows) > 0 {
-		if err := c.insertEvents(ctx, rows); err != nil {
-			return fmt.Errorf("CH events insert: %w", err)
-		}
+	if err := c.flushCH(ctx, rows); err != nil {
+		return err
 	}
 	return c.queue.Ack(ctx, ackIDs...)
 }
 
-// upsertUser는 external_id 우선, 없으면 anon_id로 유저를 찾거나 만든다.
-// identify 병합(S2)은 별도 경로 — 여기서는 존재 보장만.
-func (c *Consumer) upsertUser(ctx context.Context, tenantID, appID string, e TrackEvent) (string, error) {
-	var id string
+func (c *Consumer) handle(ctx context.Context, tenantID, appID string, p *IngestBatchPayload, rows *chRows) error {
 	now := c.clk.Now()
-	if e.ExternalID != nil && *e.ExternalID != "" {
+	switch p.Endpoint {
+	case "track":
+		return c.handleTrack(ctx, tenantID, appID, p, rows)
+
+	case "identify":
+		userID, res, err := ProcessIdentify(ctx, c.pg, tenantID, appID, p.Identify, p.RequestID, now)
+		if err != nil {
+			return err
+		}
+		rows.changes = append(rows.changes, res.Changes...)
+		rows.errors = append(rows.errors, res.Errors...)
+		if p.Device != nil {
+			if _, err := c.upsertDevice(ctx, tenantID, appID, userID, p.Device); err != nil {
+				return err
+			}
+		}
+		return nil
+
+	case "attributes":
+		for _, update := range p.Attributes {
+			extID := update.ExternalID
+			userID, err := c.resolveOrCreateUser(ctx, tenantID, appID, &extID, nil, now)
+			if err != nil {
+				return err
+			}
+			// 유저 단위 트랜잭션 — FOR UPDATE 잠금과 갱신의 원자성
+			tx, err := c.pg.Begin(ctx)
+			if err != nil {
+				return err
+			}
+			res, err := ApplyAttributes(ctx, tx, tenantID, appID, userID, update.Attributes, "server", p.RequestID, now)
+			if err != nil {
+				_ = tx.Rollback(ctx)
+				return err
+			}
+			if err := tx.Commit(ctx); err != nil {
+				return err
+			}
+			rows.changes = append(rows.changes, res.Changes...)
+			rows.errors = append(rows.errors, res.Errors...)
+		}
+		return nil
+
+	case "devices_token":
+		userID, err := c.resolveOrCreateUser(ctx, tenantID, appID, p.Token.ExternalID, p.Token.AnonID, now)
+		if err != nil {
+			return err
+		}
+		return ProcessToken(ctx, c.pg, tenantID, appID, userID, p.Device, p.Token, now)
+
+	case "user_delete":
+		// S2: 삭제 마킹만. 완전 익명화 + CH mutation은 S3 (D-8)
+		_, err := c.pg.Exec(ctx, `
+			UPDATE users SET status = 'deleted', updated_at = now()
+			 WHERE tenant_id = $1 AND app_id = $2 AND external_id = $3 AND status = 'active'`,
+			tenantID, appID, p.UserDelete.ExternalID)
+		return err
+
+	default:
+		c.logger.Warn("알 수 없는 endpoint — skip", "endpoint", p.Endpoint)
+		return nil
+	}
+}
+
+func (c *Consumer) handleTrack(ctx context.Context, tenantID, appID string, p *IngestBatchPayload, rows *chRows) error {
+	fresh, err := c.dedup.FilterNew(ctx, tenantID, p.Events)
+	if err != nil {
+		return err
+	}
+	for _, e := range fresh {
+		userID, err := c.resolveOrCreateUser(ctx, tenantID, appID, e.ExternalID, e.AnonID, c.clk.Now())
+		if err != nil {
+			return fmt.Errorf("user upsert: %w", err)
+		}
+		deviceID, err := c.upsertDevice(ctx, tenantID, appID, userID, p.Device)
+		if err != nil {
+			return fmt.Errorf("device upsert: %w", err)
+		}
+		props := "{}"
+		if len(e.Properties) > 0 {
+			props = string(e.Properties)
+		}
+		rows.events = append(rows.events, []any{
+			tenantID, appID, e.Event, userID, deviceID, props, e.ClientTS, e.ServerTS, e.InsertID,
+		})
+	}
+	return nil
+}
+
+// resolveOrCreateUser는 external_id 우선, 없으면 anon_id로 유저를 찾거나 만든다.
+// tombstone(merged) 프로필이면 승계 프로필로 리다이렉트한다 (병합 후 이벤트 귀속).
+func (c *Consumer) resolveOrCreateUser(ctx context.Context, tenantID, appID string, externalID, anonID *string, now time.Time) (string, error) {
+	var id, status string
+	var mergedInto *string
+
+	if externalID != nil && *externalID != "" {
 		err := c.pg.QueryRow(ctx, `
 			INSERT INTO users (tenant_id, app_id, external_id, last_seen_at)
 			VALUES ($1, $2, $3, $4)
 			ON CONFLICT (app_id, external_id)
 			DO UPDATE SET last_seen_at = GREATEST(users.last_seen_at, EXCLUDED.last_seen_at), updated_at = now()
-			RETURNING id`,
-			tenantID, appID, *e.ExternalID, now).Scan(&id)
-		return id, err
+			RETURNING id, status, merged_into`,
+			tenantID, appID, *externalID, now).Scan(&id, &status, &mergedInto)
+		if err != nil {
+			return "", err
+		}
+	} else if anonID != nil && *anonID != "" {
+		err := c.pg.QueryRow(ctx, `
+			INSERT INTO users (tenant_id, app_id, anon_id, last_seen_at)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (app_id, anon_id)
+			DO UPDATE SET last_seen_at = GREATEST(users.last_seen_at, EXCLUDED.last_seen_at), updated_at = now()
+			RETURNING id, status, merged_into`,
+			tenantID, appID, *anonID, now).Scan(&id, &status, &mergedInto)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		return "", fmt.Errorf("식별자 없음")
 	}
-	err := c.pg.QueryRow(ctx, `
-		INSERT INTO users (tenant_id, app_id, anon_id, last_seen_at)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (app_id, anon_id)
-		DO UPDATE SET last_seen_at = GREATEST(users.last_seen_at, EXCLUDED.last_seen_at), updated_at = now()
-		RETURNING id`,
-		tenantID, appID, *e.AnonID, now).Scan(&id)
-	return id, err
+
+	if status == "merged" && mergedInto != nil {
+		return *mergedInto, nil
+	}
+	return id, nil
 }
 
-// upsertDevice는 SDK가 발급한 device_id를 PK로 upsert한다. 토큰 등록은 별도 엔드포인트(S2).
+// upsertDevice는 SDK가 발급한 device_id를 PK로 upsert한다 (토큰은 devices/token 경로 전용).
 func (c *Consumer) upsertDevice(ctx context.Context, tenantID, appID, userID string, d *DeviceInfo) (string, error) {
 	if d == nil {
 		return "00000000-0000-0000-0000-000000000000", nil
@@ -183,10 +273,27 @@ func (c *Consumer) upsertDevice(ctx context.Context, tenantID, appID, userID str
 	return id, err
 }
 
-func (c *Consumer) insertEvents(ctx context.Context, rows [][]any) error {
-	batch, err := c.ch.PrepareBatch(ctx, `
-		INSERT INTO events (tenant_id, app_id, event_name, user_id, device_id,
-		                    properties, client_ts, server_ts, insert_id)`)
+func (c *Consumer) flushCH(ctx context.Context, rows *chRows) error {
+	if err := c.insertCH(ctx, `INSERT INTO events (tenant_id, app_id, event_name, user_id, device_id,
+		properties, client_ts, server_ts, insert_id)`, rows.events); err != nil {
+		return fmt.Errorf("CH events insert: %w", err)
+	}
+	if err := c.insertCH(ctx, `INSERT INTO attr_changes (tenant_id, app_id, user_id, attr_key,
+		old_value, new_value, change_kind, source, changed_at, request_id)`, rows.changes); err != nil {
+		return fmt.Errorf("CH attr_changes insert: %w", err)
+	}
+	if err := c.insertCH(ctx, `INSERT INTO ingestion_errors (tenant_id, app_id, endpoint, reason,
+		detail, payload, request_id, received_at)`, rows.errors); err != nil {
+		return fmt.Errorf("CH ingestion_errors insert: %w", err)
+	}
+	return nil
+}
+
+func (c *Consumer) insertCH(ctx context.Context, insertSQL string, rows [][]any) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	batch, err := c.ch.PrepareBatch(ctx, insertSQL)
 	if err != nil {
 		return err
 	}

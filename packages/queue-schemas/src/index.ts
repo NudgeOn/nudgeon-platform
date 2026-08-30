@@ -95,6 +95,8 @@ export interface IngestBatchPayload {
   token?: {
     push_token: string;
     os_permission?: "granted" | "denied" | "undetermined";
+    anon_id?: string | null;
+    external_id?: string | null;
   };
   user_delete?: { external_id: string };
 }

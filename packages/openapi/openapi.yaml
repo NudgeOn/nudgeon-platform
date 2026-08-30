@@ -130,7 +130,100 @@ paths:
                   request_id: { type: string, format: uuid }
         "400": { description: 스키마 오류 }
         "401": { description: 키 무효 }
+  /v1/identify:
+    post:
+      operationId: identify
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [external_id]
+              properties:
+                external_id: { type: string, maxLength: 256 }
+                anon_id: { type: [string, "null"], format: uuid }
+                attributes: { type: object, description: "키 128자·값 1KB 상한, null = unset" }
+                device: { $ref: "#/components/schemas/Device" }
+      responses:
+        "202": { description: 병합 큐 적재 }
+        "400": { description: 스키마 오류 }
+        "401": { description: 키 무효 }
+  /v1/users/attributes:
+    post:
+      operationId: updateAttributes
+      description: Server Key 전용
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [updates]
+              properties:
+                updates:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [external_id, attributes]
+                    properties:
+                      external_id: { type: string }
+                      attributes: { type: object }
+      responses:
+        "202": { description: 큐 적재 }
+        "401": { description: 키 무효 (SDK Key는 403 아님 401) }
+  /v1/devices/token:
+    post:
+      operationId: registerToken
+      description: SDK Key 전용
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device, push_token]
+              properties:
+                device: { $ref: "#/components/schemas/Device" }
+                push_token: { type: string }
+                os_permission: { type: string, enum: [granted, denied, undetermined] }
+                anon_id: { type: [string, "null"], format: uuid }
+                external_id: { type: [string, "null"] }
+      responses:
+        "202": { description: 큐 적재 }
+  /v1/users/{externalId}:
+    delete:
+      operationId: deleteUser
+      description: Server Key 전용 — 30일 내 완전 삭제 보장 경로의 진입점
+      security:
+        - apiKey: []
+      parameters:
+        - name: externalId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "202": { description: 삭제 큐 적재 }
 components:
+  schemas:
+    Device:
+      type: object
+      required: [device_id, platform]
+      properties:
+        device_id: { type: string, format: uuid }
+        platform: { type: string, enum: [ios, android] }
+        app_version: { type: string }
+        os_version: { type: string }
+        model: { type: string }
+        locale: { type: string }
   securitySchemes:
     apiKey:
       type: http

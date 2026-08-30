@@ -8,11 +8,37 @@ import (
 
 // IngestBatchPayload — packages/queue-schemas/schemas/ingest.batch.schema.json의 Go 표현.
 type IngestBatchPayload struct {
-	Endpoint  string       `json:"endpoint"`
-	RequestID string       `json:"request_id"`
-	APIKeyID  string       `json:"api_key_id,omitempty"`
-	Device    *DeviceInfo  `json:"device,omitempty"`
-	Events    []TrackEvent `json:"events,omitempty"`
+	Endpoint   string             `json:"endpoint"`
+	RequestID  string             `json:"request_id"`
+	APIKeyID   string             `json:"api_key_id,omitempty"`
+	Device     *DeviceInfo        `json:"device,omitempty"`
+	Events     []TrackEvent       `json:"events,omitempty"`
+	Identify   *IdentifyPayload   `json:"identify,omitempty"`
+	Attributes []AttrUpdate       `json:"attributes,omitempty"`
+	Token      *TokenPayload      `json:"token,omitempty"`
+	UserDelete *UserDeletePayload `json:"user_delete,omitempty"`
+}
+
+type IdentifyPayload struct {
+	ExternalID string         `json:"external_id"`
+	AnonID     *string        `json:"anon_id"`
+	Attributes map[string]any `json:"attributes,omitempty"`
+}
+
+type AttrUpdate struct {
+	ExternalID string         `json:"external_id"`
+	Attributes map[string]any `json:"attributes"`
+}
+
+type TokenPayload struct {
+	PushToken    string  `json:"push_token"`
+	OSPermission string  `json:"os_permission,omitempty"`
+	AnonID       *string `json:"anon_id"`
+	ExternalID   *string `json:"external_id"`
+}
+
+type UserDeletePayload struct {
+	ExternalID string `json:"external_id"`
 }
 
 type DeviceInfo struct {
@@ -50,6 +76,27 @@ func ParsePayload(raw json.RawMessage) (*IngestBatchPayload, error) {
 		}
 		if e.AnonID == nil && e.ExternalID == nil {
 			return nil, fmt.Errorf("ingest payload: events[%d] 식별자 누락", i)
+		}
+	}
+	switch p.Endpoint {
+	case "identify":
+		if p.Identify == nil || p.Identify.ExternalID == "" {
+			return nil, fmt.Errorf("identify payload: external_id 누락")
+		}
+	case "attributes":
+		if len(p.Attributes) == 0 {
+			return nil, fmt.Errorf("attributes payload: updates 누락")
+		}
+	case "devices_token":
+		if p.Token == nil || p.Token.PushToken == "" || p.Device == nil {
+			return nil, fmt.Errorf("devices_token payload: token/device 누락")
+		}
+		if p.Token.AnonID == nil && p.Token.ExternalID == nil {
+			return nil, fmt.Errorf("devices_token payload: 식별자 누락")
+		}
+	case "user_delete":
+		if p.UserDelete == nil || p.UserDelete.ExternalID == "" {
+			return nil, fmt.Errorf("user_delete payload: external_id 누락")
 		}
 	}
 	return &p, nil

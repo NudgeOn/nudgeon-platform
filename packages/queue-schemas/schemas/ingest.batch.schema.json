@@ -68,7 +68,9 @@
       "required": ["push_token"],
       "properties": {
         "push_token": { "type": "string", "minLength": 1 },
-        "os_permission": { "type": "string", "enum": ["granted", "denied", "undetermined"] }
+        "os_permission": { "type": "string", "enum": ["granted", "denied", "undetermined"] },
+        "anon_id": { "type": ["string", "null"], "format": "uuid" },
+        "external_id": { "type": ["string", "null"] }
       },
       "additionalProperties": false
     },
