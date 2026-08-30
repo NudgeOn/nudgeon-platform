@@ -10,6 +10,8 @@ import { IngestionService } from "./ingestion/ingestion.service";
 import { TrackController } from "./ingestion/track.controller";
 import { CredentialsController } from "./credentials/credentials.controller";
 import { TestPushController } from "./messaging/test-push.controller";
+import { MessageLogController } from "./messaging/message-log.controller";
+import { UsersController } from "./users/users.controller";
 import { SessionGuard } from "./auth/session.guard";
 import { AppsController } from "./apps/apps.controller";
 import { SegmentsController } from "./segments/segments.controller";
@@ -28,6 +30,8 @@ import { RateLimitService } from "./rate-limit/rate-limit.service";
     AppsController,
     SegmentsController,
     JourneysController,
+    MessageLogController,
+    UsersController,
   ],
   providers: [
     ApiKeyGuard,

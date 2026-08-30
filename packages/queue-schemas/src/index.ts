@@ -10,6 +10,8 @@ import { join } from "node:path";
 /** Redis Streams 키. 접근은 반드시 libqueue 경유 (CLAUDE.md 규칙 2). */
 export const STREAMS = {
   ingest: "stream:ingest",
+  /** 정규화 이벤트 (user_id 해석 후) — 트리거 매처가 구독 */
+  events: "stream:events",
   journeyEntry: "stream:journey.entry",
   journeyWake: "stream:journey.wake",
   dispatch: "stream:dispatch",
@@ -29,9 +31,17 @@ export const CONSUMER_GROUPS = {
   feedback: "cg:feedback",
 } as const;
 
+/** stream:events payload — 정규화된 단일 이벤트 (트리거 진입·이탈 매칭용) */
+export interface NormalizedEventPayload {
+  user_id: string;
+  event_name: string;
+  occurred_at: string;
+}
+
 /** 메시지 type — 파괴적 변경은 신규 type으로 (schema_ver 규칙) */
 export type MessageType =
   | "ingest.batch"
+  | "event.normalized"
   | "journey.enter"
   | "journey.wake"
   | "dispatch.fanout"

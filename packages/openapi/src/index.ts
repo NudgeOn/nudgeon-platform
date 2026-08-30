@@ -123,6 +123,30 @@ export class OndaClient {
       this.request<{ ok: true }>("DELETE", `/v1/apps/${appId}/journeys/${id}`),
   };
 
+  readonly messageLog = {
+    list: (appId: string, params?: { status?: string; journey_id?: string; limit?: number }) => {
+      const q = new URLSearchParams();
+      if (params?.status) q.set("status", params.status);
+      if (params?.journey_id) q.set("journey_id", params.journey_id);
+      if (params?.limit) q.set("limit", String(params.limit));
+      const qs = q.toString();
+      return this.request<MessageLogResponse>(
+        "GET",
+        `/v1/apps/${appId}/message-log${qs ? `?${qs}` : ""}`,
+      );
+    },
+  };
+
+  readonly users = {
+    search: (appId: string, q: string) =>
+      this.request<{ users: UserSearchResult[] }>(
+        "GET",
+        `/v1/apps/${appId}/users?q=${encodeURIComponent(q)}`,
+      ),
+    detail: (appId: string, id: string) =>
+      this.request<UserDetail>("GET", `/v1/apps/${appId}/users/${id}`),
+  };
+
   readonly credentials = {
     list: (appId: string) =>
       this.request<{ credentials: CredentialSummary[] }>(
@@ -214,6 +238,76 @@ export interface JourneyDetail extends JourneySummary {
 export interface JourneyValidation {
   issues: Array<{ level: "error" | "warning"; message: string; node_index?: number }>;
   estimated_count: number | null;
+}
+
+export interface MessageLogEntry {
+  message_id: string;
+  idempotency_key: string;
+  journey_id: string;
+  journey_version: number;
+  node_index: number;
+  campaign_ref: string;
+  user_id: string;
+  device_id: string;
+  channel: string;
+  status: string;
+  failure_class: string;
+  failure_detail: string;
+  sent_at: string;
+}
+
+export interface MessageLogResponse {
+  messages: MessageLogEntry[];
+  recent_hour: { total: number; failed: number; failure_rate: number };
+}
+
+export interface UserSearchResult {
+  id: string;
+  external_id: string | null;
+  email: string | null;
+  status: string;
+  last_seen_at: string | null;
+}
+
+export interface UserDetail {
+  user: {
+    id: string;
+    external_id: string | null;
+    std_attrs: Record<string, unknown>;
+    custom_attrs: Record<string, unknown>;
+    subscriptions: Record<string, unknown>;
+    status: string;
+    last_seen_at: string | null;
+    created_at: string;
+  };
+  devices: Array<{
+    id: string;
+    platform: string;
+    token_status: string;
+    os_permission: string;
+    has_token: boolean;
+    device_meta: Record<string, unknown>;
+    last_active_at: string | null;
+    updated_at: string;
+  }>;
+  journeys: Array<{
+    journey_id: string;
+    name: string;
+    journey_version: number;
+    current_node: number;
+    status: string;
+    next_wake_at: string | null;
+    entered_at: string;
+  }>;
+  events: Array<{ event_name: string; ts: string }>;
+  messages: Array<{
+    channel: string;
+    status: string;
+    failure_class: string;
+    failure_detail: string;
+    journey_id: string;
+    sent_at: string;
+  }>;
 }
 
 export interface FcmCredentialInput {

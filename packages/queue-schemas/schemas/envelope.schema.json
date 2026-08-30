@@ -9,7 +9,7 @@
     "id": { "type": "string", "format": "uuid" },
     "type": {
       "type": "string",
-      "enum": ["ingest.batch", "journey.enter", "journey.wake", "dispatch.fanout", "send.push", "feedback.token"]
+      "enum": ["ingest.batch", "event.normalized", "journey.enter", "journey.wake", "dispatch.fanout", "send.push", "feedback.token"]
     },
     "schema_ver": { "type": "integer", "minimum": 1 },
     "tenant_id": { "type": "string", "format": "uuid" },

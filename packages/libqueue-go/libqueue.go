@@ -18,6 +18,7 @@ import (
 // 스트림 키 — packages/queue-schemas/src/index.ts의 STREAMS와 동일해야 한다.
 const (
 	StreamIngest       = "stream:ingest"
+	StreamEvents       = "stream:events" // 정규화 이벤트 (user_id 해석 후)
 	StreamJourneyEntry = "stream:journey.entry"
 	StreamJourneyWake  = "stream:journey.wake"
 	StreamDispatch     = "stream:dispatch"

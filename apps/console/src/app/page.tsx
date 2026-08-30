@@ -56,6 +56,12 @@ export default function DashboardPage() {
           <Button variant="outline" onClick={() => router.push("/journeys")}>
             캠페인 · 저니
           </Button>
+          <Button variant="outline" onClick={() => router.push("/logs")}>
+            메시지 로그
+          </Button>
+          <Button variant="outline" onClick={() => router.push("/users")}>
+            유저 검색
+          </Button>
         </CardContent>
       </Card>
     </main>

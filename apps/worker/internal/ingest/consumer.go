@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -27,25 +28,27 @@ const (
 )
 
 type Consumer struct {
-	queue  *libqueue.Consumer
-	dedup  *Deduper
-	pg     *pgxpool.Pool
-	ch     driver.Conn
-	clk    clock.Clock
-	logger *slog.Logger
+	queue    *libqueue.Consumer
+	producer *libqueue.Producer // 정규화 이벤트 발행 (stream:events)
+	dedup    *Deduper
+	pg       *pgxpool.Pool
+	ch       driver.Conn
+	clk      clock.Clock
+	logger   *slog.Logger
 
 	lastReclaim time.Time
 }
 
 func NewConsumer(
 	queue *libqueue.Consumer,
+	producer *libqueue.Producer,
 	dedup *Deduper,
 	pg *pgxpool.Pool,
 	ch driver.Conn,
 	clk clock.Clock,
 	logger *slog.Logger,
 ) *Consumer {
-	return &Consumer{queue: queue, dedup: dedup, pg: pg, ch: ch, clk: clk, logger: logger}
+	return &Consumer{queue: queue, producer: producer, dedup: dedup, pg: pg, ch: ch, clk: clk, logger: logger}
 }
 
 // Run은 소비 루프를 돈다. ctx 취소로 종료.
@@ -100,6 +103,16 @@ type chRows struct {
 	errors  [][]any
 	// affected — 이 배치에서 상태가 바뀐 유저(미러 재생성 대상). map으로 중복 제거.
 	affected map[string]struct{}
+	// normEvents — 정규화 이벤트(트리거 매처용). flush 성공 후 발행.
+	normEvents []normEvent
+}
+
+type normEvent struct {
+	tenantID  string
+	appID     string
+	userID    string
+	eventName string
+	serverTS  time.Time
 }
 
 func newCHRows() *chRows {
@@ -134,7 +147,32 @@ func (c *Consumer) processBatch(ctx context.Context, msgs []libqueue.Message) er
 	if err := c.flushCH(ctx, rows); err != nil {
 		return err
 	}
+	// 정규화 이벤트 발행 (트리거 매처용) — flush 성공 후. 발행 실패는 로그만(수집은 이미 확정).
+	c.publishNormEvents(ctx, rows.normEvents)
 	return c.queue.Ack(ctx, ackIDs...)
+}
+
+func (c *Consumer) publishNormEvents(ctx context.Context, events []normEvent) {
+	for _, e := range events {
+		payload, _ := json.Marshal(map[string]any{
+			"user_id":     e.userID,
+			"event_name":  e.eventName,
+			"occurred_at": e.serverTS,
+		})
+		env := &libqueue.Envelope{
+			ID:         uuid.NewString(),
+			Type:       "event.normalized",
+			SchemaVer:  1,
+			TenantID:   e.tenantID,
+			AppID:      e.appID,
+			OccurredAt: c.clk.Now(),
+			TraceID:    uuid.NewString(),
+			Payload:    json.RawMessage(payload),
+		}
+		if _, err := c.producer.Publish(ctx, libqueue.StreamEvents, env); err != nil {
+			c.logger.Error("정규화 이벤트 발행 실패", "err", err, "event", e.eventName)
+		}
+	}
 }
 
 func (c *Consumer) handle(ctx context.Context, tenantID, appID string, p *IngestBatchPayload, rows *chRows) error {
@@ -246,6 +284,9 @@ func (c *Consumer) handleTrack(ctx context.Context, tenantID, appID string, p *I
 			tenantID, appID, e.Event, userID, deviceID, props, e.ClientTS, e.ServerTS, e.InsertID,
 		})
 		rows.touch(userID)
+		rows.normEvents = append(rows.normEvents, normEvent{
+			tenantID: tenantID, appID: appID, userID: userID, eventName: e.Event, serverTS: e.ServerTS,
+		})
 	}
 	return nil
 }
