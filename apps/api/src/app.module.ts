@@ -13,6 +13,7 @@ import { TestPushController } from "./messaging/test-push.controller";
 import { MessageLogController } from "./messaging/message-log.controller";
 import { UsersController } from "./users/users.controller";
 import { AnalyticsController } from "./analytics/analytics.controller";
+import { DataController } from "./data/data.controller";
 import { SessionGuard } from "./auth/session.guard";
 import { AppsController } from "./apps/apps.controller";
 import { AppSettingsController } from "./apps/app-settings.controller";
@@ -36,6 +37,7 @@ import { RateLimitService } from "./rate-limit/rate-limit.service";
     MessageLogController,
     UsersController,
     AnalyticsController,
+    DataController,
   ],
   providers: [
     ApiKeyGuard,

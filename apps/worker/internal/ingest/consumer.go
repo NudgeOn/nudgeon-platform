@@ -240,19 +240,15 @@ func (c *Consumer) handle(ctx context.Context, tenantID, appID string, p *Ingest
 		return nil
 
 	case "user_delete":
-		// S2: 삭제 마킹만. 완전 익명화 + CH mutation은 S3 (D-8)
-		var deletedID string
-		err := c.pg.QueryRow(ctx, `
-			UPDATE users SET status = 'deleted', updated_at = now()
-			 WHERE tenant_id = $1 AND app_id = $2 AND external_id = $3 AND status = 'active'
-			 RETURNING id`,
-			tenantID, appID, p.UserDelete.ExternalID).Scan(&deletedID)
+		// D-8: PG 즉시 익명화 + 디바이스 토큰 폐기, CH는 비동기 mutation.
+		deletedID, err := c.anonymizeUser(ctx, tenantID, appID, p.UserDelete.ExternalID)
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				return nil // 대상 없음 — 멱등
-			}
 			return err
 		}
+		if deletedID == "" {
+			return nil // 대상 없음 — 멱등
+		}
+		c.deleteFromClickHouse(ctx, tenantID, appID, deletedID)
 		rows.touch(deletedID) // 미러 status=deleted 반영 → 평가 제외
 		return nil
 
@@ -289,6 +285,55 @@ func (c *Consumer) handleTrack(ctx context.Context, tenantID, appID string, p *I
 		})
 	}
 	return nil
+}
+
+// anonymizeUser는 PG 프로필을 즉시 익명화한다 (PRD-01 8장):
+// PII(std/custom 속성) 제거, external_id·anon_id null화, 디바이스 토큰 폐기, status=deleted.
+// 반환: 삭제된 유저 id (없으면 빈 문자열).
+func (c *Consumer) anonymizeUser(ctx context.Context, tenantID, appID, externalID string) (string, error) {
+	tx, err := c.pg.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var id string
+	err = tx.QueryRow(ctx, `
+		UPDATE users SET
+		  status = 'deleted', external_id = NULL, anon_id = NULL,
+		  std_attrs = '{}', custom_attrs = '{}', subscriptions = '{}',
+		  updated_at = now()
+		 WHERE tenant_id = $1 AND app_id = $2 AND external_id = $3 AND status = 'active'
+		 RETURNING id`,
+		tenantID, appID, externalID).Scan(&id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	// 디바이스 토큰 폐기 (이후 발송 대상에서 제외)
+	if _, err := tx.Exec(ctx, `
+		UPDATE devices SET push_token = NULL, token_status = 'invalid', updated_at = now()
+		 WHERE user_id = $1`, id); err != nil {
+		return "", err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+// deleteFromClickHouse는 CH의 유저 관련 행을 비동기 mutation으로 삭제한다.
+// ALTER DELETE는 무거우므로 실패해도 수집을 막지 않는다(30일 보장은 재시도 잡 — S8 여지).
+func (c *Consumer) deleteFromClickHouse(ctx context.Context, tenantID, appID, userID string) {
+	tables := []string{"events", "attr_changes", "message_log"}
+	for _, tbl := range tables {
+		q := "ALTER TABLE onda." + tbl + " DELETE WHERE tenant_id = ? AND app_id = ? AND user_id = ?"
+		if err := c.ch.Exec(ctx, q, tenantID, appID, userID); err != nil {
+			c.logger.Error("CH 삭제 mutation 실패", "table", tbl, "user", userID, "err", err)
+		}
+	}
 }
 
 // lookupAnonUserID는 anon_id에 해당하는 (tombstone 포함) 유저 id를 찾는다. 없으면 빈 문자열.

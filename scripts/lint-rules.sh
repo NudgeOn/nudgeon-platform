@@ -39,11 +39,13 @@ while IFS= read -r f; do
 done < <(src_files)
 
 # 규칙 3: Go에서 time.Now() 직접 호출 금지 (주입 Clock 강제)
-# 예외: clock 패키지 자신, *_test.go
+# 예외: clock 패키지 자신, *_test.go, 조립 지점(cmd/worker),
+#       시간가속 불필요한 일회성 CLI 운영 도구(cmd/seed·cmd/loadgen)
 while IFS= read -r f; do
   [ -z "$f" ] && continue
   case "$f" in
     *ated/*|*/clock/*|*_test.go) continue ;;
+    */cmd/worker/*|*/cmd/seed/*|*/cmd/loadgen/*) continue ;;
   esac
   if [[ "$f" == *.go ]] && grep -n 'time\.Now()' "$f" >/dev/null; then
     echo "RULE-3 위반: $f — time.Now() 직접 호출 (clock.Clock 주입 사용)"

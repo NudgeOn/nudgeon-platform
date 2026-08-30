@@ -123,6 +123,21 @@ export class OndaClient {
       this.request<{ ok: true }>("DELETE", `/v1/apps/${appId}/journeys/${id}`),
   };
 
+  readonly data = {
+    ingestionErrors: (appId: string) =>
+      this.request<{ errors: IngestionErrorEntry[] }>(
+        "GET",
+        `/v1/apps/${appId}/data/ingestion-errors`,
+      ),
+    attributes: (appId: string) =>
+      this.request<{ attributes: AttributeEntry[] }>("GET", `/v1/apps/${appId}/data/attributes`),
+    deleteAttribute: (appId: string, key: string, force?: boolean) =>
+      this.request<{ deleted: boolean; referencing_segments?: Array<{ id: string; name: string }> }>(
+        "DELETE",
+        `/v1/apps/${appId}/data/attributes/${encodeURIComponent(key)}${force ? "?force=true" : ""}`,
+      ),
+  };
+
   readonly analytics = {
     dashboard: (appId: string) =>
       this.request<DashboardData>("GET", `/v1/apps/${appId}/dashboard`),
@@ -252,6 +267,23 @@ export interface JourneyDetail extends JourneySummary {
 export interface JourneyValidation {
   issues: Array<{ level: "error" | "warning"; message: string; node_index?: number }>;
   estimated_count: number | null;
+}
+
+export interface IngestionErrorEntry {
+  endpoint: string;
+  reason: string;
+  detail: string;
+  payload: string;
+  request_id: string;
+  received_at: string;
+}
+
+export interface AttributeEntry {
+  key: string;
+  type: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  seg_ref_count: number;
 }
 
 export interface DashboardData {

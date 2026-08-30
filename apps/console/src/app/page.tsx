@@ -89,6 +89,9 @@ export default function DashboardPage() {
           <Button variant="outline" onClick={() => router.push("/users")}>
             유저 검색
           </Button>
+          <Button variant="outline" onClick={() => router.push("/data")}>
+            데이터
+          </Button>
           <Button variant="outline" onClick={() => router.push("/settings")}>
             앱 설정
           </Button>
