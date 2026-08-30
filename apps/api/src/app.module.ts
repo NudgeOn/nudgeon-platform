@@ -8,12 +8,22 @@ import { AuthService } from "./auth/auth.service";
 import { SessionService } from "./auth/session.service";
 import { IngestionService } from "./ingestion/ingestion.service";
 import { TrackController } from "./ingestion/track.controller";
+import { CredentialsController } from "./credentials/credentials.controller";
+import { TestPushController } from "./messaging/test-push.controller";
+import { SessionGuard } from "./auth/session.guard";
 
 @Module({
   imports: [InfraModule],
-  controllers: [HealthController, AuthController, TrackController],
+  controllers: [
+    HealthController,
+    AuthController,
+    TrackController,
+    CredentialsController,
+    TestPushController,
+  ],
   providers: [
     ApiKeyGuard,
+    SessionGuard,
     ApiKeyService,
     AuthService,
     SessionService,

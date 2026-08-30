@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onda.dev/schemas/queue/send.push.json",
+  "title": "SendPushPayload",
+  "description": "send.push 스트림 payload (DEV-MAIN §5). idempotency_key = (journey_id, version, user_id, node_index, device_id) — PRD-03 4.3 v0.2. 테스트 발송은 test: 접두 키 사용.",
+  "type": "object",
+  "required": ["idempotency_key", "user_id", "device_id", "push_token", "platform", "content", "category"],
+  "properties": {
+    "idempotency_key": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "user_id": { "type": "string", "format": "uuid" },
+    "device_id": { "type": "string", "format": "uuid" },
+    "push_token": { "type": "string", "minLength": 1 },
+    "platform": { "type": "string", "enum": ["ios", "android"] },
+    "content": {
+      "type": "object",
+      "required": ["push"],
+      "properties": {
+        "push": {
+          "type": "object",
+          "required": ["title", "body"],
+          "properties": {
+            "title": { "type": "string", "maxLength": 256 },
+            "body": { "type": "string", "maxLength": 2048 },
+            "image_url": { "type": "string" },
+            "deep_link": { "type": "string" },
+            "data": { "type": "object", "additionalProperties": { "type": "string" } }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "category": { "type": "string", "enum": ["marketing", "transactional"] },
+    "journey_id": { "type": ["string", "null"], "format": "uuid" },
+    "journey_version": { "type": ["integer", "null"] },
+    "node_index": { "type": ["integer", "null"] },
+    "campaign_ref": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

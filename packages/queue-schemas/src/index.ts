@@ -101,6 +101,29 @@ export interface IngestBatchPayload {
   user_delete?: { external_id: string };
 }
 
+/** send.push 스트림 payload — 멱등 키에 device_id 포함 (PRD-03 4.3 v0.2) */
+export interface SendPushPayload {
+  idempotency_key: string;
+  user_id: string;
+  device_id: string;
+  push_token: string;
+  platform: "ios" | "android";
+  content: {
+    push: {
+      title: string;
+      body: string;
+      image_url?: string;
+      deep_link?: string;
+      data?: Record<string, string>;
+    };
+  };
+  category: "marketing" | "transactional";
+  journey_id?: string | null;
+  journey_version?: number | null;
+  node_index?: number | null;
+  campaign_ref?: string | null;
+}
+
 function loadSchema(name: string): Record<string, unknown> {
   // dist/index.js 기준 ../schemas — package files에 schemas/ 포함
   const path = join(__dirname, "..", "schemas", name);
@@ -112,4 +135,5 @@ export const envelopeSchema = loadSchema("envelope.schema.json");
 /** type별 payload 스키마. 새 메시지 type 추가 시 여기와 schemas/에 함께 등록한다. */
 export const payloadSchemas: Partial<Record<MessageType, Record<string, unknown>>> = {
   "ingest.batch": loadSchema("ingest.batch.schema.json"),
+  "send.push": loadSchema("send.push.schema.json"),
 };

@@ -15,6 +15,8 @@ CREATE TYPE device_platform AS ENUM ('ios', 'android');
 CREATE TYPE token_status AS ENUM ('active', 'invalid', 'expired');
 CREATE TYPE os_permission AS ENUM ('granted', 'denied', 'undetermined');
 CREATE TYPE attr_type AS ENUM ('string', 'number', 'boolean', 'datetime', 'string_array');
+CREATE TYPE channel_kind AS ENUM ('push_fcm', 'push_apns');  -- v1.5: alimtalk, sms, email
+CREATE TYPE credential_status AS ENUM ('unverified', 'verified', 'error');
 
 -- ---------------------------------------------------------------------------
 -- 테넌트 · 계정 (DEV-sub-07)
@@ -104,6 +106,27 @@ CREATE TABLE api_keys (
   revoked_at    timestamptz
 );
 CREATE INDEX api_keys_app_idx ON api_keys (app_id, kind, status);
+
+-- ---------------------------------------------------------------------------
+-- 발송 크리덴셜 (PRD-04 3장, DEV-sub-04)
+-- 봉투 암호화: ciphertext = AES-256-GCM(DEK, payload JSON),
+--              dek_wrapped = AES-256-GCM(마스터키, DEK). 마스터키는 KMS/로컬 파일.
+-- 복호화는 발송 워커 런타임에서만. 콘솔·API 응답은 항상 마스킹.
+-- ---------------------------------------------------------------------------
+CREATE TABLE credentials (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id        uuid NOT NULL REFERENCES tenants(id),
+  app_id           uuid NOT NULL REFERENCES apps(id),
+  kind             channel_kind NOT NULL,
+  ciphertext       bytea NOT NULL,
+  dek_wrapped      bytea NOT NULL,
+  status           credential_status NOT NULL DEFAULT 'unverified',
+  status_detail    text,                     -- 검증 실패 사유 (콘솔 구체 표시 — U-2)
+  last_verified_at timestamptz,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (app_id, kind)                      -- 앱당 채널 크리덴셜 1개 (교체 = upsert)
+);
 
 -- ---------------------------------------------------------------------------
 -- 유저 · 디바이스 (PRD-01 5.1)

@@ -19,6 +19,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/ondahq/onda/apps/worker/internal/channel"
 	"github.com/ondahq/onda/apps/worker/internal/clock"
 	"github.com/ondahq/onda/apps/worker/internal/config"
 	"github.com/ondahq/onda/apps/worker/internal/ingest"
@@ -84,8 +85,9 @@ func run(role string, logger *slog.Logger) error {
 
 	has := func(r string) bool { return role == "all" || role == r }
 
+	hostname, _ := os.Hostname()
+
 	if has("ingest-consumer") {
-		hostname, _ := os.Hostname()
 		consumer := ingest.NewConsumer(
 			libqueue.NewConsumer(rdb, libqueue.StreamIngest, libqueue.GroupIngest, "ingest-"+hostname),
 			ingest.NewDeduper(rdb),
@@ -93,9 +95,29 @@ func run(role string, logger *slog.Logger) error {
 		)
 		g.Go(func() error { return consumer.Run(gctx) })
 	}
-	for _, stub := range []string{"scheduler", "trigger-matcher", "segment", "channel"} {
+
+	if has("channel") {
+		masterKey, err := channel.LoadMasterKey()
+		if err != nil {
+			if role == "channel" {
+				return fmt.Errorf("channel 역할은 마스터키 필수: %w", err)
+			}
+			logger.Warn("마스터키 미설정 — channel 역할 비활성 (ONDA_MASTER_KEY 설정 필요)", "err", err)
+		} else {
+			plugin := channel.NewPushPlugin(clk)
+			verifier := channel.NewVerifier(pg, plugin, masterKey, logger.With("component", "credential-verifier"))
+			worker := channel.NewWorker(
+				libqueue.NewConsumer(rdb, libqueue.StreamSendPush, libqueue.GroupChannel, "channel-"+hostname),
+				rdb, pg, ch, plugin, masterKey, clk, logger.With("component", "channel"),
+			)
+			g.Go(func() error { return verifier.Run(gctx) })
+			g.Go(func() error { return worker.Run(gctx) })
+		}
+	}
+
+	for _, stub := range []string{"scheduler", "trigger-matcher", "segment"} {
 		if has(stub) && role != "all" {
-			logger.Warn("role 미구현 — S3~S6 예정", "role", stub)
+			logger.Warn("role 미구현 — S3~S5 예정", "role", stub)
 		}
 	}
 
@@ -105,7 +127,7 @@ func run(role string, logger *slog.Logger) error {
 
 func roleList(role string) string {
 	if role == "all" {
-		return strings.Join([]string{"ingest-consumer"}, ",") + " (+미구현 stub 생략)"
+		return strings.Join([]string{"ingest-consumer", "channel"}, ",") + " (+미구현 stub 생략)"
 	}
 	return role
 }
