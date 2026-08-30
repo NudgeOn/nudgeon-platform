@@ -103,6 +103,7 @@ CREATE TABLE api_keys (
   grace_expires_at timestamptz,
   last_used_at  timestamptz,
   created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now(),
   revoked_at    timestamptz
 );
 CREATE INDEX api_keys_app_idx ON api_keys (app_id, kind, status);

@@ -11,6 +11,9 @@ import { TrackController } from "./ingestion/track.controller";
 import { CredentialsController } from "./credentials/credentials.controller";
 import { TestPushController } from "./messaging/test-push.controller";
 import { SessionGuard } from "./auth/session.guard";
+import { AppsController } from "./apps/apps.controller";
+import { RateLimitGuard } from "./rate-limit/rate-limit.guard";
+import { RateLimitService } from "./rate-limit/rate-limit.service";
 
 @Module({
   imports: [InfraModule],
@@ -20,10 +23,13 @@ import { SessionGuard } from "./auth/session.guard";
     TrackController,
     CredentialsController,
     TestPushController,
+    AppsController,
   ],
   providers: [
     ApiKeyGuard,
     SessionGuard,
+    RateLimitGuard,
+    RateLimitService,
     ApiKeyService,
     AuthService,
     SessionService,

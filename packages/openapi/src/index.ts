@@ -62,4 +62,90 @@ export class OndaClient {
     logout: () => this.request<{ ok: true }>("POST", "/v1/auth/logout"),
     me: () => this.request<MeResponse>("GET", "/v1/auth/me"),
   };
+
+  readonly apps = {
+    list: () => this.request<{ apps: AppSummary[] }>("GET", "/v1/apps"),
+    keys: (appId: string) =>
+      this.request<{ keys: ApiKeySummary[] }>("GET", `/v1/apps/${appId}/keys`),
+    rotateSdkKey: (appId: string, keyId: string) =>
+      this.request<{ sdk_key: string; grace_days: number }>(
+        "POST",
+        `/v1/apps/${appId}/keys/${keyId}/rotate`,
+      ),
+    createServerKey: (appId: string) =>
+      this.request<{ id: string; server_key: string }>("POST", `/v1/apps/${appId}/keys`),
+    revokeKey: (appId: string, keyId: string) =>
+      this.request<{ ok: true }>("DELETE", `/v1/apps/${appId}/keys/${keyId}`),
+    ingestStatus: (appId: string) =>
+      this.request<IngestStatus>("GET", `/v1/apps/${appId}/ingest-status`),
+    testPush: (appId: string, input: { external_id: string; title: string; body: string }) =>
+      this.request<{ queued: number; test_run_id: string }>(
+        "POST",
+        `/v1/apps/${appId}/test-push`,
+        input,
+      ),
+  };
+
+  readonly credentials = {
+    list: (appId: string) =>
+      this.request<{ credentials: CredentialSummary[] }>(
+        "GET",
+        `/v1/apps/${appId}/credentials`,
+      ),
+    upsert: (appId: string, input: FcmCredentialInput | ApnsCredentialInput) =>
+      this.request<{ id: string; kind: string; status: string }>(
+        "PUT",
+        `/v1/apps/${appId}/credentials`,
+        input,
+      ),
+    remove: (appId: string, kind: "push_fcm" | "push_apns") =>
+      this.request<{ ok: true }>("DELETE", `/v1/apps/${appId}/credentials/${kind}`),
+  };
+}
+
+export interface AppSummary {
+  id: string;
+  name: string;
+  timezone: string;
+  created_at: string;
+}
+
+export interface ApiKeySummary {
+  id: string;
+  kind: "sdk" | "server";
+  scope: "full" | "ingest_only";
+  prefix: string;
+  status: "active" | "rotating" | "revoked";
+  grace_expires_at: string | null;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+export interface IngestStatus {
+  events_total: number;
+  last_event_at: string | null;
+}
+
+export interface CredentialSummary {
+  id: string;
+  kind: "push_fcm" | "push_apns";
+  status: "unverified" | "verified" | "error";
+  status_detail: string | null;
+  last_verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FcmCredentialInput {
+  kind: "push_fcm";
+  service_account: Record<string, unknown>;
+}
+
+export interface ApnsCredentialInput {
+  kind: "push_apns";
+  p8: string;
+  key_id: string;
+  team_id: string;
+  bundle_id: string;
+  environment?: "production" | "sandbox";
 }

@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import type { ZodSchema } from "zod";
 import { ApiKeyGuard, RequireApiKey, type AuthedRequest } from "../auth/api-key.guard";
+import { RateLimitGuard } from "../rate-limit/rate-limit.guard";
 import { IngestionService } from "./ingestion.service";
 import {
   attributesBodySchema,
@@ -25,9 +26,9 @@ function parse<T>(schema: ZodSchema<T>, body: unknown): T {
   return parsed.data;
 }
 
-/** Ingestion API 5종 (PRD-01 6.1) */
+/** Ingestion API 5종 (PRD-01 6.1). 가드 순서: 키 인증 → rate limit (3계층) */
 @Controller("v1")
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyGuard, RateLimitGuard)
 export class TrackController {
   constructor(private readonly ingestion: IngestionService) {}
 

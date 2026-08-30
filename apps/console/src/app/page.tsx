@@ -43,15 +43,13 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>온보딩 위저드</CardTitle>
+          <CardTitle>시작하기</CardTitle>
           <CardDescription>
-            S2에서 열립니다 — SDK 설치 → 크리덴셜 등록 → 첫 이벤트 감지 → 테스트 발송 (PRD-05 3.1)
+            SDK Key → 크리덴셜 등록 → 첫 이벤트 감지 → 테스트 발송 (4단계)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            지금은 가입 시 발급된 SDK Key로 <code>POST /v1/track</code> 수집을 시작할 수 있습니다.
-          </p>
+          <Button onClick={() => router.push("/onboarding")}>온보딩 위저드 열기</Button>
         </CardContent>
       </Card>
     </main>
