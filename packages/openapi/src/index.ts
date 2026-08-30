@@ -86,6 +86,21 @@ export class OndaClient {
       ),
   };
 
+  readonly segments = {
+    list: (appId: string) =>
+      this.request<{ segments: SegmentSummary[] }>("GET", `/v1/apps/${appId}/segments`),
+    get: (appId: string, id: string) =>
+      this.request<SegmentDetail>("GET", `/v1/apps/${appId}/segments/${id}`),
+    create: (appId: string, input: { name: string; definition: unknown }) =>
+      this.request<{ id: string }>("POST", `/v1/apps/${appId}/segments`, input),
+    update: (appId: string, id: string, input: { name: string; definition: unknown }) =>
+      this.request<{ ok: true }>("PATCH", `/v1/apps/${appId}/segments/${id}`, input),
+    remove: (appId: string, id: string) =>
+      this.request<{ ok: true }>("DELETE", `/v1/apps/${appId}/segments/${id}`),
+    preview: (appId: string, input: { definition: unknown; category?: string }) =>
+      this.request<SegmentPreview>("POST", `/v1/apps/${appId}/segments/preview`, input),
+  };
+
   readonly credentials = {
     list: (appId: string) =>
       this.request<{ credentials: CredentialSummary[] }>(
@@ -134,6 +149,31 @@ export interface CredentialSummary {
   last_verified_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface SegmentSummary {
+  id: string;
+  name: string;
+  status: "active" | "broken";
+  status_detail: string | null;
+  last_count: number | null;
+  last_evaluated_at: string | null;
+  updated_at: string;
+}
+
+export interface SegmentDetail {
+  id: string;
+  name: string;
+  definition: unknown;
+  status: "active" | "broken";
+  status_detail: string | null;
+  last_count: number | null;
+  updated_at: string;
+}
+
+export interface SegmentPreview {
+  approx_count: number;
+  sample: Array<{ user_id: string; external_id: string | null; platforms: string[] }>;
 }
 
 export interface FcmCredentialInput {

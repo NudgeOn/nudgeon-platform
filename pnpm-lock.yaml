@@ -32,6 +32,9 @@ importers:
       '@onda/queue-schemas':
         specifier: workspace:*
         version: link:../../packages/queue-schemas
+      '@onda/segment-dsl':
+        specifier: workspace:*
+        version: link:../../packages/segment-dsl
       argon2:
         specifier: ^0.41.0
         version: 0.41.1
@@ -84,6 +87,9 @@ importers:
       '@onda/api-client':
         specifier: workspace:*
         version: link:../../packages/openapi
+      '@onda/segment-dsl':
+        specifier: workspace:*
+        version: link:../../packages/segment-dsl
       '@tanstack/react-query':
         specifier: ^5.66.0
         version: 5.102.8(react@19.2.8)
@@ -165,7 +171,14 @@ importers:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)
 
-  packages/segment-dsl: {}
+  packages/segment-dsl:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)
 
 packages:
 

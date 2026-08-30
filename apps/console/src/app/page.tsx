@@ -48,8 +48,11 @@ export default function DashboardPage() {
             SDK Key → 크리덴셜 등록 → 첫 이벤트 감지 → 테스트 발송 (4단계)
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex gap-2">
           <Button onClick={() => router.push("/onboarding")}>온보딩 위저드 열기</Button>
+          <Button variant="outline" onClick={() => router.push("/segments")}>
+            세그먼트
+          </Button>
         </CardContent>
       </Card>
     </main>

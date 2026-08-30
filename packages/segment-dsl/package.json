@@ -2,12 +2,20 @@
   "name": "@onda/segment-dsl",
   "version": "0.1.0",
   "private": true,
-  "description": "세그먼트 DSL JSON Schema + 골든 테스트 케이스 (언어 중립 — S3 본격 구현)",
+  "description": "세그먼트 DSL 스키마 + 컴파일러(TS) + 언어 중립 골든 케이스. Go 컴파일러와 골든으로 정합 검증.",
   "license": "MIT",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "schema", "golden"],
   "scripts": {
-    "build": "echo 'schema-only package'",
-    "typecheck": "echo 'schema-only package'",
-    "test": "echo 'golden suite는 S3'",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
     "lint": "echo 'no lint yet'"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }

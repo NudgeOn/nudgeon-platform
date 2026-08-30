@@ -6,11 +6,13 @@ package ingest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ondahq/onda/apps/worker/internal/clock"
@@ -96,10 +98,22 @@ type chRows struct {
 	events  [][]any
 	changes [][]any
 	errors  [][]any
+	// affected — 이 배치에서 상태가 바뀐 유저(미러 재생성 대상). map으로 중복 제거.
+	affected map[string]struct{}
+}
+
+func newCHRows() *chRows {
+	return &chRows{affected: map[string]struct{}{}}
+}
+
+func (r *chRows) touch(userID string) {
+	if userID != "" && userID != "00000000-0000-0000-0000-000000000000" {
+		r.affected[userID] = struct{}{}
+	}
 }
 
 func (c *Consumer) processBatch(ctx context.Context, msgs []libqueue.Message) error {
-	rows := &chRows{}
+	rows := newCHRows()
 	ackIDs := make([]string, 0, len(msgs))
 
 	for _, m := range msgs {
@@ -141,6 +155,13 @@ func (c *Consumer) handle(ctx context.Context, tenantID, appID string, p *Ingest
 				return err
 			}
 		}
+		rows.touch(userID)
+		// 병합으로 tombstone된 anon도 미러 상태(merged)를 갱신해야 평가에서 빠진다
+		if p.Identify.AnonID != nil {
+			if anonID := c.lookupAnonUserID(ctx, appID, *p.Identify.AnonID); anonID != "" {
+				rows.touch(anonID)
+			}
+		}
 		return nil
 
 	case "attributes":
@@ -165,6 +186,7 @@ func (c *Consumer) handle(ctx context.Context, tenantID, appID string, p *Ingest
 			}
 			rows.changes = append(rows.changes, res.Changes...)
 			rows.errors = append(rows.errors, res.Errors...)
+			rows.touch(userID)
 		}
 		return nil
 
@@ -173,15 +195,28 @@ func (c *Consumer) handle(ctx context.Context, tenantID, appID string, p *Ingest
 		if err != nil {
 			return err
 		}
-		return ProcessToken(ctx, c.pg, tenantID, appID, userID, p.Device, p.Token, now)
+		if err := ProcessToken(ctx, c.pg, tenantID, appID, userID, p.Device, p.Token, now); err != nil {
+			return err
+		}
+		rows.touch(userID)
+		return nil
 
 	case "user_delete":
 		// S2: 삭제 마킹만. 완전 익명화 + CH mutation은 S3 (D-8)
-		_, err := c.pg.Exec(ctx, `
+		var deletedID string
+		err := c.pg.QueryRow(ctx, `
 			UPDATE users SET status = 'deleted', updated_at = now()
-			 WHERE tenant_id = $1 AND app_id = $2 AND external_id = $3 AND status = 'active'`,
-			tenantID, appID, p.UserDelete.ExternalID)
-		return err
+			 WHERE tenant_id = $1 AND app_id = $2 AND external_id = $3 AND status = 'active'
+			 RETURNING id`,
+			tenantID, appID, p.UserDelete.ExternalID).Scan(&deletedID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil // 대상 없음 — 멱등
+			}
+			return err
+		}
+		rows.touch(deletedID) // 미러 status=deleted 반영 → 평가 제외
+		return nil
 
 	default:
 		c.logger.Warn("알 수 없는 endpoint — skip", "endpoint", p.Endpoint)
@@ -210,8 +245,20 @@ func (c *Consumer) handleTrack(ctx context.Context, tenantID, appID string, p *I
 		rows.events = append(rows.events, []any{
 			tenantID, appID, e.Event, userID, deviceID, props, e.ClientTS, e.ServerTS, e.InsertID,
 		})
+		rows.touch(userID)
 	}
 	return nil
+}
+
+// lookupAnonUserID는 anon_id에 해당하는 (tombstone 포함) 유저 id를 찾는다. 없으면 빈 문자열.
+func (c *Consumer) lookupAnonUserID(ctx context.Context, appID, anonID string) string {
+	var id string
+	err := c.pg.QueryRow(ctx,
+		`SELECT id FROM users WHERE app_id = $1 AND anon_id = $2`, appID, anonID).Scan(&id)
+	if err != nil {
+		return ""
+	}
+	return id
 }
 
 // resolveOrCreateUser는 external_id 우선, 없으면 anon_id로 유저를 찾거나 만든다.
@@ -274,6 +321,22 @@ func (c *Consumer) upsertDevice(ctx context.Context, tenantID, appID, userID str
 }
 
 func (c *Consumer) flushCH(ctx context.Context, rows *chRows) error {
+	// 미러: 배치에서 건드린 유저의 최종 PG 상태를 읽어 profiles_mirror에 동봉 (PRD-02 3.1)
+	if len(rows.affected) > 0 {
+		userIDs := make([]string, 0, len(rows.affected))
+		for id := range rows.affected {
+			userIDs = append(userIDs, id)
+		}
+		mirrorRows, err := BuildMirrorRows(ctx, c.pg, userIDs, c.clk.Now())
+		if err != nil {
+			return err
+		}
+		if err := c.insertCH(ctx, `INSERT INTO profiles_mirror (tenant_id, app_id, user_id,
+			external_id, std_attrs, custom_attrs, push_opt_in, os_permission_granted,
+			token_active, platforms, status, updated_at)`, mirrorRows); err != nil {
+			return fmt.Errorf("CH profiles_mirror insert: %w", err)
+		}
+	}
 	if err := c.insertCH(ctx, `INSERT INTO events (tenant_id, app_id, event_name, user_id, device_id,
 		properties, client_ts, server_ts, insert_id)`, rows.events); err != nil {
 		return fmt.Errorf("CH events insert: %w", err)

@@ -1,0 +1,117 @@
+{
+  "_comment": "언어 중립 골든 케이스 (DEV-sub-02). Go 컴파일러와 v1.5 단일 유저 평가 모드가 공유. expect.contains는 컴파일된 CH SQL에 포함되어야 하는 조각.",
+  "cases": [
+    {
+      "name": "속성 eq (표준)",
+      "category": "marketing",
+      "dsl": { "version": 1, "operator": "AND", "groups": [
+        { "operator": "OR", "conditions": [
+          { "type": "attribute", "key": "country", "op": "eq", "value": "KR" }
+        ] }
+      ] },
+      "expect": { "compiles": true, "contains": ["profiles_mirror FINAL", "tenant_id = toUUID(?)", "status = 'active'", "JSONExtractString(std_attrs, ?)"] }
+    },
+    {
+      "name": "커스텀 속성 숫자 gte",
+      "category": "marketing",
+      "dsl": { "version": 1, "operator": "AND", "groups": [
+        { "operator": "AND", "conditions": [
+          { "type": "attribute", "key": "vip_level", "op": "gte", "value": 3 }
+        ] }
+      ] },
+      "expect": { "compiles": true, "contains": ["toFloat64OrNull(JSONExtractString(custom_attrs, ?))", ">="] }
+    },
+    {
+      "name": "in 연산자",
+      "category": "marketing",
+      "dsl": { "version": 1, "operator": "AND", "groups": [
+        { "operator": "OR", "conditions": [
+          { "type": "attribute", "key": "country", "op": "in", "value": ["KR", "JP", "US"] }
+        ] }
+      ] },
+      "expect": { "compiles": true, "contains": ["IN (?, ?, ?)"] }
+    },
+    {
+      "name": "행동 count_gte (30일 창)",
+      "category": "marketing",
+      "dsl": { "version": 1, "operator": "AND", "groups": [
+        { "operator": "AND", "conditions": [
+          { "type": "event", "event": "purchase", "op": "count_gte", "value": 3, "window_days": 30 }
+        ] }
+      ] },
+      "expect": { "compiles": true, "contains": ["FROM events", "event_name = ?", "server_ts >= now() - INTERVAL ? DAY", "HAVING count() >= ?"] }
+    },
+    {
+      "name": "휴면 (not_performed)",
+      "category": "marketing",
+      "dsl": { "version": 1, "operator": "AND", "groups": [
+        { "operator": "AND", "conditions": [
+          { "type": "event", "event": "app_open", "op": "not_performed", "window_days": 14 }
+        ] }
+      ] },
+      "expect": { "compiles": true, "contains": ["user_id NOT IN (SELECT user_id FROM events"] }
+    },
+    {
+      "name": "push_reachable marketing (3중 조건)",
+      "category": "marketing",
+      "dsl": { "version": 1, "operator": "AND", "groups": [
+        { "operator": "AND", "conditions": [
+          { "type": "channel", "op": "push_reachable" }
+        ] }
+      ] },
+      "expect": { "compiles": true, "contains": ["push_opt_in = 1 AND os_permission_granted = 1 AND token_active = 1"] }
+    },
+    {
+      "name": "push_reachable transactional (opt-in 제외)",
+      "category": "transactional",
+      "dsl": { "version": 1, "operator": "AND", "groups": [
+        { "operator": "AND", "conditions": [
+          { "type": "channel", "op": "push_reachable" }
+        ] }
+      ] },
+      "expect": { "compiles": true, "contains": ["(os_permission_granted = 1 AND token_active = 1)"], "not_contains": ["push_opt_in = 1 AND"] }
+    },
+    {
+      "name": "복합 AND/OR 2단 중첩",
+      "category": "marketing",
+      "dsl": { "version": 1, "operator": "AND", "groups": [
+        { "operator": "OR", "conditions": [
+          { "type": "attribute", "key": "country", "op": "eq", "value": "KR" },
+          { "type": "attribute", "key": "language", "op": "eq", "value": "ko" }
+        ] },
+        { "operator": "AND", "conditions": [
+          { "type": "event", "event": "purchase", "op": "count_gte", "value": 1, "window_days": 30 },
+          { "type": "event", "event": "app_open", "op": "not_performed", "window_days": 7 }
+        ] }
+      ] },
+      "expect": { "compiles": true, "contains": ["OR", "AND"] }
+    },
+    {
+      "name": "exists / in_last_days",
+      "category": "marketing",
+      "dsl": { "version": 1, "operator": "AND", "groups": [
+        { "operator": "AND", "conditions": [
+          { "type": "attribute", "key": "email", "op": "exists" },
+          { "type": "attribute", "key": "created_at", "op": "in_last_days", "value": 7 }
+        ] }
+      ] },
+      "expect": { "compiles": true, "contains": ["!= ''", "INTERVAL ? DAY"] }
+    },
+    {
+      "name": "잘못된 연산자 거부",
+      "category": "marketing",
+      "dsl": { "version": 1, "operator": "AND", "groups": [
+        { "operator": "AND", "conditions": [
+          { "type": "attribute", "key": "x", "op": "DROP TABLE" }
+        ] }
+      ] },
+      "expect": { "compiles": false }
+    },
+    {
+      "name": "지원하지 않는 DSL 버전 거부",
+      "category": "marketing",
+      "dsl": { "version": 99, "operator": "AND", "groups": [] },
+      "expect": { "compiles": false }
+    }
+  ]
+}

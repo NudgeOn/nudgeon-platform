@@ -183,6 +183,28 @@ CREATE TABLE attribute_registry (
   PRIMARY KEY (app_id, key)
 );
 
+-- ---------------------------------------------------------------------------
+-- 세그먼트 (PRD-02) — 정의(DSL)는 jsonb, 멤버십은 저장하지 않음(발송 시 스냅샷)
+-- ---------------------------------------------------------------------------
+CREATE TYPE segment_status AS ENUM ('active', 'broken');
+
+CREATE TABLE segments (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id    uuid NOT NULL REFERENCES tenants(id),
+  app_id       uuid NOT NULL REFERENCES apps(id),
+  name         text NOT NULL,
+  definition   jsonb NOT NULL,              -- DSL (PRD-02 2.1)
+  status       segment_status NOT NULL DEFAULT 'active',
+  status_detail text,                        -- broken 사유 (삭제된 속성 참조 등)
+  last_count       int,                      -- 최근 정기 평가 카운트 (통계용)
+  last_evaluated_at timestamptz,
+  created_by   uuid REFERENCES members(id),
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (app_id, name)
+);
+CREATE INDEX segments_app_idx ON segments (app_id, status);
+
 CREATE TABLE user_merges (
   tenant_id    uuid NOT NULL REFERENCES tenants(id),
   app_id       uuid NOT NULL REFERENCES apps(id),
