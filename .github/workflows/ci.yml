@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  rules:
+    name: CLAUDE.md 절대 규칙 (기계 강제)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/lint-rules.sh
+
+  ts:
+    name: TypeScript (lint · typecheck · test · build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  go:
+    name: Go (vet · test · build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache-dependency-path: |
+            apps/worker/go.sum
+            packages/libqueue-go/go.sum
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test ./...
+
+  compose:
+    name: Compose config 검증
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f deploy/compose.yaml --profile full config -q

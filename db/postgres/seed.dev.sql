@@ -1,0 +1,28 @@
+-- 개발용 시드 (로컬 전용 — 프로덕션 적용 금지)
+-- 고정 키: pk_dev_0000000000000000000000000000 / sk_dev_0000000000000000000000000000
+-- key_hash = SHA-256(키 원문)
+
+INSERT INTO tenants (id, name) VALUES
+  ('11111111-1111-4111-8111-111111111111', 'Dev Tenant')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO apps (id, tenant_id, name) VALUES
+  ('22222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111', 'Dev App')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO api_keys (id, tenant_id, app_id, kind, scope, prefix, key_hash) VALUES
+  (
+    '66666666-6666-4666-8666-666666666666',
+    '11111111-1111-4111-8111-111111111111',
+    '22222222-2222-4222-8222-222222222222',
+    'sdk', 'full', 'pk_dev_0000',
+    encode(sha256('pk_dev_0000000000000000000000000000'::bytea), 'hex')
+  ),
+  (
+    '77777777-7777-4777-8777-777777777777',
+    '11111111-1111-4111-8111-111111111111',
+    '22222222-2222-4222-8222-222222222222',
+    'server', 'full', 'sk_dev_0000',
+    encode(sha256('sk_dev_0000000000000000000000000000'::bytea), 'hex')
+  )
+ON CONFLICT DO NOTHING;

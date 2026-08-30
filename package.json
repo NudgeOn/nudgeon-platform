@@ -1,0 +1,21 @@
+{
+  "name": "onda",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Onda — 한국 시장 네이티브 오픈소스 고객 인게이지먼트 플랫폼",
+  "license": "MIT",
+  "packageManager": "pnpm@11.1.3",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "dev": "turbo run dev"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  }
+}

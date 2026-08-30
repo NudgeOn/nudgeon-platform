@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onda.dev/schemas/queue/envelope.json",
+  "title": "QueueEnvelope",
+  "description": "모든 큐 메시지의 공통 envelope (DEV-MAIN §5). schema_ver 규칙: 하위 호환 추가만 마이너 증가, 파괴 변경은 신규 type.",
+  "type": "object",
+  "required": ["id", "type", "schema_ver", "tenant_id", "app_id", "occurred_at", "trace_id", "payload"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "type": {
+      "type": "string",
+      "enum": ["ingest.batch", "journey.enter", "journey.wake", "dispatch.fanout", "send.push", "feedback.token"]
+    },
+    "schema_ver": { "type": "integer", "minimum": 1 },
+    "tenant_id": { "type": "string", "format": "uuid" },
+    "app_id": { "type": "string", "format": "uuid" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "trace_id": { "type": "string", "minLength": 1 },
+    "payload": { "type": "object" }
+  },
+  "additionalProperties": false
+}

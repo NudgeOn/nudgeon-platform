@@ -1,0 +1,113 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+/**
+ * 큐 토픽·메시지 스키마의 단일 출처 (DEV-MAIN §5, ADR-6).
+ * 스트림 키·컨슈머 그룹 이름과 JSON Schema를 TS 측에 노출한다.
+ * Go 측(libqueue-go)은 동일한 schemas/ 디렉터리를 임베드한다.
+ */
+
+/** Redis Streams 키. 접근은 반드시 libqueue 경유 (CLAUDE.md 규칙 2). */
+export const STREAMS = {
+  ingest: "stream:ingest",
+  journeyEntry: "stream:journey.entry",
+  journeyWake: "stream:journey.wake",
+  dispatch: "stream:dispatch",
+  sendPush: "stream:send.push",
+  feedback: "stream:feedback",
+} as const;
+
+export type StreamKey = (typeof STREAMS)[keyof typeof STREAMS];
+
+/** Consumer group 이름 (DEV-sub-01: cg:ingest 등) */
+export const CONSUMER_GROUPS = {
+  ingest: "cg:ingest",
+  triggerMatcher: "cg:trigger-matcher",
+  scheduler: "cg:scheduler",
+  fanout: "cg:fanout",
+  channel: "cg:channel",
+  feedback: "cg:feedback",
+} as const;
+
+/** 메시지 type — 파괴적 변경은 신규 type으로 (schema_ver 규칙) */
+export type MessageType =
+  | "ingest.batch"
+  | "journey.enter"
+  | "journey.wake"
+  | "dispatch.fanout"
+  | "send.push"
+  | "feedback.token";
+
+/** 모든 큐 메시지의 공통 envelope (DEV-MAIN §5) */
+export interface Envelope<P = Record<string, unknown>> {
+  id: string;
+  type: MessageType;
+  schema_ver: number;
+  tenant_id: string;
+  app_id: string;
+  occurred_at: string;
+  trace_id: string;
+  payload: P;
+}
+
+export type IngestEndpoint =
+  | "track"
+  | "identify"
+  | "attributes"
+  | "devices_token"
+  | "user_delete";
+
+export interface IngestDeviceInfo {
+  device_id: string;
+  platform: "ios" | "android";
+  app_version?: string;
+  os_version?: string;
+  model?: string;
+  locale?: string;
+}
+
+export interface IngestTrackEvent {
+  insert_id: string;
+  anon_id?: string | null;
+  external_id?: string | null;
+  event: string;
+  properties?: Record<string, unknown>;
+  client_ts: string;
+  server_ts?: string;
+}
+
+/** ingest 스트림 payload (검증·정규화 후) */
+export interface IngestBatchPayload {
+  endpoint: IngestEndpoint;
+  request_id: string;
+  api_key_id?: string;
+  device?: IngestDeviceInfo;
+  events?: IngestTrackEvent[];
+  identify?: {
+    external_id: string;
+    anon_id?: string | null;
+    attributes?: Record<string, unknown>;
+  };
+  attributes?: Array<{
+    external_id: string;
+    attributes: Record<string, unknown>;
+  }>;
+  token?: {
+    push_token: string;
+    os_permission?: "granted" | "denied" | "undetermined";
+  };
+  user_delete?: { external_id: string };
+}
+
+function loadSchema(name: string): Record<string, unknown> {
+  // dist/index.js 기준 ../schemas — package files에 schemas/ 포함
+  const path = join(__dirname, "..", "schemas", name);
+  return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+}
+
+export const envelopeSchema = loadSchema("envelope.schema.json");
+
+/** type별 payload 스키마. 새 메시지 type 추가 시 여기와 schemas/에 함께 등록한다. */
+export const payloadSchemas: Partial<Record<MessageType, Record<string, unknown>>> = {
+  "ingest.batch": loadSchema("ingest.batch.schema.json"),
+};

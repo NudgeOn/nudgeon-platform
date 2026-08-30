@@ -1,0 +1,7 @@
+packages:
+  - "apps/api"
+  - "apps/console"
+  - "packages/*"
+allowBuilds:
+  argon2: true # 네이티브 애드온 (Argon2id 해시 — ADR-8 인증)
+  esbuild: true # vitest 트랜스파일러

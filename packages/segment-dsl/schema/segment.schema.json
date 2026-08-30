@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onda.dev/schemas/segment-dsl.json",
+  "title": "SegmentDSL",
+  "description": "세그먼트 조건 트리 (PRD-02 2.1). AND/OR 2단계 중첩. version 필드로 하위 호환 관리. 컴파일러·골든 스위트는 S3 (DEV-sub-02).",
+  "type": "object",
+  "required": ["version", "operator", "groups"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "operator": { "type": "string", "enum": ["AND", "OR"] },
+    "groups": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["operator", "conditions"],
+        "properties": {
+          "operator": { "type": "string", "enum": ["AND", "OR"] },
+          "conditions": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/condition" }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "condition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "key", "op"],
+          "properties": {
+            "type": { "const": "attribute" },
+            "key": { "type": "string", "maxLength": 128 },
+            "op": {
+              "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "in", "exists", "not_exists", "contains", "before", "after", "in_last_days", "not_in_last_days"]
+            },
+            "value": {}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type", "event", "op"],
+          "properties": {
+            "type": { "const": "event" },
+            "event": { "type": "string", "maxLength": 128 },
+            "op": { "enum": ["count_gte", "count_lte", "performed", "not_performed", "first_performed", "last_performed"] },
+            "value": {},
+            "window_days": { "type": "integer", "minimum": 1, "maximum": 365 }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type", "op"],
+          "properties": {
+            "type": { "const": "channel" },
+            "op": { "enum": ["push_reachable", "token_platform_in"] },
+            "value": {}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type", "key", "op"],
+          "properties": {
+            "type": { "const": "device" },
+            "key": { "enum": ["app_version", "os_version"] },
+            "op": { "enum": ["eq", "neq", "gt", "gte", "lt", "lte"] },
+            "value": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

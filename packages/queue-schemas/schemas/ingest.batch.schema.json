@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onda.dev/schemas/queue/ingest.batch.json",
+  "title": "IngestBatchPayload",
+  "description": "ingest 스트림 payload — API가 검증·정규화한 수집 배치 (DEV-sub-01). raw 원본은 ClickHouse raw_ingestions에 별도 보존.",
+  "type": "object",
+  "required": ["endpoint", "request_id"],
+  "properties": {
+    "endpoint": { "type": "string", "enum": ["track", "identify", "attributes", "devices_token", "user_delete"] },
+    "request_id": { "type": "string", "format": "uuid" },
+    "api_key_id": { "type": "string", "format": "uuid" },
+    "device": {
+      "type": "object",
+      "required": ["device_id", "platform"],
+      "properties": {
+        "device_id": { "type": "string", "format": "uuid" },
+        "platform": { "type": "string", "enum": ["ios", "android"] },
+        "app_version": { "type": "string" },
+        "os_version": { "type": "string" },
+        "model": { "type": "string" },
+        "locale": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "events": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "required": ["insert_id", "event", "client_ts"],
+        "properties": {
+          "insert_id": { "type": "string", "format": "uuid" },
+          "anon_id": { "type": ["string", "null"], "format": "uuid" },
+          "external_id": { "type": ["string", "null"] },
+          "event": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "properties": { "type": "object" },
+          "client_ts": { "type": "string", "format": "date-time" },
+          "server_ts": { "type": "string", "format": "date-time" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "identify": {
+      "type": "object",
+      "required": ["external_id"],
+      "properties": {
+        "external_id": { "type": "string", "minLength": 1 },
+        "anon_id": { "type": ["string", "null"], "format": "uuid" },
+        "attributes": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "attributes": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "required": ["external_id", "attributes"],
+        "properties": {
+          "external_id": { "type": "string", "minLength": 1 },
+          "attributes": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "token": {
+      "type": "object",
+      "required": ["push_token"],
+      "properties": {
+        "push_token": { "type": "string", "minLength": 1 },
+        "os_permission": { "type": "string", "enum": ["granted", "denied", "undetermined"] }
+      },
+      "additionalProperties": false
+    },
+    "user_delete": {
+      "type": "object",
+      "required": ["external_id"],
+      "properties": {
+        "external_id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

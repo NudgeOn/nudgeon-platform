@@ -1,0 +1,42 @@
+{
+  "name": "@onda/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Onda 관리 API + Ingestion API (NestJS)",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "node --watch -r ts-node/register src/main.ts",
+    "start": "node dist/main.js",
+    "test": "vitest run",
+    "lint": "echo 'no lint yet'"
+  },
+  "dependencies": {
+    "@clickhouse/client": "^1.10.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@onda/libqueue": "workspace:*",
+    "@onda/queue-schemas": "workspace:*",
+    "argon2": "^0.41.0",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.2.1",
+    "ioredis": "^5.4.0",
+    "pg": "^8.13.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+/* Onda 디자인 시스템 토큰 v0 (DEV-sub-06: shadcn/ui 기반 자체 토큰의 출발점) */
+:root {
+  --background: #fafafa;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --primary: #0f766e; /* Onda teal — 파도의 색 */
+  --primary-foreground: #ffffff;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --border: #e4e4e7;
+  --ring: #0f766e;
+  --destructive: #dc2626;
+  --radius: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b0b0d;
+    --foreground: #f4f4f5;
+    --card: #131316;
+    --card-foreground: #f4f4f5;
+    --primary: #2dd4bf;
+    --primary-foreground: #042f2e;
+    --muted: #1c1c21;
+    --muted-foreground: #a1a1aa;
+    --border: #27272a;
+    --ring: #2dd4bf;
+    --destructive: #f87171;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --radius-md: var(--radius);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}

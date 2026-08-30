@@ -1,0 +1,129 @@
+// onda-worker — Go 단일 바이너리 + --role 플래그 (PRD-08 2장).
+// roles: ingest-consumer | scheduler | trigger-matcher | segment | channel | all
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+
+	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/errgroup"
+
+	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/ondahq/onda/apps/worker/internal/config"
+	"github.com/ondahq/onda/apps/worker/internal/ingest"
+	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+)
+
+var validRoles = map[string]bool{
+	"ingest-consumer": true, "scheduler": true, "trigger-matcher": true,
+	"segment": true, "channel": true, "all": true,
+}
+
+func main() {
+	role := flag.String("role", "all", "worker 역할: ingest-consumer|scheduler|trigger-matcher|segment|channel|all")
+	flag.Parse()
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil)).With("role", *role)
+	if !validRoles[*role] {
+		logger.Error("알 수 없는 role", "role", *role)
+		os.Exit(2)
+	}
+
+	if err := run(*role, logger); err != nil && err != context.Canceled {
+		logger.Error("worker 종료", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run(role string, logger *slog.Logger) error {
+	cfg := config.Load()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	// --- 인프라 연결 (조립 지점 — Real clock은 여기서만) ---
+	clk := clock.Real{}
+
+	redisOpts, err := redis.ParseURL(cfg.RedisURL)
+	if err != nil {
+		return fmt.Errorf("REDIS_URL 파싱: %w", err)
+	}
+	rdb := redis.NewClient(redisOpts)
+	defer rdb.Close()
+
+	pg, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("PG 연결: %w", err)
+	}
+	defer pg.Close()
+
+	chOpts, err := clickhouse.ParseDSN(cfg.ClickHouseURL)
+	if err != nil {
+		return fmt.Errorf("CLICKHOUSE_URL 파싱: %w", err)
+	}
+	ch, err := clickhouse.Open(chOpts)
+	if err != nil {
+		return fmt.Errorf("ClickHouse 연결: %w", err)
+	}
+	defer ch.Close()
+
+	g, gctx := errgroup.WithContext(ctx)
+
+	// --- 헬스 엔드포인트 ---
+	g.Go(func() error { return serveHealth(gctx, cfg.HealthAddr, logger) })
+
+	has := func(r string) bool { return role == "all" || role == r }
+
+	if has("ingest-consumer") {
+		hostname, _ := os.Hostname()
+		consumer := ingest.NewConsumer(
+			libqueue.NewConsumer(rdb, libqueue.StreamIngest, libqueue.GroupIngest, "ingest-"+hostname),
+			ingest.NewDeduper(rdb),
+			pg, ch, clk, logger.With("component", "ingest-consumer"),
+		)
+		g.Go(func() error { return consumer.Run(gctx) })
+	}
+	for _, stub := range []string{"scheduler", "trigger-matcher", "segment", "channel"} {
+		if has(stub) && role != "all" {
+			logger.Warn("role 미구현 — S3~S6 예정", "role", stub)
+		}
+	}
+
+	logger.Info("onda-worker 기동", "roles", roleList(role))
+	return g.Wait()
+}
+
+func roleList(role string) string {
+	if role == "all" {
+		return strings.Join([]string{"ingest-consumer"}, ",") + " (+미구현 stub 생략)"
+	}
+	return role
+}
+
+func serveHealth(ctx context.Context, addr string, logger *slog.Logger) error {
+	r := chi.NewRouter()
+	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	})
+	srv := &http.Server{Addr: addr, Handler: r}
+	go func() {
+		<-ctx.Done()
+		_ = srv.Shutdown(context.Background())
+	}()
+	logger.Info("health 리슨", "addr", addr)
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return err
+	}
+	return nil
+}

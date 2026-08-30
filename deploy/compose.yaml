@@ -1,0 +1,74 @@
+# Onda — 로컬 개발/셀프호스팅 Compose (PRD-08 3.1)
+#
+#   docker compose -f deploy/compose.yaml --profile full up -d   # 번들 DB (PG+CH+Redis)
+#   docker compose -f deploy/compose.yaml --profile app up -d    # 앱만 (외부/관리형 DB URL 연결) — S2에서 이미지 추가
+#
+# dev 환경: full 프로파일의 데이터 서비스만 띄우고 api/console/worker는 로컬 실행.
+# 첫 기동 시 PG는 schema.sql + seed.dev.sql, CH는 순번 SQL이 자동 적용된다 (빈 볼륨 한정).
+
+name: onda
+
+services:
+  postgres:
+    image: postgres:16
+    profiles: [full]
+    environment:
+      POSTGRES_USER: onda
+      POSTGRES_PASSWORD: onda
+      POSTGRES_DB: onda
+    ports:
+      - "5433:5432" # 호스트 5432는 로컬 Postgres와 충돌 잦음 — dev는 5433 사용
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      # dev 부트스트랩 — 프로덕션은 Atlas migrator 경로 사용 (ADR-4)
+      - ../db/postgres/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ../db/postgres/seed.dev.sql:/docker-entrypoint-initdb.d/02_seed_dev.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onda -d onda"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    profiles: [full]
+    environment:
+      CLICKHOUSE_DB: onda
+      CLICKHOUSE_USER: onda
+      CLICKHOUSE_PASSWORD: onda
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "8123:8123" # HTTP (API·worker 공용 DSN)
+      - "9000:9000" # native
+    volumes:
+      - ch-data:/var/lib/clickhouse
+      - ../db/clickhouse:/docker-entrypoint-initdb.d:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    profiles: [full]
+    # AOF everysec 기본 — 멱등 키·dedup·cap 카운터 보존 (PRD-08 §5 v0.2 개정)
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pg-data:
+  ch-data:
+  redis-data:

@@ -1,0 +1,13 @@
+{
+  "name": "@onda/segment-dsl",
+  "version": "0.1.0",
+  "private": true,
+  "description": "세그먼트 DSL JSON Schema + 골든 테스트 케이스 (언어 중립 — S3 본격 구현)",
+  "license": "MIT",
+  "scripts": {
+    "build": "echo 'schema-only package'",
+    "typecheck": "echo 'schema-only package'",
+    "test": "echo 'golden suite는 S3'",
+    "lint": "echo 'no lint yet'"
+  }
+}
