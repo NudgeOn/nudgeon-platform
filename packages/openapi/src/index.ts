@@ -289,14 +289,39 @@ export class OndaClient {
         "GET",
         `/v1/apps/${appId}/credentials`,
       ),
-    upsert: (appId: string, input: FcmCredentialInput | ApnsCredentialInput) =>
+    upsert: (appId: string, input: FcmCredentialInput | ApnsCredentialInput | EmailSmtpCredentialInput | EmailNhnCredentialInput) =>
       this.request<{ id: string; kind: string; status: string }>(
         "PUT",
         `/v1/apps/${appId}/credentials`,
         input,
       ),
-    remove: (appId: string, kind: "push_fcm" | "push_apns") =>
+    remove: (appId: string, kind: "push_fcm" | "push_apns" | "email_smtp" | "email_nhn") =>
       this.request<{ ok: true }>("DELETE", `/v1/apps/${appId}/credentials/${kind}`),
+  };
+
+  readonly emailTemplates = {
+    /** 템플릿 목록 (journeys:read) */
+    list: (appId: string) =>
+      this.request<{ templates: EmailTemplateSummary[] }>("GET", `/v1/apps/${appId}/email-templates`),
+    get: (appId: string, id: string) =>
+      this.request<EmailTemplate>("GET", `/v1/apps/${appId}/email-templates/${id}`),
+    create: (appId: string, input: { name: string; subject: string; html: string }) =>
+      this.request<{ id: string }>("POST", `/v1/apps/${appId}/email-templates`, input),
+    update: (appId: string, id: string, input: { name: string; subject: string; html: string }) =>
+      this.request<{ ok: true }>("PATCH", `/v1/apps/${appId}/email-templates/${id}`, input),
+    remove: (appId: string, id: string) =>
+      this.request<{ ok: true }>("DELETE", `/v1/apps/${appId}/email-templates/${id}`),
+    /** 서버측 {{ }} 치환 미리보기 — 발송과 동일 결과 */
+    preview: (appId: string, input: { subject?: string; html: string; variables?: Record<string, unknown> }) =>
+      this.request<{ subject?: string; html: string }>("POST", `/v1/apps/${appId}/email-templates/preview`, input),
+  };
+
+  readonly email = {
+    /** 테스트 이메일 발송 — 템플릿/인라인을 {{ }} 치환 후 실전송 (journeys:activate) */
+    test: (
+      appId: string,
+      input: { to_email: string; template_id?: string; subject?: string; html?: string; variables?: Record<string, unknown> },
+    ) => this.request<{ queued: number; test_run_id: string }>("POST", `/v1/apps/${appId}/test-email`, input),
   };
 }
 
@@ -325,7 +350,7 @@ export interface IngestStatus {
 
 export interface CredentialSummary {
   id: string;
-  kind: "push_fcm" | "push_apns";
+  kind: "push_fcm" | "push_apns" | "email_smtp" | "email_nhn";
   status: "unverified" | "verified" | "error";
   status_detail: string | null;
   last_verified_at: string | null;
@@ -432,6 +457,7 @@ export interface JourneyNodeReport {
 
 export interface UsageData {
   mau_30d: number;
+  dau_today: number;
   sends_30d: Array<{ channel: string; sent: number }>;
 }
 
@@ -523,6 +549,43 @@ export interface UserDetail {
     journey_id: string;
     sent_at: string;
   }>;
+}
+
+/** SMTP 이메일 크리덴셜 (AWS SES SMTP·범용 SMTP·MailHog). security: starttls(587)|tls(465)|none. */
+export interface EmailSmtpCredentialInput {
+  kind: "email_smtp";
+  host: string;
+  port: number;
+  username?: string;
+  password?: string;
+  from_email: string;
+  from_name?: string;
+  security?: "starttls" | "tls" | "none";
+}
+
+/** NHN Cloud(TOAST) Email API 크리덴셜. */
+export interface EmailNhnCredentialInput {
+  kind: "email_nhn";
+  app_key: string;
+  secret_key: string;
+  from_email: string;
+  from_name?: string;
+}
+
+export interface EmailTemplateSummary {
+  id: string;
+  name: string;
+  subject: string;
+  updated_at: string;
+}
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  html: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface FcmCredentialInput {

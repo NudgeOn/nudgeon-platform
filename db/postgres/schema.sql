@@ -15,7 +15,7 @@ CREATE TYPE device_platform AS ENUM ('ios', 'android');
 CREATE TYPE token_status AS ENUM ('active', 'invalid', 'expired');
 CREATE TYPE os_permission AS ENUM ('granted', 'denied', 'undetermined');
 CREATE TYPE attr_type AS ENUM ('string', 'number', 'boolean', 'datetime', 'string_array');
-CREATE TYPE channel_kind AS ENUM ('push_fcm', 'push_apns');  -- v1.5: alimtalk, sms, email
+CREATE TYPE channel_kind AS ENUM ('push_fcm', 'push_apns', 'email_smtp', 'email_nhn');  -- v1.5: alimtalk, sms
 CREATE TYPE credential_status AS ENUM ('unverified', 'verified', 'error');
 
 -- ---------------------------------------------------------------------------
@@ -198,6 +198,20 @@ CREATE TYPE segment_status AS ENUM ('active', 'broken');
 CREATE TYPE journey_status AS ENUM ('draft', 'active', 'paused', 'archived');
 CREATE TYPE journey_state_status AS ENUM ('active', 'waiting', 'claimed', 'completed', 'exited', 'failed');
 CREATE TYPE message_category AS ENUM ('marketing', 'transactional');
+
+-- 이메일 HTML 템플릿 (개인화 {{ }} 변수 지원). 발송/미리보기 공통 소스.
+CREATE TABLE email_templates (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id    uuid NOT NULL REFERENCES tenants(id),
+  app_id       uuid NOT NULL REFERENCES apps(id),
+  name         text NOT NULL,
+  subject      text NOT NULL,              -- {{ }} 개인화 가능
+  html         text NOT NULL,              -- {{ }} 개인화 가능
+  created_by   uuid REFERENCES members(id),
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (app_id, name)
+);
 
 CREATE TABLE segments (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),

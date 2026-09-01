@@ -12,6 +12,8 @@ import { TotpController, MemberTotpController } from "./auth/totp.controller";
 import { AuditService } from "./audit/audit.service";
 import { AuditController } from "./audit/audit.controller";
 import { TenantController } from "./tenant/tenant.controller";
+import { EmailTemplatesController } from "./email/email-templates.controller";
+import { TestEmailController } from "./email/test-email.controller";
 import { MembersController } from "./members/members.controller";
 import { MembersService } from "./members/members.service";
 import { IngestionService } from "./ingestion/ingestion.service";
@@ -45,6 +47,8 @@ import { PermissionGuard } from "./authz/permission.guard";
     TrackController,
     CredentialsController,
     TestPushController,
+    EmailTemplatesController,
+    TestEmailController,
     AppsController,
     AppSettingsController,
     SegmentsController,

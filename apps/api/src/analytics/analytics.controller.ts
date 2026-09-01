@@ -242,6 +242,15 @@ export class AnalyticsController {
     });
     const mau = Number(((await mauRes.json()) as Array<{ mau: string }>)[0]?.mau ?? 0);
 
+    // DAU — 오늘 일간 고유 활성 유저(클라이언트 SDK 이벤트 기반, session_start 등)
+    const dauRes = await this.ch.query({
+      query: `SELECT uniqCombinedMerge(users) AS dau FROM usage_active_users_daily
+               WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID} AND day = today()`,
+      query_params: params,
+      format: "JSONEachRow",
+    });
+    const dau = Number(((await dauRes.json()) as Array<{ dau: string }>)[0]?.dau ?? 0);
+
     const sendsRes = await this.ch.query({
       query: `SELECT channel, sum(sends) AS total FROM usage_sends_daily
                WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
@@ -254,6 +263,7 @@ export class AnalyticsController {
 
     return {
       mau_30d: mau,
+      dau_today: dau,
       sends_30d: sends.map((s) => ({ channel: s.channel, sent: Number(s.total) })),
     };
   }
