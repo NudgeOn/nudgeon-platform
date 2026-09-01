@@ -55,6 +55,35 @@ func BuildMirrorRows(ctx context.Context, pg *pgxpool.Pool, userIDs []string, no
 	return out, rows.Err()
 }
 
+// BuildMergeMirrorRows는 이번 배치가 건드린 canonical(to_user_id) 사용자로 향하는
+// 병합 간선을 PG user_merges에서 읽어 CH user_merges 미러 행을 만든다 (R-10, G-9).
+// 병합이 발생한 배치에서 finalID(=to_user_id)가 affected에 포함되므로, 신규 간선과
+// 경로 압축으로 재지정된 기존 간선이 모두 이 조회에 잡힌다. merged_at은 PG 값을 그대로
+// 미러링해 CH argMax(to_user_id, merged_at)가 from별 최신 간선을 채택하게 한다.
+func BuildMergeMirrorRows(ctx context.Context, pg *pgxpool.Pool, userIDs []string) ([][]any, error) {
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
+	rows, err := pg.Query(ctx, `
+		SELECT tenant_id, app_id, from_user_id, to_user_id, merged_at
+		FROM user_merges WHERE to_user_id = ANY($1)`, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("병합 미러 대상 조회: %w", err)
+	}
+	defer rows.Close()
+
+	var out [][]any
+	for rows.Next() {
+		var tenantID, appID, fromID, toID string
+		var mergedAt time.Time
+		if err := rows.Scan(&tenantID, &appID, &fromID, &toID, &mergedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, []any{tenantID, appID, fromID, toID, mergedAt})
+	}
+	return out, rows.Err()
+}
+
 func b2u8(b bool) uint8 {
 	if b {
 		return 1

@@ -25,6 +25,7 @@ import (
 	"github.com/ondahq/onda/apps/worker/internal/config"
 	"github.com/ondahq/onda/apps/worker/internal/ingest"
 	"github.com/ondahq/onda/apps/worker/internal/journey"
+	"github.com/ondahq/onda/apps/worker/internal/segment"
 	"github.com/ondahq/onda/apps/worker/internal/trigger"
 	libqueue "github.com/ondahq/onda/packages/libqueue-go"
 )
@@ -112,13 +113,25 @@ func run(role string, logger *slog.Logger) error {
 			logger.Warn("마스터키 미설정 — channel 역할 비활성 (ONDA_MASTER_KEY 설정 필요)", "err", err)
 		} else {
 			plugin := channel.NewPushPlugin(clk)
-			verifier := channel.NewVerifier(pg, plugin, masterKey, logger.With("component", "credential-verifier"))
+			emailPlugin := channel.NewEmailPlugin(clk)
+			// 크리덴셜 kind → 검증 플러그인 (push_fcm/push_apns=push, email_smtp=email)
+			verifier := channel.NewVerifier(pg, map[string]channel.ChannelPlugin{
+				"push_fcm":   plugin,
+				"push_apns":  plugin,
+				"email_smtp": emailPlugin,
+				"email_nhn":  emailPlugin,
+			}, masterKey, logger.With("component", "credential-verifier"))
 			worker := channel.NewWorker(
 				libqueue.NewConsumer(rdb, libqueue.StreamSendPush, libqueue.GroupChannel, "channel-"+hostname),
 				rdb, pg, ch, plugin, masterKey, clk, logger.With("component", "channel"),
 			)
+			emailWorker := channel.NewEmailWorker(
+				libqueue.NewConsumer(rdb, libqueue.StreamSendEmail, libqueue.GroupChannelEmail, "email-"+hostname),
+				rdb, pg, ch, emailPlugin, masterKey, clk, logger.With("component", "channel-email"),
+			)
 			g.Go(func() error { return verifier.Run(gctx) })
 			g.Go(func() error { return worker.Run(gctx) })
+			g.Go(func() error { return emailWorker.Run(gctx) })
 		}
 	}
 
@@ -148,10 +161,9 @@ func run(role string, logger *slog.Logger) error {
 		g.Go(func() error { return matcher.Run(gctx) })
 	}
 
-	for _, stub := range []string{"segment"} {
-		if has(stub) && role != "all" {
-			logger.Warn("role 미구현 — 야간 대사 잡은 S4+ 예정", "role", stub)
-		}
+	if has("segment") {
+		runner := segment.NewRunner(pg, ch, clk, logger.With("component", "segment"))
+		g.Go(func() error { return runner.RunMaintenance(gctx) })
 	}
 
 	logger.Info("onda-worker 기동", "roles", roleList(role))

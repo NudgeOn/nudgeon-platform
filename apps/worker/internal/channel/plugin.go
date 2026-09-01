@@ -15,7 +15,8 @@ import (
 type ChannelKind string
 
 const (
-	KindPush ChannelKind = "push" // FCM+APNs 통합 (플랫폼으로 분기)
+	KindPush  ChannelKind = "push"  // FCM+APNs 통합 (플랫폼으로 분기)
+	KindEmail ChannelKind = "email" // SMTP 이메일
 )
 
 type TargetType string
@@ -77,8 +78,16 @@ type PushContent struct {
 	MessageID string `json:"-"`
 }
 
+// EmailContent — 렌더 완료된 이메일 본문. {{ }} 개인화는 발송 전(API/스케줄러)에서 치환된다.
+type EmailContent struct {
+	Subject   string `json:"subject"`
+	HTML      string `json:"html"`
+	MessageID string `json:"-"`
+}
+
 type MessageContent struct {
-	Push *PushContent
+	Push  *PushContent
+	Email *EmailContent
 }
 
 type SendOptions struct {

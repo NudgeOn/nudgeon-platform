@@ -26,6 +26,12 @@ export default function LoginPage() {
         setNeedTotp(true);
         return;
       }
+      // 조직 2FA 강제인데 미등록 — 세션은 발급되었으나 SessionGuard가 등록 완료 전까지
+      // /v1/auth/totp 외 모든 접근을 차단한다. 등록 화면으로 강제 이동한다 (T-5, R-09).
+      if ("enrollment_required" in result) {
+        router.push("/settings?enroll=required");
+        return;
+      }
       router.push("/");
     },
   });

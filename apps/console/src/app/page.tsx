@@ -60,7 +60,8 @@ export default function DashboardPage() {
         <Stat label="오늘 생략" value={dashboard.data?.today.skipped ?? 0} />
         <Stat label="활성 저니" value={dashboard.data?.active_journeys ?? 0} />
       </div>
-      <div className="mb-6 grid grid-cols-2 gap-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3">
+        <Stat label="DAU (오늘)" value={usage.data?.dau_today ?? 0} />
         <Stat label="MAU (30일)" value={usage.data?.mau_30d ?? 0} />
         <Stat
           label="발송량 (30일)"
@@ -95,6 +96,21 @@ export default function DashboardPage() {
           <Button variant="outline" onClick={() => router.push("/settings")}>
             앱 설정
           </Button>
+          {me.data.permissions?.includes("journeys:read") && (
+            <Button variant="outline" onClick={() => router.push("/email-templates")}>
+              이메일 템플릿
+            </Button>
+          )}
+          {me.data.permissions?.includes("team:read") && (
+            <>
+              <Button variant="outline" onClick={() => router.push("/team")}>
+                팀 관리
+              </Button>
+              <Button variant="outline" onClick={() => router.push("/audit")}>
+                감사 로그
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     </main>

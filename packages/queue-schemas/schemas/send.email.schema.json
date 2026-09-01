@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onda.dev/schemas/queue/send.email.json",
+  "title": "SendEmailPayload",
+  "description": "send.email 스트림 payload. content.email은 {{ }} 개인화 치환 완료된 최종 본문. email = 수신 주소. 테스트 발송은 test: 접두 키.",
+  "type": "object",
+  "required": ["idempotency_key", "email", "content"],
+  "properties": {
+    "idempotency_key": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "message_id": { "type": "string", "format": "uuid" },
+    "user_id": { "type": ["string", "null"] },
+    "email": { "type": "string", "minLength": 3, "maxLength": 320 },
+    "content": {
+      "type": "object",
+      "required": ["email"],
+      "properties": {
+        "email": {
+          "type": "object",
+          "required": ["subject", "html"],
+          "properties": {
+            "subject": { "type": "string", "maxLength": 998 },
+            "html": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "category": { "type": "string", "enum": ["marketing", "transactional"] },
+    "journey_id": { "type": ["string", "null"] },
+    "journey_version": { "type": ["integer", "null"] },
+    "node_index": { "type": ["integer", "null"] },
+    "campaign_ref": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

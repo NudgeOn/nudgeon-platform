@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import type { AppSettings } from "@onda/api-client";
 import { useAppId } from "../use-app-id";
 import { api } from "@/lib/api";
@@ -11,13 +12,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+// useSearchParams는 Suspense 경계 안에서 호출해야 정적 프리렌더가 CSR로 안전히 폴백한다(Next 15).
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={<main className="mx-auto max-w-2xl p-8"><p className="text-sm text-muted-foreground">불러오는 중…</p></main>}>
+      <SettingsInner />
+    </Suspense>
+  );
+}
+
+function SettingsInner() {
   const appId = useAppId();
   const qc = useQueryClient();
+  // 조직 2FA 강제 등록 흐름 (R-09): 로그인이 enrollment_required면 ?enroll=required로 진입.
+  // 이 경우 등록 완료 전까지 SessionGuard가 앱 설정 API를 차단하므로 등록 카드만 노출한다.
+  const forcedEnroll = useSearchParams().get("enroll") === "required";
+  const me = useQuery({ queryKey: ["me"], queryFn: () => api.auth.me(), retry: false });
+  const perms = me.data?.permissions ?? [];
   const settings = useQuery({
     queryKey: ["app-settings", appId],
     queryFn: () => api.appSettings.get(appId!),
-    enabled: !!appId,
+    enabled: !!appId && !forcedEnroll,
   });
   const [form, setForm] = useState<AppSettings | null>(null);
   useEffect(() => {
@@ -40,9 +55,22 @@ export default function SettingsPage() {
         <h1 className="mt-2 text-2xl font-bold">설정</h1>
       </header>
 
+      {forcedEnroll && (
+        <div className="mb-4 rounded-md border border-primary/40 bg-primary/10 p-4 text-sm">
+          <p className="font-medium">2단계 인증 등록이 필요합니다</p>
+          <p className="mt-1 text-muted-foreground">
+            조직 정책에 따라 2FA 등록을 완료해야 콘솔을 사용할 수 있습니다. 아래에서 인증 앱을
+            등록하세요.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-col gap-4">
-        <SecurityCard />
-        {form ? (
+        <SecurityCard forced={forcedEnroll} />
+        {!forcedEnroll && perms.includes("team:write") && (
+          <OrgSecurityCard canDelete={perms.includes("tenant:delete")} />
+        )}
+        {forcedEnroll ? null : form ? (
           <>
         <Card>
           <CardHeader className="p-4">
@@ -158,8 +186,9 @@ export default function SettingsPage() {
 }
 
 /** 2단계 인증(TOTP) 관리 — 설정·확인·백업코드·해제 (PRD-06 2.1) */
-function SecurityCard() {
+function SecurityCard({ forced = false }: { forced?: boolean }) {
   const qc = useQueryClient();
+  const router = useRouter();
   const status = useQuery({ queryKey: ["totp-status"], queryFn: () => api.auth.totpStatus() });
   const [step, setStep] = useState<"idle" | "enroll" | "done">("idle");
   const [enroll, setEnroll] = useState<{ secret: string; otpauth_uri: string } | null>(null);
@@ -174,6 +203,14 @@ function SecurityCard() {
       setStep("enroll");
     },
   });
+
+  // 강제 등록 흐름: 미등록·idle 상태면 자동으로 등록을 시작한다 (사용자 클릭 대기 없이).
+  useEffect(() => {
+    if (forced && status.data && !status.data.enabled && step === "idle" && !startEnroll.isPending) {
+      startEnroll.mutate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forced, status.data, step]);
   const confirm = useMutation({
     mutationFn: () => api.auth.totpEnrollVerify(code),
     onSuccess: (d) => {
@@ -284,10 +321,90 @@ function SecurityCard() {
                 <span key={c}>{c}</span>
               ))}
             </div>
-            <Button variant="outline" className="self-start" onClick={() => setStep("idle")}>
+            <Button
+              variant="outline"
+              className="self-start"
+              onClick={() => (forced ? router.push("/") : setStep("idle"))}
+            >
               완료
             </Button>
           </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** 조직 보안 (R-16): 전체 2FA 강제 + 조직 삭제 유예. team:write / tenant:delete 게이팅. */
+function OrgSecurityCard({ canDelete }: { canDelete: boolean }) {
+  const qc = useQueryClient();
+  const tenant = useQuery({ queryKey: ["tenant"], queryFn: () => api.tenant.get() });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const refresh = () => qc.invalidateQueries({ queryKey: ["tenant"] });
+
+  const set2fa = useMutation({
+    mutationFn: (v: boolean) => api.tenant.setRequire2fa(v),
+    onSuccess: refresh,
+  });
+  const requestDeletion = useMutation({
+    mutationFn: () => api.tenant.requestDeletion(),
+    onSuccess: () => { setConfirmDelete(false); refresh(); },
+  });
+  const restoreDeletion = useMutation({
+    mutationFn: () => api.tenant.restoreDeletion(),
+    onSuccess: refresh,
+  });
+
+  const pendingDeletion = !!tenant.data?.delete_requested_at;
+
+  return (
+    <Card>
+      <CardHeader className="p-4"><CardTitle className="text-sm">조직 보안</CardTitle></CardHeader>
+      <CardContent className="flex flex-col gap-4 p-4 pt-0 text-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium">전체 2단계 인증 강제</p>
+            <p className="text-xs text-muted-foreground">
+              켜면 미등록 멤버는 다음 로그인부터 2FA 등록을 완료해야 콘솔을 사용할 수 있습니다.
+            </p>
+          </div>
+          <Toggle
+            on={!!tenant.data?.require_2fa}
+            onChange={(v) => set2fa.mutate(v)}
+          />
+        </div>
+
+        {canDelete && (
+          <div className="border-t border-border pt-4">
+            <p className="font-medium text-destructive">위험 구역 — 조직 삭제</p>
+            {pendingDeletion ? (
+              <div className="mt-2 flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">
+                  삭제 예약됨. 파기 예정: {tenant.data?.purge_after
+                    ? new Date(tenant.data.purge_after).toISOString().slice(0, 16).replace("T", " ") + " UTC"
+                    : "—"}
+                </span>
+                <Button variant="outline" disabled={restoreDeletion.isPending} onClick={() => restoreDeletion.mutate()}>
+                  삭제 취소(복구)
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-2 flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">요청 후 7일 유예 기간 내 복구 가능. 이후 영구 파기됩니다.</p>
+                {confirmDelete ? (
+                  <>
+                    <Button variant="outline" className="text-destructive" disabled={requestDeletion.isPending}
+                      onClick={() => requestDeletion.mutate()}>정말 삭제 요청</Button>
+                    <Button variant="outline" onClick={() => setConfirmDelete(false)}>취소</Button>
+                  </>
+                ) : (
+                  <Button variant="outline" className="text-destructive" onClick={() => setConfirmDelete(true)}>
+                    조직 삭제 요청
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

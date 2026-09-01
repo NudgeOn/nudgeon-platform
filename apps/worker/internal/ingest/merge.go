@@ -98,6 +98,15 @@ func identifyOnce(
 			tenantID, appID, anonID, extID, now); err != nil {
 			return "", nil, fmt.Errorf("user_merges: %w", err)
 		}
+		// 경로 압축 (R-10): 체인 병합(X→anon, 이후 anon→ext)에서 anon을 향하던
+		// 기존 간선을 ext로 재지정해 매핑을 평탄화한다. 이래야 CH 이벤트 조건이
+		// 단일 조인(from→to)만으로 최종 canonical을 얻는다.
+		if _, err := tx.Exec(ctx, `
+				UPDATE user_merges SET to_user_id = $1, merged_at = $5
+				WHERE tenant_id = $2 AND app_id = $3 AND to_user_id = $4`,
+			extID, tenantID, appID, anonID, now); err != nil {
+			return "", nil, fmt.Errorf("user_merges 경로 압축: %w", err)
+		}
 		finalID = extID
 
 	case hasExt:

@@ -12,14 +12,14 @@ import (
 // 콘솔은 등록 후 상태를 폴링(5s)해 결과를 표시한다 (DEV-sub-06 실시간성 원칙).
 type Verifier struct {
 	pg        *pgxpool.Pool
-	plugin    ChannelPlugin
+	plugins   map[string]ChannelPlugin // 크리덴셜 kind → 검증 플러그인 (push_fcm/push_apns/email_smtp)
 	masterKey []byte
 	logger    *slog.Logger
 	interval  time.Duration
 }
 
-func NewVerifier(pg *pgxpool.Pool, plugin ChannelPlugin, masterKey []byte, logger *slog.Logger) *Verifier {
-	return &Verifier{pg: pg, plugin: plugin, masterKey: masterKey, logger: logger, interval: 5 * time.Second}
+func NewVerifier(pg *pgxpool.Pool, plugins map[string]ChannelPlugin, masterKey []byte, logger *slog.Logger) *Verifier {
+	return &Verifier{pg: pg, plugins: plugins, masterKey: masterKey, logger: logger, interval: 5 * time.Second}
 }
 
 func (v *Verifier) Run(ctx context.Context) error {
@@ -87,9 +87,13 @@ func (v *Verifier) judge(ctx context.Context, c *pendingCred) (status, detail st
 	if err != nil {
 		return "error", "복호화 실패 — 마스터키 불일치 가능: " + err.Error()
 	}
+	plugin, ok := v.plugins[c.kind]
+	if !ok {
+		return "error", "지원하지 않는 크리덴셜 kind: " + c.kind
+	}
 	vctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	err = v.plugin.ValidateCredentials(vctx, Credentials{Kind: c.kind, JSON: plain})
+	err = plugin.ValidateCredentials(vctx, Credentials{Kind: c.kind, JSON: plain})
 	if err == nil {
 		return "verified", ""
 	}

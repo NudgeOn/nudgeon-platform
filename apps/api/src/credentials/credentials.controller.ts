@@ -43,7 +43,33 @@ const apnsPayloadSchema = z.object({
   environment: z.enum(["production", "sandbox"]).default("production"),
 });
 
-const credentialSchema = z.discriminatedUnion("kind", [fcmPayloadSchema, apnsPayloadSchema]);
+/** SMTP: 이메일 발송 릴레이 (자체호스팅 우선). security: starttls(587)|tls(465)|none(dev). */
+const emailSmtpPayloadSchema = z.object({
+  kind: z.literal("email_smtp"),
+  host: z.string().min(1).max(255),
+  port: z.number().int().min(1).max(65535),
+  username: z.string().max(320).default(""),
+  password: z.string().max(1024).default(""),
+  from_email: z.string().email(),
+  from_name: z.string().max(128).default(""),
+  security: z.enum(["starttls", "tls", "none"]).default("starttls"),
+});
+
+/** NHN Cloud(TOAST) Email API: appKey + secretKey + 발신자. */
+const emailNhnPayloadSchema = z.object({
+  kind: z.literal("email_nhn"),
+  app_key: z.string().min(1).max(128),
+  secret_key: z.string().min(1).max(256),
+  from_email: z.string().email(),
+  from_name: z.string().max(128).default(""),
+});
+
+const credentialSchema = z.discriminatedUnion("kind", [
+  fcmPayloadSchema,
+  apnsPayloadSchema,
+  emailSmtpPayloadSchema,
+  emailNhnPayloadSchema,
+]);
 
 /** 크리덴셜 관리 (세션 인증 — 콘솔 온보딩 위저드의 백엔드) */
 @Controller("v1/apps/:appId/credentials")

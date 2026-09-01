@@ -16,6 +16,7 @@ export const STREAMS = {
   journeyWake: "stream:journey.wake",
   dispatch: "stream:dispatch",
   sendPush: "stream:send.push",
+  sendEmail: "stream:send.email",
   feedback: "stream:feedback",
 } as const;
 
@@ -28,6 +29,7 @@ export const CONSUMER_GROUPS = {
   scheduler: "cg:scheduler",
   fanout: "cg:fanout",
   channel: "cg:channel",
+  channelEmail: "cg:channel.email",
   feedback: "cg:feedback",
 } as const;
 
@@ -53,6 +55,7 @@ export type MessageType =
   | "journey.wake"
   | "dispatch.fanout"
   | "send.push"
+  | "send.email"
   | "feedback.token";
 
 /** 모든 큐 메시지의 공통 envelope (DEV-MAIN §5) */
@@ -169,6 +172,25 @@ export interface SendPushPayload {
   campaign_ref?: string | null;
 }
 
+/** send.email 스트림 payload — content.email은 {{ }} 치환 완료 본문, email=수신 주소 */
+export interface SendEmailPayload {
+  idempotency_key: string;
+  message_id?: string;
+  user_id?: string | null;
+  email: string;
+  content: {
+    email: {
+      subject: string;
+      html: string;
+    };
+  };
+  category?: "marketing" | "transactional";
+  journey_id?: string | null;
+  journey_version?: number | null;
+  node_index?: number | null;
+  campaign_ref?: string | null;
+}
+
 function loadSchema(name: string): Record<string, unknown> {
   // dist/index.js 기준 ../schemas — package files에 schemas/ 포함
   const path = join(__dirname, "..", "schemas", name);
@@ -182,5 +204,6 @@ export const payloadSchemas: Partial<Record<MessageType, Record<string, unknown>
   "ingest.batch": loadSchema("ingest.batch.schema.json"),
   "event.normalized": loadSchema("event.normalized.schema.json"),
   "send.push": loadSchema("send.push.schema.json"),
+  "send.email": loadSchema("send.email.schema.json"),
   "journey.enter": loadSchema("journey.entry.schema.json"),
 };

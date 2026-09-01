@@ -132,6 +132,7 @@ const CMP_OPS: Record<string, string> = {
   lte: "<=",
 };
 const DEVICE_COLS = new Set(["app_version", "os_version"]);
+const PLATFORM_VALUES = new Set(["ios", "android"]);
 
 class Params {
   readonly args: unknown[] = [];
@@ -198,7 +199,7 @@ function compileCondition(
     case "attribute":
       return compileAttribute(c, p);
     case "channel":
-      return compileChannel(c, category);
+      return compileChannel(c, category, p);
     case "device":
       return compileDevice(c);
     case "event":
@@ -257,11 +258,24 @@ function compileAttribute(c: AttributeCondition, p: Params): string {
   }
 }
 
-function compileChannel(c: ChannelCondition, category: Category): string {
+function compileChannel(c: ChannelCondition, category: Category, p: Params): string {
   if (c.op === "push_reachable") {
     return category === "transactional"
       ? "(os_permission_granted = 1 AND token_active = 1)"
       : "(push_opt_in = 1 AND os_permission_granted = 1 AND token_active = 1)";
+  }
+  if (c.op === "token_platform_in") {
+    // profiles_mirror.platforms(Array(String))에 지정 플랫폼 중 하나라도 있으면 매치.
+    // 값은 화이트리스트(ios/android)로 제한하고 위치 인자로 바인딩.
+    const vals = arrayValues(c.value);
+    if (vals.length === 0) return "0"; // 빈 목록 → 항상 거짓
+    const placeholders = vals.map((v) => {
+      if (typeof v !== "string" || !PLATFORM_VALUES.has(v)) {
+        throw new CompileError(`token_platform_in 값 화이트리스트 위반(ios|android): ${String(v)}`);
+      }
+      return p.add(v);
+    });
+    return `arrayExists(x -> x IN (${placeholders.join(", ")}), platforms)`;
   }
   throw new CompileError(`channel 연산자 화이트리스트 위반: ${c.op}`);
 }
@@ -279,29 +293,42 @@ function compileDevice(c: DeviceCondition): string {
 
 function compileEvent(c: EventCondition, tenantId: string, appId: string, p: Params): string {
   if (!c.event) throw new CompileError("event 조건에 event 없음");
-  const base = () => {
-    const query = `SELECT user_id FROM events WHERE tenant_id = toUUID(${p.add(tenantId)}) AND app_id = toUUID(${p.add(appId)}) AND event_name = ${p.add(c.event)}`;
-    // Bind in SQL order: tenant, app, event, then the optional window.
-    return c.window_days != null
-      ? `${query} AND server_ts >= now() - INTERVAL ${p.add(c.window_days)} DAY`
+  // applyWindow=true면 events 행을 window로 사전 필터. first/last_performed는 전 기간에서
+  // 최초/최근 시점을 구해 HAVING으로 비교해야 하므로 사전 필터를 끄고 window를 임계로만 쓴다.
+  const base = (applyWindow: boolean) => {
+    // 병합 매핑(user_merges) 반영 (R-10): 병합 이전 user_id로 적재된 과거 이벤트를
+    // canonical 사용자에 귀속. events.user_id를 최신 간선(from→to)과 LEFT JOIN 후 coalesce.
+    // Bind in SQL order: join tenant/app, then events tenant/app/event, then optional window.
+    const mergeMap = `(SELECT from_user_id, argMax(to_user_id, merged_at) AS to_user_id FROM user_merges WHERE tenant_id = toUUID(${p.add(tenantId)}) AND app_id = toUUID(${p.add(appId)}) GROUP BY from_user_id)`;
+    // CH LEFT JOIN은 미매칭 시 to_user_id를 NULL이 아니라 zero-UUID로 채운다(join_use_nulls=0).
+    // zero-UUID를 "병합 없음"으로 판정해 병합 이력 없는 사용자의 이벤트 오귀속을 막는다(R-10 회귀 수정).
+    const query = `SELECT if(m.to_user_id = toUUID('00000000-0000-0000-0000-000000000000'), e.user_id, m.to_user_id) AS user_id FROM events e LEFT JOIN ${mergeMap} m ON e.user_id = m.from_user_id WHERE e.tenant_id = toUUID(${p.add(tenantId)}) AND e.app_id = toUUID(${p.add(appId)}) AND e.event_name = ${p.add(c.event)}`;
+    return applyWindow && c.window_days != null
+      ? `${query} AND e.server_ts >= now() - INTERVAL ${p.add(c.window_days)} DAY`
       : query;
   };
 
   switch (c.op) {
     case "performed":
-      return `user_id IN (${base()} GROUP BY user_id)`;
+      return `user_id IN (${base(true)} GROUP BY user_id)`;
     case "not_performed":
-      return `user_id NOT IN (${base()} GROUP BY user_id)`;
+      return `user_id NOT IN (${base(true)} GROUP BY user_id)`;
     case "count_gte":
     case "count_lte": {
       const n = intValue(c.value);
       const cmp = c.op === "count_lte" ? "<=" : ">=";
       // insert_id 유일 집계 — ReplacingMergeTree 병합 전 중복 행이 카운트를 부풀리지 않게 (R-05).
-      return `user_id IN (${base()} GROUP BY user_id HAVING uniqExact(insert_id) ${cmp} ${p.add(n)})`;
+      return `user_id IN (${base(true)} GROUP BY user_id HAVING uniqExact(insert_id) ${cmp} ${p.add(n)})`;
     }
     case "first_performed":
-    case "last_performed":
-      throw new CompileError("first/last_performed는 S4 지원 예정");
+    case "last_performed": {
+      // 시점 비교 (PRD-02): 최초(min)/최근(max) 발생 server_ts가 최근 window_days 이내인지.
+      if (c.window_days == null) {
+        throw new CompileError(`${c.op}는 window_days가 필요합니다`);
+      }
+      const agg = c.op === "last_performed" ? "max" : "min";
+      return `user_id IN (${base(false)} GROUP BY user_id HAVING ${agg}(e.server_ts) >= now() - INTERVAL ${p.add(c.window_days)} DAY)`;
+    }
     default:
       throw new CompileError(`event 연산자 화이트리스트 위반`);
   }

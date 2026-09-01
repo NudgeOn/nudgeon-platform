@@ -23,6 +23,7 @@ const (
 	StreamJourneyWake  = "stream:journey.wake"
 	StreamDispatch     = "stream:dispatch"
 	StreamSendPush     = "stream:send.push"
+	StreamSendEmail    = "stream:send.email"
 	StreamFeedback     = "stream:feedback"
 )
 
@@ -33,6 +34,7 @@ const (
 	GroupScheduler      = "cg:scheduler"
 	GroupFanout         = "cg:fanout"
 	GroupChannel        = "cg:channel"
+	GroupChannelEmail   = "cg:channel.email"
 	GroupFeedback       = "cg:feedback"
 )
 
