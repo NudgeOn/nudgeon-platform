@@ -67,7 +67,13 @@ export class TotpController {
   @Post("disable")
   @HttpCode(200)
   async disable(@Body() body: unknown, @Req() req: SessionRequest) {
-    const result = await this.totp.disable(req.member.tenantId, req.member.memberId, parseCode(body));
+    const currentToken = (req.cookies?.["onda_session"] as string | undefined) ?? undefined;
+    const result = await this.totp.disable(
+      req.member.tenantId,
+      req.member.memberId,
+      parseCode(body),
+      currentToken,
+    );
     await this.audit.recordAs(req.member, req.ip, "member.totp_disable", {
       targetType: "member",
       targetId: req.member.memberId,

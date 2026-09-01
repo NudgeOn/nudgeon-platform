@@ -417,6 +417,16 @@ func (c *Consumer) flushCH(ctx context.Context, rows *chRows) error {
 			token_active, platforms, status, updated_at)`, mirrorRows); err != nil {
 			return fmt.Errorf("CH profiles_mirror insert: %w", err)
 		}
+		// 병합 간선 미러 (R-10): 이번 배치가 건드린 canonical로 향하는 user_merges 간선을
+		// CH에 동봉해, 과거 이벤트(병합 이전 user_id)가 세그먼트/분석에서 canonical에 귀속되게 한다.
+		mergeRows, err := BuildMergeMirrorRows(ctx, c.pg, userIDs)
+		if err != nil {
+			return err
+		}
+		if err := c.insertCH(ctx, `INSERT INTO user_merges (tenant_id, app_id,
+			from_user_id, to_user_id, merged_at)`, mergeRows); err != nil {
+			return fmt.Errorf("CH user_merges insert: %w", err)
+		}
 	}
 	if err := c.insertCH(ctx, `INSERT INTO events (tenant_id, app_id, event_name, user_id, device_id,
 		properties, client_ts, server_ts, insert_id)`, rows.events); err != nil {

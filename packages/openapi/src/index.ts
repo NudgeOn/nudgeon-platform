@@ -53,6 +53,18 @@ export interface AuditEntry {
   created_at: string;
 }
 
+export type MemberRole = "owner" | "admin" | "editor" | "viewer";
+
+export interface Member {
+  id: string;
+  email: string;
+  name: string;
+  role: MemberRole;
+  status: string;
+  totp_enabled: boolean;
+  created_at: string;
+}
+
 export interface SignupResponse {
   tenant_id: string;
   app_id: string;
@@ -104,6 +116,21 @@ export class OndaClient {
   };
 
   readonly members = {
+    /** 팀 멤버 목록 (team:read) */
+    list: () => this.request<{ members: Member[] }>("GET", `/v1/members`),
+    /** 멤버 생성 — self-host 초기 비밀번호 지정 (team:write) */
+    create: (input: { email: string; name: string; role: MemberRole; password: string }) =>
+      this.request<Member>("POST", `/v1/members`, input),
+    /** 역할 변경 — 마지막 Owner 강등 금지·세션 폐기 (team:write) */
+    changeRole: (memberId: string, role: MemberRole) =>
+      this.request<{ ok: true; revoked: number }>(
+        "PATCH",
+        `/v1/members/${memberId}/role`,
+        { role },
+      ),
+    /** 멤버 제거 — soft delete·세션 폐기 (team:write) */
+    remove: (memberId: string) =>
+      this.request<{ ok: true; revoked: number }>("DELETE", `/v1/members/${memberId}`),
     /** 관리자 2FA 리셋 (Owner/Admin) */
     resetTotp: (memberId: string) =>
       this.request<{ ok: true }>("POST", `/v1/members/${memberId}/totp/reset`),
@@ -222,6 +249,8 @@ export class OndaClient {
     journeyReport: (appId: string, id: string, params?: { version?: number }) =>
       this.request<JourneyReport>("GET", `/v1/apps/${appId}/journeys/${id}/report${params?.version ? `?version=${params.version}` : ""}`),
     usage: (appId: string) => this.request<UsageData>("GET", `/v1/apps/${appId}/usage`),
+    deliveryReport: (appId: string, id: string) =>
+      this.request<DeliveryReport>("GET", `/v1/apps/${appId}/journeys/${id}/delivery`),
   };
 
   readonly appSettings = {
@@ -404,6 +433,15 @@ export interface JourneyNodeReport {
 export interface UsageData {
   mau_30d: number;
   sends_30d: Array<{ channel: string; sent: number }>;
+}
+
+/** 도달·오픈 리포트 (R-15): sent=공급자 접수(실도달 아님), delivered/opened=SDK 이벤트 message_id 조인·중복제거 */
+export interface DeliveryReport {
+  sent: number;
+  delivered: number;
+  opened: number;
+  delivery_rate: number;
+  open_rate: number;
 }
 
 export interface AppSettings {

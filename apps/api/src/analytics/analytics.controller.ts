@@ -134,6 +134,61 @@ export class AnalyticsController {
     };
   }
 
+  /**
+   * 도달·오픈 리포트 (R-15): message_id로 발송(message_log)과 SDK 이벤트($push_delivered/$push_opened)를 조인.
+   * - sent = 공급자 접수 고유 message_id (실도달 아님, 분모)
+   * - delivered/opened = SDK 이벤트를 message_id로 조인·중복 제거(uniqExact) — sent된 것만 집계
+   */
+  @Get("journeys/:id/delivery")
+  async deliveryReport(
+    @Param("appId", ParseUUIDPipe) appId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Req() req: SessionRequest,
+  ) {
+    await this.assertApp(appId, req);
+    const p = { tid: req.member.tenantId, aid: appId, jid: id };
+
+    const sentRes = await this.ch.query({
+      query: `SELECT uniqExact(message_id) AS sent FROM message_log
+               WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
+                 AND journey_id = {jid:UUID} AND status = 'sent'`,
+      query_params: p,
+      format: "JSONEachRow",
+    });
+    const sent = Number(((await sentRes.json()) as Array<{ sent: string }>)[0]?.sent ?? 0);
+
+    // SDK 이벤트를 sent된 message_id로만 조인, 도달/오픈 각각 uniqExact로 중복 제거.
+    const doRes = await this.ch.query({
+      query: `SELECT
+                uniqExactIf(JSONExtractString(properties, 'message_id'), event_name = '$push_delivered') AS delivered,
+                uniqExactIf(JSONExtractString(properties, 'message_id'), event_name = '$push_opened') AS opened
+              FROM events
+              WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
+                AND event_name IN ('$push_delivered', '$push_opened')
+                AND JSONExtractString(properties, 'message_id') IN (
+                  SELECT toString(message_id) FROM message_log
+                   WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
+                     AND journey_id = {jid:UUID} AND status = 'sent')`,
+      query_params: p,
+      format: "JSONEachRow",
+    });
+    const row = ((await doRes.json()) as Array<{ delivered: string; opened: string }>)[0] ?? {
+      delivered: "0",
+      opened: "0",
+    };
+    const delivered = Number(row.delivered ?? 0);
+    const opened = Number(row.opened ?? 0);
+    const rate = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 1000 : 0);
+
+    return {
+      sent, // 공급자 접수(실도달 아님) — 분모
+      delivered, // SDK $push_delivered (실도달), message_id 중복 제거
+      opened, // SDK $push_opened, 중복 제거
+      delivery_rate: rate(delivered, sent), // 도달/발송
+      open_rate: rate(opened, delivered), // 오픈/도달 (분모=도달)
+    };
+  }
+
   private async nodeReport(tenantId: string, appId: string, journeyId: string, version: number, definition: JourneyDefinition) {
     const scope = [tenantId, appId, journeyId, version];
     const [visits, choices] = await Promise.all([

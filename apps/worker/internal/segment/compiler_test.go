@@ -21,7 +21,13 @@ func TestEventWindowBindingOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []any{testTenant, testApp, testTenant, testApp, "purchase", 30, int64(2), testTenant, testApp, "cancel", 7}
+	// R-10 병합 매핑 조인으로 각 이벤트 조건은 mergeMap(tenant/app) + events(tenant/app/event)
+	// 순으로 인자를 추가한다. 루트(tenant/app)가 선두.
+	want := []any{
+		testTenant, testApp,
+		testTenant, testApp, testTenant, testApp, "purchase", 30, int64(2),
+		testTenant, testApp, testTenant, testApp, "cancel", 7,
+	}
 	if !reflect.DeepEqual(compiled.Args, want) {
 		t.Fatalf("SQL 순서와 인자가 다름: got %#v, want %#v", compiled.Args, want)
 	}

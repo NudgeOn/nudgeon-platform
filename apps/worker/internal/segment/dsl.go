@@ -51,3 +51,6 @@ var attrCmpOps = map[string]string{
 
 // 디바이스 컬럼 화이트리스트 (device_meta JSON 키)
 var deviceCols = map[string]bool{"app_version": true, "os_version": true}
+
+// platformValues — token_platform_in 값 화이트리스트 (PRD-01A 지원 플랫폼).
+var platformValues = map[string]bool{"ios": true, "android": true}

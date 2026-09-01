@@ -89,7 +89,7 @@ func compileCondition(c *Condition, tenantID, appID string, category Category, p
 	case "attribute":
 		return compileAttribute(c, p)
 	case "channel":
-		return compileChannel(c, category)
+		return compileChannel(c, category, p)
 	case "device":
 		return compileDevice(c, p)
 	case "event":
@@ -180,8 +180,8 @@ func compileAttribute(c *Condition, p *params) (string, error) {
 	}
 }
 
-// 채널 조건 — push_reachable을 카테고리별로 조합 (PRD-02 2.3).
-func compileChannel(c *Condition, category Category) (string, error) {
+// 채널 조건 — push_reachable을 카테고리별로 조합 (PRD-02 2.3), token_platform_in은 보유 플랫폼 매칭.
+func compileChannel(c *Condition, category Category, p *params) (string, error) {
 	switch c.Op {
 	case "push_reachable":
 		if category == Transactional {
@@ -189,7 +189,24 @@ func compileChannel(c *Condition, category Category) (string, error) {
 		}
 		return "(push_opt_in = 1 AND os_permission_granted = 1 AND token_active = 1)", nil
 	case "token_platform_in":
-		return "", errf("token_platform_in은 value 필요 — device 조건 사용 권장") // 간이 처리
+		// profiles_mirror.platforms(Array(String))에 지정 플랫폼 중 하나라도 있으면 매치.
+		// 값은 화이트리스트(ios/android)로 제한하고 위치 인자로 바인딩(문자열 삽입 없음).
+		vals, err := arrayValues(c.Value)
+		if err != nil {
+			return "", err
+		}
+		if len(vals) == 0 {
+			return "0", nil // 빈 목록 → 항상 거짓
+		}
+		placeholders := make([]string, len(vals))
+		for i, v := range vals {
+			s, ok := v.(string)
+			if !ok || !platformValues[s] {
+				return "", errf("token_platform_in 값 화이트리스트 위반(ios|android): %v", v)
+			}
+			placeholders[i] = p.add(s)
+		}
+		return fmt.Sprintf("arrayExists(x -> x IN (%s), platforms)", strings.Join(placeholders, ", ")), nil
 	default:
 		return "", errf("channel 연산자 화이트리스트 위반: %q", c.Op)
 	}
@@ -214,27 +231,43 @@ func compileDevice(c *Condition, p *params) (string, error) {
 	return "", errf("device 조건 %q는 아직 지원되지 않습니다 — 지원 전까지 대상 오포함 방지를 위해 거부(재검증 B)", c.Key)
 }
 
-// 이벤트 조건 — events 서브쿼리. server_ts 기준(신뢰). 병합 매핑(user_merges)은 S4(G-9).
+// 이벤트 조건 — events 서브쿼리. server_ts 기준(신뢰). 병합 매핑(user_merges)을 반영해
+// 병합 이전 user_id로 적재된 과거 이벤트를 canonical 사용자에 귀속시킨다 (R-10, G-9):
+// events.user_id를 user_merges 최신 간선(from→to)과 LEFT JOIN 후 coalesce로 canonical 해소.
+// 경로 압축(merge.go)으로 간선은 최종 canonical을 가리키므로 단일 조인이면 충분하다.
 func compileEvent(c *Condition, tenantID, appID string, p *params) (string, error) {
 	if c.Event == "" {
 		return "", errf("event 조건에 event 없음")
 	}
-	base := func() string {
+	// applyWindow=true면 events 행을 window로 사전 필터(performed/count 계열).
+	// first/last_performed는 최초/최근 시점을 전 기간에서 구해 HAVING으로 비교해야 하므로
+	// 사전 필터를 끄고(applyWindow=false) window를 HAVING 임계로만 쓴다.
+	base := func(applyWindow bool) string {
+		// SQL의 ? 등장 순서대로 인자를 바인딩한다: 조인 서브쿼리 tenant/app,
+		// 그다음 events tenant/app/event, 마지막에 선택적 window.
+		mergeMap := fmt.Sprintf(
+			"(SELECT from_user_id, argMax(to_user_id, merged_at) AS to_user_id FROM user_merges "+
+				"WHERE tenant_id = toUUID(%s) AND app_id = toUUID(%s) GROUP BY from_user_id)",
+			p.add(tenantID), p.add(appID))
+		// CH LEFT JOIN은 미매칭 시 to_user_id를 NULL이 아니라 타입 기본값(zero-UUID)으로 채운다
+		// (join_use_nulls=0 기본). 따라서 coalesce가 아니라 zero-UUID를 "병합 없음"으로 판정해야
+		// 병합 이력이 없는(대다수) 사용자의 이벤트가 zero-user로 오귀속되지 않는다. (R-10 회귀 수정)
 		query := fmt.Sprintf(
-			"SELECT user_id FROM events WHERE tenant_id = toUUID(%s) AND app_id = toUUID(%s) AND event_name = %s",
-			p.add(tenantID), p.add(appID), p.add(c.Event))
-		// SQL 순서대로 tenant/app/event 이후에 window 인자를 바인딩한다.
-		if c.WindowDays != nil {
-			query += fmt.Sprintf(" AND server_ts >= now() - INTERVAL %s DAY", p.add(*c.WindowDays))
+			"SELECT if(m.to_user_id = toUUID('%s'), e.user_id, m.to_user_id) AS user_id FROM events e "+
+				"LEFT JOIN %s m ON e.user_id = m.from_user_id "+
+				"WHERE e.tenant_id = toUUID(%s) AND e.app_id = toUUID(%s) AND e.event_name = %s",
+			anonUser, mergeMap, p.add(tenantID), p.add(appID), p.add(c.Event))
+		if applyWindow && c.WindowDays != nil {
+			query += fmt.Sprintf(" AND e.server_ts >= now() - INTERVAL %s DAY", p.add(*c.WindowDays))
 		}
 		return query
 	}
 
 	switch c.Op {
 	case "performed":
-		return "user_id IN (" + base() + " GROUP BY user_id)", nil
+		return "user_id IN (" + base(true) + " GROUP BY user_id)", nil
 	case "not_performed":
-		return "user_id NOT IN (" + base() + " GROUP BY user_id)", nil
+		return "user_id NOT IN (" + base(true) + " GROUP BY user_id)", nil
 	case "count_gte", "count_lte":
 		n, err := intValue(c.Value)
 		if err != nil {
@@ -246,9 +279,19 @@ func compileEvent(c *Condition, tenantID, appID string, p *params) (string, erro
 		}
 		// insert_id 유일 집계 — ReplacingMergeTree 병합 전 중복 행이 카운트를 부풀리지 않게 (R-05).
 		return fmt.Sprintf("user_id IN (%s GROUP BY user_id HAVING uniqExact(insert_id) %s %s)",
-			base(), cmp, p.add(n)), nil
+			base(true), cmp, p.add(n)), nil
 	case "first_performed", "last_performed":
-		return "", errf("first/last_performed는 S4 지원 예정")
+		// 시점 비교 (PRD-02): 사용자의 최초(min)/최근(max) 발생 server_ts가 최근 window_days 이내인지.
+		// 예) first_performed 7d = 최근 7일 내 처음 수행(신규 채택자), last_performed 30d = 최근 30일 내 마지막 수행(활성).
+		if c.WindowDays == nil {
+			return "", errf("%s는 window_days가 필요합니다", c.Op)
+		}
+		agg := "min"
+		if c.Op == "last_performed" {
+			agg = "max"
+		}
+		return fmt.Sprintf("user_id IN (%s GROUP BY user_id HAVING %s(e.server_ts) >= now() - INTERVAL %s DAY)",
+			base(false), agg, p.add(*c.WindowDays)), nil
 	default:
 		return "", errf("event 연산자 화이트리스트 위반: %q", c.Op)
 	}

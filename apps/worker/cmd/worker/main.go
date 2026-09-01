@@ -25,6 +25,7 @@ import (
 	"github.com/ondahq/onda/apps/worker/internal/config"
 	"github.com/ondahq/onda/apps/worker/internal/ingest"
 	"github.com/ondahq/onda/apps/worker/internal/journey"
+	"github.com/ondahq/onda/apps/worker/internal/segment"
 	"github.com/ondahq/onda/apps/worker/internal/trigger"
 	libqueue "github.com/ondahq/onda/packages/libqueue-go"
 )
@@ -148,10 +149,9 @@ func run(role string, logger *slog.Logger) error {
 		g.Go(func() error { return matcher.Run(gctx) })
 	}
 
-	for _, stub := range []string{"segment"} {
-		if has(stub) && role != "all" {
-			logger.Warn("role 미구현 — 야간 대사 잡은 S4+ 예정", "role", stub)
-		}
+	if has("segment") {
+		runner := segment.NewRunner(pg, ch, clk, logger.With("component", "segment"))
+		g.Go(func() error { return runner.RunMaintenance(gctx) })
 	}
 
 	logger.Info("onda-worker 기동", "roles", roleList(role))

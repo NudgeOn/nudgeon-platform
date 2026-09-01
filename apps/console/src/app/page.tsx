@@ -95,6 +95,16 @@ export default function DashboardPage() {
           <Button variant="outline" onClick={() => router.push("/settings")}>
             앱 설정
           </Button>
+          {me.data.permissions?.includes("team:read") && (
+            <>
+              <Button variant="outline" onClick={() => router.push("/team")}>
+                팀 관리
+              </Button>
+              <Button variant="outline" onClick={() => router.push("/audit")}>
+                감사 로그
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     </main>
