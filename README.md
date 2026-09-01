@@ -4,14 +4,19 @@
   <img src="docs-public/assets/onda-logo-pigeon.png" alt="Onda — 메시지를 전달하는 전서구 로고 시안" width="440" />
 </p>
 
-**한국 시장 네이티브 오픈소스 고객 인게이지먼트 플랫폼.**
-Push부터 알림톡까지, 하나의 세그먼트·저니 엔진 위에서 — 셀프호스팅 가능한 한국형 Braze.
+**Open-source customer engagement.**
+고객의 행동을 모으고, 대상을 고르고, 푸시 여정으로 연결합니다. 직접 설치할 수 있으며 관리형 SaaS는 준비 중입니다.
 
-> ⚠️ 개발 중인 Push 중심 MVP입니다. 핵심 경로의 코드가 있으나 재시도·일시정지·SDK 연동·운영 검증이 남아 있습니다. API·스키마는 예고 없이 변경됩니다.
+> ⚠️ 개발 중인 Push 중심 MVP입니다. 핵심 경로의 코드가 있으나 발송 복구·SDK 계약 연결·운영 검증이 남아 있습니다. 최근 수정 항목도 통합 검증이 필요합니다. API·스키마는 예고 없이 변경됩니다.
 
 ## 전체 아키텍처
 
 고객 앱의 이벤트를 수집하고, 고객 조건과 저니에 따라 푸시를 발송합니다. 아래 그림은 **현재 코드의 구성과 연결**을 기준으로 하며, 운영 완료를 의미하지 않습니다.
+
+![Onda 전체 아키텍처 — SDK, API, 큐, 워커, 저장소, Push 채널](docs-public/assets/architecture.svg)
+
+<details>
+<summary>상세 아키텍처와 데이터 흐름 (Mermaid)</summary>
 
 ```mermaid
 flowchart TB
@@ -27,7 +32,7 @@ flowchart TB
     direction LR
     console["관리 콘솔 · Next.js<br/>온보딩 · 고객 · 세그먼트 · 저니 · 리포트"]
     management["관리 API · NestJS<br/>세션 인증 · 테넌트별 리소스 접근"]
-    segmentApi["세그먼트 DSL → SQL<br/>미리보기 · 활성화 시 대상 스냅샷"]
+    segmentApi["세그먼트 DSL → SQL<br/>속성·이벤트 조건 · 대상 스냅샷<br/>디바이스 상세 조건은 미지원"]
     ingestion["Ingestion API · NestJS<br/>API Key · 입력 검증 · Rate Limit"]
     console <-->|"공유 API 클라이언트"| management
     management --> segmentApi
@@ -48,7 +53,7 @@ flowchart TB
     trigger["Trigger Matcher<br/>이벤트 → 저니 진입·이탈"]
     scheduler["Scheduler<br/>대기·메시지 노드 · 정책 · 디바이스별 발송"]
     relay["Outbox Relay<br/>커밋된 발송 작업을 큐로 전달"]
-    channel["Channel Worker<br/>크리덴셜 검증·복호화 · PushPlugin"]
+    channel["Channel Worker<br/>크리덴셜 검증·복호화 · PushPlugin<br/>재시도·DLQ·선점 복구 미완성"]
   end
 
   subgraph storage["데이터 저장"]
@@ -75,7 +80,7 @@ flowchart TB
   ingestQ --> ingestWorker
   ingestWorker --> pg
   ingestWorker -->|"이벤트 · 프로필 미러"| ch
-  ingestWorker --> eventsQ
+  ingestWorker -->|"정규화 이벤트 · 실패 복구 미완성"| eventsQ
   eventsQ --> trigger
   trigger <--> pg
   trigger --> entryQ
@@ -94,6 +99,7 @@ flowchart TB
   providers --> device
   device -->|"수신·오픈 콜백"| native
   native -.->|"도달·오픈 이벤트: 발송 ID 연결 미완성"| ingestion
+  native -.->|"수신 동의 · 로그아웃 · 토큰 소유권 동기화 미완성"| ingestion
 
   pending["미구현: segment 워커의 주기 평가·대사"]
   future["v1.5 이후 계획<br/>알림톡 · SMS · 이메일 · 분기 저니"]
@@ -108,10 +114,26 @@ flowchart TB
   class pending,future planned
 ```
 
+</details>
+
 - **실선**: 코드에 연결이 존재합니다. 실기기·장애 복구·부하 검증 통과를 뜻하지는 않습니다.
 - **점선**: 아직 완성되지 않은 연결 또는 향후 구현 범위입니다. 현재 실제 채널 구현은 FCM/APNs Push입니다.
 - **배포**: Docker Compose로 API·콘솔·워커와 PostgreSQL·ClickHouse·Redis를 구성합니다. 외부 DB 연결 설정과 Prometheus 지표도 포함하며, 관리형 DB 호환성과 백업 복구는 별도 검증이 필요합니다.
 - **SDK**: 네이티브 코어가 상태를 관리하고 RN/Flutter는 이를 호출합니다. SDK 배포와 4개 플랫폼의 전체 연동 검증은 진행 중입니다.
+
+
+## 현재 상태와 남은 작업
+
+현재는 **Push MVP 알파**입니다. 출시 조건과 소스 근거는 [출시 체크리스트](docs-public/RELEASE-CHECKLIST.md)에 정리했습니다.
+
+API 연동 방법과 전체 엔드포인트는 [API 가이드](docs-public/API.md)에서 확인할 수 있습니다.
+
+- **발송 전 필수:** message_id 연결, 채널 재시도·DLQ·유실 복구, SDK 동의·로그아웃·토큰 소유권, 수집→저니 트리거 복구.
+- **수정 반영·검증 대기:** 수집 dedup, pause, 권한, OS 권한 정규화 및 최근 설치·인증 변경.
+- **공개·운영 준비:** 콘솔 API 주소 빌드 설정, SDK 패키지·실기기 검증, CI, 백업·부하·격리, 영문 문서와 관리형 서비스 운영.
+- **기능 확장:** 디바이스 상세 필터, 세그먼트 정기 평가, 도달·오픈 리포트. 추가 채널과 분기 저니는 이후 계획입니다.
+
+홍보 웹페이지는 상위 작업 공간의 `onda-webpage`에서 별도로 관리합니다. 영문·국문 페이지를 제공하며, 현재 Cloud 가입·결제는 열지 않습니다.
 
 ## 구조
 
@@ -148,9 +170,11 @@ pnpm --filter @onda/console dev            # 콘솔 :3000
 ## 셀프호스팅 (원-커맨드)
 
 ```bash
-cp .env.example .env
-echo "ONDA_MASTER_KEY=$(openssl rand -base64 32)" >> .env
-docker compose -f deploy/compose.yaml --profile full --profile app up -d
+# Compose 전용 예제 사용 — 컨테이너 내부 주소(postgres/redis/clickhouse) 기준.
+# 루트 .env.example은 호스트 로컬 실행용(localhost)이라 컨테이너에 주입하면 안 됩니다.
+cp deploy/.env.example deploy/.env
+echo "ONDA_MASTER_KEY=$(openssl rand -base64 32)" >> deploy/.env
+docker compose -f deploy/compose.yaml --env-file deploy/.env --profile full --profile app up -d
 # → 콘솔 :3000 · API :8080 · 워커 metrics :9090
 ```
 

@@ -269,16 +269,23 @@ function compileChannel(c: ChannelCondition, category: Category): string {
 function compileDevice(c: DeviceCondition): string {
   if (!DEVICE_COLS.has(c.key)) throw new CompileError(`device 컬럼 화이트리스트 위반: ${c.key}`);
   if (!(c.op in CMP_OPS)) throw new CompileError(`device 연산자 화이트리스트 위반: ${c.op}`);
-  // TODO(S4): device_meta를 mirror에 편입 후 정밀 비교 (Go 컴파일러와 동일 한계)
-  return "1";
+  // fail-closed (재검증 B): device_meta는 아직 mirror에 없어 정밀 비교 불가.
+  // 이전 구현은 "1"(전건 매치)을 반환해 조건 불일치 대상까지 포함시켰다. Go 컴파일러와 동일하게
+  // 지원 전까지 거부해 잘못된 타기팅을 막는다.
+  throw new CompileError(
+    `device 조건 "${c.key}"는 아직 지원되지 않습니다 — 대상 오포함 방지를 위해 거부(재검증 B)`,
+  );
 }
 
 function compileEvent(c: EventCondition, tenantId: string, appId: string, p: Params): string {
   if (!c.event) throw new CompileError("event 조건에 event 없음");
-  const window =
-    c.window_days != null ? ` AND server_ts >= now() - INTERVAL ${p.add(c.window_days)} DAY` : "";
-  const base = () =>
-    `SELECT user_id FROM events WHERE tenant_id = toUUID(${p.add(tenantId)}) AND app_id = toUUID(${p.add(appId)}) AND event_name = ${p.add(c.event)}${window}`;
+  const base = () => {
+    const query = `SELECT user_id FROM events WHERE tenant_id = toUUID(${p.add(tenantId)}) AND app_id = toUUID(${p.add(appId)}) AND event_name = ${p.add(c.event)}`;
+    // Bind in SQL order: tenant, app, event, then the optional window.
+    return c.window_days != null
+      ? `${query} AND server_ts >= now() - INTERVAL ${p.add(c.window_days)} DAY`
+      : query;
+  };
 
   switch (c.op) {
     case "performed":
@@ -289,7 +296,8 @@ function compileEvent(c: EventCondition, tenantId: string, appId: string, p: Par
     case "count_lte": {
       const n = intValue(c.value);
       const cmp = c.op === "count_lte" ? "<=" : ">=";
-      return `user_id IN (${base()} GROUP BY user_id HAVING count() ${cmp} ${p.add(n)})`;
+      // insert_id 유일 집계 — ReplacingMergeTree 병합 전 중복 행이 카운트를 부풀리지 않게 (R-05).
+      return `user_id IN (${base()} GROUP BY user_id HAVING uniqExact(insert_id) ${cmp} ${p.add(n)})`;
     }
     case "first_performed":
     case "last_performed":

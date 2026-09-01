@@ -4,9 +4,28 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestEventWindowBindingOrder(t *testing.T) {
+	var dsl DSL
+	err := json.Unmarshal([]byte(`{"version":1,"operator":"AND","groups":[{"operator":"AND","conditions":[
+		{"type":"event","event":"purchase","op":"count_gte","value":2,"window_days":30},
+		{"type":"event","event":"cancel","op":"not_performed","window_days":7}]}]}`), &dsl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiled, err := Compile(&dsl, testTenant, testApp, Marketing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []any{testTenant, testApp, testTenant, testApp, "purchase", 30, int64(2), testTenant, testApp, "cancel", 7}
+	if !reflect.DeepEqual(compiled.Args, want) {
+		t.Fatalf("SQL 순서와 인자가 다름: got %#v, want %#v", compiled.Args, want)
+	}
+}
 
 const (
 	testTenant = "11111111-1111-4111-8111-111111111111"

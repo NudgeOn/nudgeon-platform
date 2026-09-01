@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
 
 /* Onda 디자인 시스템 토큰 v0 (DEV-sub-06: shadcn/ui 기반 자체 토큰의 출발점) */
 :root {

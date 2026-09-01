@@ -51,7 +51,10 @@ func main() {
 }
 
 func run(role string, logger *slog.Logger) error {
-	cfg := config.Load()
+	cfg, err := config.Load("DATABASE_URL", "REDIS_URL", "CLICKHOUSE_URL")
+	if err != nil {
+		return fmt.Errorf("설정 로드: %w", err)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -119,15 +122,19 @@ func run(role string, logger *slog.Logger) error {
 		}
 	}
 
-	if has("scheduler") {
-		sched := journey.NewScheduler(
+	var sched *journey.Scheduler
+	if has("scheduler") || has("trigger-matcher") {
+		sched = journey.NewScheduler(
 			libqueue.NewConsumer(rdb, libqueue.StreamJourneyEntry, libqueue.GroupScheduler, "sched-"+hostname),
 			libqueue.NewProducer(rdb, 0),
 			pg, ch, rdb, clk, "sched-"+hostname, logger.With("component", "scheduler"),
 		)
+	}
+	if has("scheduler") {
 		g.Go(func() error { return sched.RunEntryConsumer(gctx) })
 		g.Go(func() error { return sched.RunTick(gctx) })
 		g.Go(func() error { return sched.RunRelay(gctx) })
+		g.Go(func() error { return sched.RunMaintenance(gctx) }) // 테넌트 유예 파기 (T-10)
 		g.Go(func() error { return sched.RunReaper(gctx) })
 	}
 
@@ -137,6 +144,7 @@ func run(role string, logger *slog.Logger) error {
 			libqueue.NewProducer(rdb, 0),
 			rdb, pg, clk, logger.With("component", "trigger-matcher"),
 		)
+		matcher.SetRuntime(sched)
 		g.Go(func() error { return matcher.Run(gctx) })
 	}
 

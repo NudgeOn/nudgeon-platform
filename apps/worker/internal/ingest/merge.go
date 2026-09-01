@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -53,27 +52,15 @@ func identifyOnce(
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	// external 프로필 (활성) — 잠금 순서 고정: external 먼저, anon 다음 (데드락 최소화)
-	var extID string
-	extErr := tx.QueryRow(ctx,
-		`SELECT id FROM users WHERE app_id = $1 AND external_id = $2 AND status = 'active' FOR UPDATE`,
-		appID, p.ExternalID).Scan(&extID)
-	hasExt := extErr == nil
-	if extErr != nil && !errors.Is(extErr, pgx.ErrNoRows) {
-		return "", nil, extErr
+	// Receipt acceptance and v2 execution lock cursors before profile rows.
+	// Discover without locks, acquire both profiles in that order, then recheck
+	// identity so a concurrent promotion/merge cannot leave us using stale IDs.
+	profiles, err := lockIdentifyProfiles(ctx, tx, tenantID, appID, p)
+	if err != nil {
+		return "", nil, err
 	}
-
-	var anonID string
-	hasAnon := false
-	if p.AnonID != nil && *p.AnonID != "" {
-		anonErr := tx.QueryRow(ctx,
-			`SELECT id FROM users WHERE app_id = $1 AND anon_id = $2 AND status = 'active' FOR UPDATE`,
-			appID, *p.AnonID).Scan(&anonID)
-		hasAnon = anonErr == nil
-		if anonErr != nil && !errors.Is(anonErr, pgx.ErrNoRows) {
-			return "", nil, anonErr
-		}
-	}
+	extID, anonID := profiles.external, profiles.anonymous
+	hasExt, hasAnon := extID != "", anonID != ""
 
 	var finalID string
 	switch {
@@ -84,19 +71,26 @@ func identifyOnce(
 			  std_attrs    = anon.std_attrs || ext.std_attrs,
 			  custom_attrs = anon.custom_attrs || ext.custom_attrs,
 			  last_seen_at = GREATEST(ext.last_seen_at, anon.last_seen_at),
-			  updated_at   = now()
-			FROM users anon WHERE ext.id = $1 AND anon.id = $2`, extID, anonID); err != nil {
+			  updated_at   = $5
+			FROM users anon WHERE ext.id = $1 AND anon.id = $2
+			  AND ext.tenant_id = $3 AND ext.app_id = $4
+			  AND anon.tenant_id = $3 AND anon.app_id = $4`, extID, anonID, tenantID, appID, now); err != nil {
 			return "", nil, fmt.Errorf("병합 속성: %w", err)
 		}
 		if _, err := tx.Exec(ctx,
-			`UPDATE devices SET user_id = $1, updated_at = now() WHERE user_id = $2`,
-			extID, anonID); err != nil {
+			`UPDATE devices SET user_id = $1, updated_at = $5
+			 WHERE user_id = $2 AND tenant_id = $3 AND app_id = $4`,
+			extID, anonID, tenantID, appID, now); err != nil {
 			return "", nil, fmt.Errorf("디바이스 이관: %w", err)
 		}
 		if _, err := tx.Exec(ctx,
-			`UPDATE users SET status = 'merged', merged_into = $1, updated_at = now() WHERE id = $2`,
-			extID, anonID); err != nil {
+			`UPDATE users SET status = 'merged', merged_into = $1, updated_at = $5
+			 WHERE id = $2 AND tenant_id = $3 AND app_id = $4`,
+			extID, anonID, tenantID, appID, now); err != nil {
 			return "", nil, fmt.Errorf("tombstone: %w", err)
+		}
+		if err := exitMergedV2Journeys(ctx, tx, tenantID, appID, anonID, now); err != nil {
+			return "", nil, err
 		}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO user_merges (tenant_id, app_id, from_user_id, to_user_id, merged_at)
@@ -112,8 +106,9 @@ func identifyOnce(
 	case hasAnon:
 		// 승격: anon 프로필에 external_id 부여 — 경합으로 unique 위반 시 재시도가 병합 경로로 수렴
 		if _, err := tx.Exec(ctx,
-			`UPDATE users SET external_id = $1, last_seen_at = GREATEST(last_seen_at, $3), updated_at = now() WHERE id = $2`,
-			p.ExternalID, anonID, now); err != nil {
+			`UPDATE users SET external_id = $1, last_seen_at = GREATEST(last_seen_at, $3), updated_at = $3
+			 WHERE id = $2 AND tenant_id = $4 AND app_id = $5`,
+			p.ExternalID, anonID, now, tenantID, appID); err != nil {
 			return "", nil, err
 		}
 		finalID = anonID

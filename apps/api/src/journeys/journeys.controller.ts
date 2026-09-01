@@ -31,38 +31,15 @@ import {
 import {
   hasErrors,
   validateJourney,
+  collectPublishedABNodes,
+  validatePublishedABNodes,
+  type PublishedABNodes,
   type JourneyDefinition,
 } from "@onda/journey-model";
-import { CLICKHOUSE, PG, QUEUE } from "../infra/infra.module";
+import { CLICKHOUSE, PG, QUEUE, CONFIG } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
-
-const pushSchema = z.object({
-  title: z.string().max(256),
-  body: z.string().max(2048),
-  image_url: z.string().optional(),
-  deep_link: z.string().optional(),
-});
-const nodeSchema = z.union([
-  z.object({ type: z.literal("message"), push: pushSchema }),
-  z.object({ type: z.literal("delay"), duration_seconds: z.number().int().positive() }),
-]);
-const definitionSchema = z.object({
-  entry: z.object({
-    type: z.enum(["blast", "trigger"]),
-    segment_id: z.string().uuid().optional(),
-    trigger_event: z.string().optional(),
-  }),
-  nodes: z.array(nodeSchema),
-  exit: z.object({ conversion_event: z.string().optional() }).default({}),
-  settings: z.object({
-    category: z.enum(["marketing", "transactional"]),
-    reentry: z.any().default("never"),
-  }),
-});
-const upsertSchema = z.object({
-  name: z.string().min(1).max(200),
-  definition: definitionSchema,
-});
+import type { AppConfig } from "../config";
+import { activationSchema, draftRevision, journeyCapabilities, upsertSchema } from "./journey-contract";
 
 const EDITOR_ROLES = ["owner", "admin", "editor"];
 
@@ -74,6 +51,7 @@ export class JourneysController {
     @Inject(PG) private readonly pg: Pool,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @Inject(QUEUE) private readonly queue: QueueProducer,
+    @Inject(CONFIG) private readonly config: AppConfig,
   ) {}
 
   @Get()
@@ -84,7 +62,7 @@ export class JourneysController {
          FROM journeys WHERE tenant_id = $1 AND app_id = $2 ORDER BY updated_at DESC`,
       [req.member.tenantId, appId],
     );
-    return { journeys: rows };
+    return { journeys: rows, capabilities: journeyCapabilities(this.config.journeyGraphV2Enabled) };
   }
 
   @Get(":id")
@@ -100,7 +78,12 @@ export class JourneysController {
       [id, req.member.tenantId, appId],
     );
     if (!rows[0]) throw new NotFoundException();
-    return rows[0];
+    const journey = rows[0];
+    return { ...journey,
+      revision: draftRevision(journey.name, journey.draft_definition),
+      published_ab_nodes: await this.publishedABNodes(this.pg, req.member.tenantId, appId, id),
+      capabilities: journeyCapabilities(this.config.journeyGraphV2Enabled),
+    };
   }
 
   @Post()
@@ -126,7 +109,7 @@ export class JourneysController {
         ],
       )
       .catch(this.mapUnique);
-    return { id: rows[0].id };
+    return { id: rows[0].id, revision: draftRevision(data.name, data.definition) };
   }
 
   @Patch(":id")
@@ -147,7 +130,7 @@ export class JourneysController {
       )
       .catch(this.mapUnique);
     if (!rowCount) throw new NotFoundException("수정 가능한 저니를 찾을 수 없습니다 (활성 저니는 새 버전으로만 변경)");
-    return { ok: true };
+    return { ok: true, revision: draftRevision(data.name, data.definition) };
   }
 
   /** 검증만 수행 (활성화 전 경고·예상 카운트 모달용) */
@@ -159,12 +142,12 @@ export class JourneysController {
   ) {
     const journey = await this.load(appId, id, req);
     const def = journey.draft_definition as JourneyDefinition;
-    const issues = validateJourney(def);
+    const issues = await this.definitionIssues(this.pg, req.member.tenantId, appId, id, def);
     let estimatedCount: number | null = null;
-    if (def.entry.type === "blast" && def.entry.segment_id) {
+    if (!hasErrors(issues) && def.entry.type === "blast" && def.entry.segment_id) {
       estimatedCount = await this.audienceCount(req.member.tenantId, appId, def.entry.segment_id, def.settings.category);
     }
-    return { issues, estimated_count: estimatedCount };
+    return { issues, estimated_count: estimatedCount, revision: draftRevision(journey.name, def) };
   }
 
   /**
@@ -176,34 +159,62 @@ export class JourneysController {
     @Param("appId", ParseUUIDPipe) appId: string,
     @Param("id", ParseUUIDPipe) id: string,
     @Req() req: SessionRequest,
+    @Body() body: unknown = {},
   ) {
     this.assertEditor(req);
-    const journey = await this.load(appId, id, req);
-    const def = journey.draft_definition as JourneyDefinition;
-    const issues = validateJourney(def);
-    if (hasErrors(issues)) {
-      throw new BadRequestException({ message: "검증 실패로 활성화할 수 없습니다", issues });
-    }
-
-    // 새 버전 번호
-    const verRes = await this.pg.query(
-      `SELECT COALESCE(MAX(version), 0) + 1 AS next FROM journey_versions WHERE journey_id = $1`,
-      [id],
-    );
-    const version: number = verRes.rows[0].next;
-
+    await this.assertApp(appId, req);
+    const parsed = activationSchema.safeParse(body ?? {});
+    if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
+    const tenantId = req.member.tenantId;
     const client = await this.pg.connect();
     try {
       await client.query("BEGIN");
+      const result = await client.query(
+        `SELECT id, name, status, draft_definition FROM journeys
+          WHERE id = $1 AND tenant_id = $2 AND app_id = $3 FOR UPDATE`,
+        [id, tenantId, appId],
+      );
+      const journey = result.rows[0];
+      if (!journey) throw new NotFoundException("저니를 찾을 수 없습니다");
+      if (!["draft", "paused"].includes(journey.status)) throw new ConflictException("초안 또는 일시정지 상태에서만 활성화할 수 있습니다");
+      const def = journey.draft_definition as JourneyDefinition;
+      const revision = draftRevision(journey.name, def);
+      if ((def.schema_version === 2 && !parsed.data.revision) ||
+          (parsed.data.revision && parsed.data.revision !== revision)) {
+        throw new ConflictException("검증 이후 초안이 변경되었습니다. 다시 검증해 주세요");
+      }
+      const issues = await this.definitionIssues(client, tenantId, appId, id, def);
+      if (hasErrors(issues)) throw new BadRequestException({ message: "검증 실패로 활성화할 수 없습니다", issues });
+      const verRes = await client.query(
+        `SELECT COALESCE(MAX(v.version), 0) + 1 AS next FROM journey_versions v
+          JOIN journeys j ON j.id = v.journey_id
+          WHERE j.id = $1 AND j.tenant_id = $2 AND j.app_id = $3`,
+        [id, tenantId, appId],
+      );
+      const version: number = verRes.rows[0].next;
+      // Complete the audience snapshot before committing its durable entry job.
+      const audienceRef = def.entry.type === "blast" && def.entry.segment_id
+        ? await this.snapshotAudience(tenantId, appId, def.entry.segment_id, def.settings.category)
+        : undefined;
       await client.query(
         `INSERT INTO journey_versions (journey_id, version, definition) VALUES ($1, $2, $3)`,
         [id, version, def],
       );
       await client.query(
-        `UPDATE journeys SET status = 'active', active_version = $2, updated_at = now() WHERE id = $1`,
-        [id, version],
+        `UPDATE journeys SET status = 'active', active_version = $4, updated_at = now()
+          WHERE id = $1 AND tenant_id = $2 AND app_id = $3`,
+        [id, tenantId, appId, version],
       );
+      if (audienceRef) {
+        const payload: JourneyEntryPayload = { journey_id: id, version, source: "blast", audience_ref: audienceRef };
+        await client.query(
+          `INSERT INTO journey_outbox (tenant_id, app_id, stream, idempotency_key, payload)
+            VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`,
+          [tenantId, appId, STREAMS.journeyEntry, `v2:entry:${id}:${version}`, payload],
+        );
+      }
       await client.query("COMMIT");
+      return { version, entry: def.entry.type, ...(audienceRef ? { audience_ref: audienceRef } : {}) };
     } catch (e) {
       await client.query("ROLLBACK");
       throw e;
@@ -211,30 +222,6 @@ export class JourneysController {
       client.release();
     }
 
-    // blast 진입: 세그먼트 스냅샷 → campaign_audiences → journey.entry
-    if (def.entry.type === "blast" && def.entry.segment_id) {
-      const audienceRef = await this.snapshotAudience(
-        req.member.tenantId,
-        appId,
-        def.entry.segment_id,
-        def.settings.category,
-      );
-      const payload: JourneyEntryPayload = {
-        journey_id: id,
-        version,
-        source: "blast",
-        audience_ref: audienceRef,
-      };
-      await this.queue.publish(STREAMS.journeyEntry, {
-        type: "journey.enter",
-        tenantId: req.member.tenantId,
-        appId,
-        payload: payload as unknown as Record<string, unknown>,
-      });
-      return { version, entry: "blast", audience_ref: audienceRef };
-    }
-    // trigger 진입은 S5 (trigger-matcher)
-    return { version, entry: def.entry.type };
   }
 
   @Post(":id/pause")
@@ -256,15 +243,32 @@ export class JourneysController {
   ) {
     this.assertEditor(req);
     // archived: 진행 중 유저 전원 강제 이탈 (PRD-03 2.2)
-    const journey = await this.load(appId, id, req);
-    await this.pg.query(
-      `UPDATE journey_states SET status = 'exited', updated_at = now()
-        WHERE journey_id = $1 AND status IN ('active', 'waiting', 'claimed')`,
-      [journey.id],
-    );
-    await this.pg.query(`UPDATE journeys SET status = 'archived', updated_at = now() WHERE id = $1`, [
-      journey.id,
-    ]);
+    await this.assertApp(appId, req);
+    const client = await this.pg.connect();
+    try {
+      await client.query("BEGIN");
+      const scope = [id, req.member.tenantId, appId];
+      const journey = await client.query(
+        `SELECT id FROM journeys WHERE id = $1 AND tenant_id = $2 AND app_id = $3 FOR UPDATE`, scope,
+      );
+      if (!journey.rowCount) throw new NotFoundException("저니를 찾을 수 없습니다");
+      await client.query(
+        `UPDATE journeys SET status = 'archived', updated_at = now()
+          WHERE id = $1 AND tenant_id = $2 AND app_id = $3`, scope,
+      );
+      await client.query(
+        `UPDATE journey_states SET status = 'exited', claim_token = NULL, claimed_by = NULL,
+          claimed_at = NULL, next_wake_at = NULL, updated_at = now()
+          WHERE journey_id = $1 AND tenant_id = $2 AND app_id = $3 AND status IN ('active','waiting','claimed')`, scope,
+      );
+      await client.query(
+        `UPDATE journey_node_executions SET status = 'exited', resolved_at = now(), updated_at = now()
+          WHERE journey_id = $1 AND tenant_id = $2 AND app_id = $3 AND status IN ('arrived','waiting','retrying')`, scope,
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK"); throw error;
+    } finally { client.release(); }
     return { ok: true };
   }
 
@@ -287,6 +291,7 @@ export class JourneysController {
     } satisfies Compiled);
     await this.ch.command({
       query: insert.query,
+      clickhouse_settings: { wait_for_async_insert: 1 },
       query_params: {
         ...insert.query_params,
         aref: audienceRef,
@@ -334,6 +339,24 @@ export class JourneysController {
   }
 
   // --- 공통 ---
+
+  private async publishedABNodes(db: Pick<Pool, "query">, tenantId: string, appId: string, id: string): Promise<PublishedABNodes> {
+    const { rows } = await db.query(
+      `SELECT v.definition FROM journey_versions v JOIN journeys j ON j.id = v.journey_id
+        WHERE j.id = $1 AND j.tenant_id = $2 AND j.app_id = $3 ORDER BY v.version`,
+      [id, tenantId, appId],
+    );
+    return collectPublishedABNodes(rows.map(row => row.definition as JourneyDefinition));
+  }
+
+  private async definitionIssues(db: Pick<Pool, "query">, tenantId: string, appId: string, id: string, def: JourneyDefinition) {
+    const issues = validateJourney(def);
+    if (def.schema_version === 2 && !this.config.journeyGraphV2Enabled) {
+      issues.push({ level: "error", field: "schema_version", message: "모든 워커를 업데이트한 뒤 JOURNEY_GRAPH_V2_ENABLED=true로 활성화하세요" });
+    }
+    issues.push(...validatePublishedABNodes(def, await this.publishedABNodes(db, tenantId, appId, id)));
+    return issues;
+  }
 
   private async load(appId: string, id: string, req: SessionRequest) {
     const { rows } = await this.pg.query(

@@ -120,7 +120,7 @@ paths:
                     locale: { type: string }
       responses:
         "202":
-          description: 수집 큐 적재 완료
+          description: PostgreSQL 이벤트 inbox 및 전달용 outbox 영속 저장 완료. 중복 insert_id는 최초 접수 시각·순서를 유지합니다.
           content:
             application/json:
               schema:
@@ -130,6 +130,7 @@ paths:
                   request_id: { type: string, format: uuid }
         "400": { description: 스키마 오류 }
         "401": { description: 키 무효 }
+        "503": { description: 이벤트 영속 저장 실패. 같은 insert_id로 재시도할 수 있습니다. }
   /v1/identify:
     post:
       operationId: identify
@@ -212,8 +213,388 @@ paths:
           schema: { type: string }
       responses:
         "202": { description: 삭제 큐 적재 }
+  /v1/apps/{appId}/journeys:
+    parameters:
+      - { $ref: "#/components/parameters/AppId" }
+    get:
+      operationId: listJourneys
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Journeys and worker rollout capabilities
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [journeys, capabilities]
+                properties:
+                  journeys: { type: array, items: { $ref: "#/components/schemas/JourneySummary" } }
+                  capabilities: { $ref: "#/components/schemas/JourneyCapabilities" }
+    post:
+      operationId: createJourney
+      security: [{ sessionCookie: [] }]
+      requestBody: { $ref: "#/components/requestBodies/JourneyUpsert" }
+      responses:
+        "201": { description: "Draft saved, returns id and revision (compare with validate response before activating)" }
+        "400": { description: Invalid wire schema }
+  /v1/apps/{appId}/journeys/{id}:
+    parameters:
+      - { $ref: "#/components/parameters/AppId" }
+      - { $ref: "#/components/parameters/JourneyId" }
+    get:
+      operationId: getJourney
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Draft and immutable experiment allocations
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: "#/components/schemas/JourneySummary" }
+                  - type: object
+                    required: [draft_definition, revision, published_ab_nodes, capabilities]
+                    properties:
+                      draft_definition: { $ref: "#/components/schemas/JourneyDefinition" }
+                      revision: { type: string, pattern: "^[a-f0-9]{64}$" }
+                      published_ab_nodes:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            variants: { type: array, items: { $ref: "#/components/schemas/ABVariant" } }
+                      capabilities: { $ref: "#/components/schemas/JourneyCapabilities" }
+        "404": { description: Journey not accessible }
+    patch:
+      operationId: updateJourney
+      security: [{ sessionCookie: [] }]
+      requestBody: { $ref: "#/components/requestBodies/JourneyUpsert" }
+      responses:
+        "200": { description: "Draft or paused journey saved, returns ok and revision" }
+        "400": { description: Invalid wire schema }
+        "404": { description: Journey is not editable }
+    delete:
+      operationId: archiveJourney
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200": { description: Archived and active executions exited atomically }
+  /v1/apps/{appId}/journeys/{id}/validate:
+    parameters:
+      - { $ref: "#/components/parameters/AppId" }
+      - { $ref: "#/components/parameters/JourneyId" }
+    post:
+      operationId: validateJourney
+      security: [{ sessionCookie: [] }]
+      responses:
+        "201":
+          description: Graph, conditions, published experiments and rollout validation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [issues, estimated_count, revision]
+                properties:
+                  revision: { type: string, pattern: "^[a-f0-9]{64}$" }
+                  estimated_count: { type: [integer, "null"] }
+                  issues: { type: array, items: { $ref: "#/components/schemas/JourneyValidationIssue" } }
+  /v1/apps/{appId}/journeys/{id}/activate:
+    parameters:
+      - { $ref: "#/components/parameters/AppId" }
+      - { $ref: "#/components/parameters/JourneyId" }
+    post:
+      operationId: activateJourney
+      description: Locks the journey, revalidates the draft and publishes an immutable version. v2 requires the revision returned by validate. JOURNEY_GRAPH_V2_ENABLED must be true after all workers are upgraded.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                revision: { type: string, pattern: "^[a-f0-9]{64}$" }
+      responses:
+        "201": { description: Returns version, entry and optional audience_ref; blast admission is durable via outbox }
+        "400": { description: Invalid graph or rollout not enabled }
+        "409": { description: Stale validation revision or journey not draft/paused }
+  /v1/apps/{appId}/journeys/{id}/pause:
+    parameters:
+      - { $ref: "#/components/parameters/AppId" }
+      - { $ref: "#/components/parameters/JourneyId" }
+    post:
+      operationId: pauseJourney
+      security: [{ sessionCookie: [] }]
+      responses:
+        "201": { description: Paused; wall-clock wait deadlines continue }
+  /v1/apps/{appId}/journeys/{id}/report:
+    parameters:
+      - { $ref: "#/components/parameters/AppId" }
+      - { $ref: "#/components/parameters/JourneyId" }
+    get:
+      operationId: journeyReport
+      description: Select version for consistent graph/node/send counts. Omitting version retains legacy all-version state and send totals. Counts are execution instances, not unique customers, except paths.unique_users.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: version
+          in: query
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Immutable definition and version-isolated node/path counts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JourneyReport" }
+        "404": { description: Version not found }
 components:
+  parameters:
+    AppId:
+      name: appId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    JourneyId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  requestBodies:
+    JourneyUpsert:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name, definition]
+            properties:
+              name: { type: string, minLength: 1, maxLength: 200 }
+              definition: { $ref: "#/components/schemas/JourneyDefinition" }
   schemas:
+    JourneySummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        status: { type: string, enum: [draft, active, paused, archived] }
+        category: { type: string, enum: [marketing, transactional] }
+        active_version: { type: [integer, "null"] }
+        updated_at: { type: string, format: date-time }
+    JourneyCapabilities:
+      type: object
+      required: [graph_v2, supported_node_types]
+      properties:
+        graph_v2: { type: boolean }
+        supported_node_types: { type: array, items: { type: string, enum: [message, delay, branch, event_wait, ab_split] } }
+    JourneyDefinition:
+      oneOf:
+        - { $ref: "#/components/schemas/LegacyJourney" }
+        - { $ref: "#/components/schemas/GraphJourney" }
+    JourneyBase:
+      type: object
+      required: [entry, nodes, exit, settings]
+      properties:
+        entry:
+          type: object
+          required: [type]
+          properties:
+            type: { type: string, enum: [blast, trigger] }
+            segment_id: { type: string, format: uuid }
+            trigger_event: { type: string }
+        exit:
+          type: object
+          properties:
+            conversion_event: { type: string, description: Takes priority over event wait }
+        settings:
+          type: object
+          required: [category, reentry]
+          properties:
+            category: { type: string, enum: [marketing, transactional] }
+            reentry:
+              oneOf:
+                - { type: string, enum: [never, always] }
+                - type: object
+                  required: [after_days]
+                  properties:
+                    after_days: { type: integer, minimum: 1 }
+    LegacyJourney:
+      allOf:
+        - { $ref: "#/components/schemas/JourneyBase" }
+        - type: object
+          properties:
+            schema_version: { type: integer, const: 1 }
+            nodes:
+              type: array
+              items:
+                oneOf:
+                  - { $ref: "#/components/schemas/MessageNode" }
+                  - { $ref: "#/components/schemas/DelayNode" }
+    GraphJourney:
+      allOf:
+        - { $ref: "#/components/schemas/JourneyBase" }
+        - type: object
+          required: [schema_version, start_node_id, edges]
+          properties:
+            schema_version: { type: integer, const: 2 }
+            start_node_id: { type: [string, "null"] }
+            nodes:
+              type: array
+              maxItems: 65535
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id: { type: string, minLength: 1, maxLength: 128 }
+                  - oneOf:
+                      - { $ref: "#/components/schemas/MessageNode" }
+                      - { $ref: "#/components/schemas/DelayNode" }
+                      - { $ref: "#/components/schemas/BranchNode" }
+                      - { $ref: "#/components/schemas/EventWaitNode" }
+                      - { $ref: "#/components/schemas/ABSplitNode" }
+            edges:
+              type: array
+              items:
+                type: object
+                required: [id, source, source_port, target]
+                properties:
+                  id: { type: string }
+                  source: { type: string }
+                  source_port: { type: string, description: "next, true/false, matched/timeout, or A/B variant ID; exactly one edge per output" }
+                  target: { type: [string, "null"], description: "Node ID or null to end; merges are exclusive OR merges" }
+    MessageNode:
+      type: object
+      required: [type, push]
+      properties:
+        id: { type: string }
+        type: { type: string, const: message }
+        push:
+          type: object
+          required: [title, body]
+          properties:
+            title: { type: string, maxLength: 256 }
+            body: { type: string, maxLength: 2048 }
+            image_url: { type: string }
+            deep_link: { type: string }
+    DelayNode:
+      type: object
+      required: [type, duration_seconds]
+      properties:
+        id: { type: string }
+        type: { type: string, const: delay }
+        duration_seconds: { type: integer, minimum: 1, maximum: 9223372036 }
+    BranchNode:
+      type: object
+      required: [type, condition]
+      properties:
+        id: { type: string }
+        type: { type: string, const: branch }
+        condition:
+          type: object
+          description: Segment DSL v1; attribute comparisons and event performed/not_performed only. Unsupported fields/operators are rejected at activation.
+          required: [version, operator, groups]
+          properties:
+            version: { type: integer, const: 1 }
+            operator: { type: string, enum: [AND, OR] }
+            groups:
+              type: array
+              minItems: 1
+              maxItems: 20
+              items:
+                type: object
+                required: [operator, conditions]
+                properties:
+                  operator: { type: string, enum: [AND, OR] }
+                  conditions:
+                    type: array
+                    minItems: 1
+                    maxItems: 50
+                    items:
+                      type: object
+                      description: "attribute: key/op/value; event: event/op/window_days (1..180, default 30)"
+    EventWaitNode:
+      type: object
+      required: [type, event_name, timeout_seconds]
+      properties:
+        id: { type: string }
+        type: { type: string, const: event_wait }
+        event_name: { type: string, minLength: 1, maxLength: 200 }
+        timeout_seconds: { type: integer, minimum: 1, maximum: 9223372036, default: 86400 }
+      description: Only first server receipts after wait registration and strictly before deadline count. Offline actions first received in this interval qualify. matched/timeout is resolved once.
+    ABVariant:
+      type: object
+      required: [id, label, weight]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 128 }
+        label: { type: string, minLength: 1, maxLength: 100 }
+        weight: { type: integer, minimum: 1, maximum: 100 }
+    ABSplitNode:
+      type: object
+      required: [type, variants]
+      properties:
+        id: { type: string }
+        type: { type: string, const: ab_split }
+        variants:
+          type: array
+          minItems: 2
+          maxItems: 4
+          items: { $ref: "#/components/schemas/ABVariant" }
+      description: Weights total 100. Stable journey/node/customer assignment excludes version. Published IDs/order/weights cannot change; start a new experiment with a new node ID.
+    JourneyValidationIssue:
+      type: object
+      required: [level, message]
+      properties:
+        level: { type: string, enum: [error, warning] }
+        message: { type: string }
+        node_index: { type: integer }
+        node_id: { type: string }
+        edge_id: { type: string }
+        field: { type: string }
+    JourneyReport:
+      type: object
+      required: [name, status, state_distribution, sends, version, versions, definition, instrumentation, nodes]
+      properties:
+        name: { type: string }
+        status: { type: string }
+        version: { type: [integer, "null"] }
+        versions:
+          type: array
+          items:
+            type: object
+            properties:
+              version: { type: integer }
+              created_at: { type: string, format: date-time }
+        definition:
+          oneOf:
+            - { $ref: "#/components/schemas/JourneyDefinition" }
+            - { type: "null" }
+        instrumentation: { type: string, enum: [available, unsupported, unpublished] }
+        state_distribution: { type: object, additionalProperties: { type: integer } }
+        sends:
+          type: array
+          items:
+            type: object
+            properties:
+              status: { type: string }
+              node_index: { type: integer }
+              count: { type: integer }
+        nodes:
+          type: array
+          items:
+            type: object
+            properties:
+              node_id: { type: string }
+              node_index: { type: integer }
+              type: { type: string }
+              arrived: { type: integer }
+              waiting: { type: integer }
+              completed: { type: integer }
+              failed: { type: integer }
+              paths:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    output_port: { type: string }
+                    executions: { type: integer }
+                    unique_users: { type: integer }
     Device:
       type: object
       required: [device_id, platform]
@@ -225,6 +606,10 @@ components:
         model: { type: string }
         locale: { type: string }
   securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: onda_session
     apiKey:
       type: http
       scheme: bearer

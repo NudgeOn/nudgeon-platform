@@ -36,6 +36,13 @@ export interface NormalizedEventPayload {
   user_id: string;
   event_name: string;
   occurred_at: string;
+  /** Durable receipt identity. Optional only for pre-upgrade stream entries. */
+  insert_id?: string;
+  /** Decimal bigint string; never a lossy JS number. */
+  receipt_seq?: string;
+  received_at?: string;
+  client_ts?: string;
+  properties?: Record<string, unknown>;
 }
 
 /** 메시지 type — 파괴적 변경은 신규 type으로 (schema_ver 규칙) */
@@ -65,7 +72,9 @@ export type IngestEndpoint =
   | "identify"
   | "attributes"
   | "devices_token"
-  | "user_delete";
+  | "user_delete"
+  | "subscriptions"
+  | "devices_logout";
 
 export interface IngestDeviceInfo {
   device_id: string;
@@ -78,6 +87,10 @@ export interface IngestDeviceInfo {
 
 export interface IngestTrackEvent {
   insert_id: string;
+  /** PG canonical customer / immutable receipt, filled by the track API. */
+  user_id?: string;
+  receipt_seq?: string;
+  received_at?: string;
   anon_id?: string | null;
   external_id?: string | null;
   event: string;
@@ -109,6 +122,14 @@ export interface IngestBatchPayload {
     external_id?: string | null;
   };
   user_delete?: { external_id: string };
+  // R-03: 수신 동의 변경·로그아웃(토큰 소유권 해제) 서버 동기화
+  subscription?: {
+    anon_id?: string | null;
+    external_id?: string | null;
+    channel: "push";
+    state: "opted_in" | "unsubscribed";
+  };
+  logout?: { device_id: string };
 }
 
 /** journey.entry 스트림 payload */
@@ -118,11 +139,16 @@ export interface JourneyEntryPayload {
   source: "blast" | "trigger";
   audience_ref?: string | null;
   user_id?: string | null;
+  /** v2 admission identity; UUID for trigger, blast:<audience_ref> for blast. */
+  entry_id?: string;
+  receipt_seq?: string;
 }
 
 /** send.push 스트림 payload — 멱등 키에 device_id 포함 (PRD-03 4.3 v0.2) */
 export interface SendPushPayload {
   idempotency_key: string;
+  /** 발송 시점 생성 안정 ID — message_log·푸시 data(onda.message_id)·SDK 도달/오픈 연결 (재검증 F) */
+  message_id: string;
   user_id: string;
   device_id: string;
   push_token: string;
@@ -154,6 +180,7 @@ export const envelopeSchema = loadSchema("envelope.schema.json");
 /** type별 payload 스키마. 새 메시지 type 추가 시 여기와 schemas/에 함께 등록한다. */
 export const payloadSchemas: Partial<Record<MessageType, Record<string, unknown>>> = {
   "ingest.batch": loadSchema("ingest.batch.schema.json"),
+  "event.normalized": loadSchema("event.normalized.schema.json"),
   "send.push": loadSchema("send.push.schema.json"),
   "journey.enter": loadSchema("journey.entry.schema.json"),
 };

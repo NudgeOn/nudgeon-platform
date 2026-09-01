@@ -7,6 +7,11 @@ import { AuthController } from "./auth/auth.controller";
 import { BootstrapController } from "./auth/bootstrap.controller";
 import { AuthService } from "./auth/auth.service";
 import { SessionService } from "./auth/session.service";
+import { TotpService } from "./auth/totp.service";
+import { TotpController, MemberTotpController } from "./auth/totp.controller";
+import { AuditService } from "./audit/audit.service";
+import { AuditController } from "./audit/audit.controller";
+import { TenantController } from "./tenant/tenant.controller";
 import { IngestionService } from "./ingestion/ingestion.service";
 import { TrackController } from "./ingestion/track.controller";
 import { CredentialsController } from "./credentials/credentials.controller";
@@ -22,6 +27,7 @@ import { SegmentsController } from "./segments/segments.controller";
 import { JourneysController } from "./journeys/journeys.controller";
 import { RateLimitGuard } from "./rate-limit/rate-limit.guard";
 import { RateLimitService } from "./rate-limit/rate-limit.service";
+import { PermissionGuard } from "./authz/permission.guard";
 
 @Module({
   imports: [InfraModule],
@@ -29,6 +35,10 @@ import { RateLimitService } from "./rate-limit/rate-limit.service";
     HealthController,
     AuthController,
     BootstrapController,
+    TotpController,
+    MemberTotpController,
+    AuditController,
+    TenantController,
     TrackController,
     CredentialsController,
     TestPushController,
@@ -44,11 +54,14 @@ import { RateLimitService } from "./rate-limit/rate-limit.service";
   providers: [
     ApiKeyGuard,
     SessionGuard,
+    PermissionGuard,
     RateLimitGuard,
     RateLimitService,
     ApiKeyService,
     AuthService,
     SessionService,
+    TotpService,
+    AuditService,
     IngestionService,
   ],
 })

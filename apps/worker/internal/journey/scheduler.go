@@ -28,15 +28,16 @@ const (
 
 // Scheduler — journey.entry 소비 + 상태머신 틱 + outbox 릴레이 + 리퍼.
 type Scheduler struct {
-	entryQueue *libqueue.Consumer
-	producer   *libqueue.Producer
-	pg         *pgxpool.Pool
-	ch         driver.Conn
-	rdb        redis.Cmdable
-	freqCap    *policy.FreqCapChecker
-	clk        clock.Clock
-	logger     *slog.Logger
-	consumer   string
+	entryQueue  *libqueue.Consumer
+	producer    *libqueue.Producer
+	pg          *pgxpool.Pool
+	ch          driver.Conn
+	rdb         redis.Cmdable
+	freqCap     *policy.FreqCapChecker
+	clk         clock.Clock
+	logger      *slog.Logger
+	consumer    string
+	eventLookup func(context.Context, eventQuery) (bool, error)
 
 	defMu sync.Mutex
 	defs  map[string]*Definition // key: journey_id/version
@@ -67,11 +68,11 @@ type appPolicy struct {
 	tz         *time.Location
 }
 
-func (s *Scheduler) loadAppPolicy(ctx context.Context, appID string) (*appPolicy, error) {
+func (s *Scheduler) loadAppPolicy(ctx context.Context, tx pgx.Tx, tenantID, appID string) (*appPolicy, error) {
 	var tzName string
 	var qhRaw, fcRaw []byte
-	if err := s.pg.QueryRow(ctx,
-		`SELECT timezone, quiet_hours, frequency_cap FROM apps WHERE id = $1`, appID).
+	if err := tx.QueryRow(ctx,
+		`SELECT timezone, quiet_hours, frequency_cap FROM apps WHERE tenant_id=$1 AND id=$2`, tenantID, appID).
 		Scan(&tzName, &qhRaw, &fcRaw); err != nil {
 		return nil, err
 	}
@@ -109,6 +110,11 @@ func (s *Scheduler) RunEntryConsumer(ctx context.Context) error {
 			time.Sleep(time.Second)
 			continue
 		}
+		pending, reclaimErr := s.entryQueue.Reclaim(ctx, 30*time.Second, 50)
+		if reclaimErr != nil && ctx.Err() == nil {
+			s.logger.Error("entry pending 회수 실패", "err", reclaimErr)
+		}
+		msgs = append(pending, msgs...)
 		for _, m := range msgs {
 			if err := s.handleEntry(ctx, &m); err != nil {
 				s.logger.Error("진입 처리 실패 — 재시도", "err", err, "msg_id", m.Envelope.ID)
@@ -126,8 +132,10 @@ type entryPayload struct {
 	JourneyID   string  `json:"journey_id"`
 	Version     int     `json:"version"`
 	Source      string  `json:"source"`
-	AudienceRef *string `json:"audience_ref"`
-	UserID      *string `json:"user_id"`
+	AudienceRef *string `json:"audience_ref,omitempty"`
+	UserID      *string `json:"user_id,omitempty"`
+	EntryID     string  `json:"entry_id,omitempty"`
+	ReceiptSeq  string  `json:"receipt_seq,omitempty"`
 }
 
 func (s *Scheduler) handleEntry(ctx context.Context, m *libqueue.Message) error {
@@ -149,7 +157,7 @@ func (s *Scheduler) handleEntry(ctx context.Context, m *libqueue.Message) error 
 		if p.UserID == nil {
 			return nil
 		}
-		return s.enterUsers(ctx, env.TenantID, env.AppID, p.JourneyID, p.Version, []string{*p.UserID})
+		return s.enterUser(ctx, env.TenantID, env.AppID, p.JourneyID, p.Version, *p.UserID, p.EntryID, "trigger")
 	default:
 		return nil
 	}
@@ -161,8 +169,8 @@ func (s *Scheduler) bulkEnter(ctx context.Context, tenantID, appID, journeyID st
 	for offset := 0; ; offset += entryPageSize {
 		rows, err := s.ch.Query(ctx, `
 			SELECT toString(user_id) FROM campaign_audiences
-			 WHERE audience_ref = ? ORDER BY user_id LIMIT ? OFFSET ?`,
-			audienceRef, entryPageSize, offset)
+			 WHERE tenant_id=toUUID(?) AND app_id=toUUID(?) AND audience_ref = ? ORDER BY user_id LIMIT ? OFFSET ?`,
+			tenantID, appID, audienceRef, entryPageSize, offset)
 		if err != nil {
 			return fmt.Errorf("audience 조회: %w", err)
 		}
@@ -175,11 +183,15 @@ func (s *Scheduler) bulkEnter(ctx context.Context, tenantID, appID, journeyID st
 			}
 			page = append(page, uid)
 		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return err
+		}
 		rows.Close()
 		if len(page) == 0 {
 			break
 		}
-		if err := s.enterUsers(ctx, tenantID, appID, journeyID, version, page); err != nil {
+		if err := s.enterAudiencePage(ctx, tenantID, appID, journeyID, version, page, audienceRef); err != nil {
 			return err
 		}
 		total += len(page)
@@ -197,21 +209,9 @@ func (s *Scheduler) enterUsers(ctx context.Context, tenantID, appID, journeyID s
 	if len(userIDs) == 0 {
 		return nil
 	}
-	batch := &pgx.Batch{}
-	now := s.clk.Now()
 	for _, uid := range userIDs {
-		batch.Queue(`
-			INSERT INTO journey_states
-			  (tenant_id, app_id, journey_id, journey_version, user_id, current_node, status, next_wake_at, entered_at)
-			VALUES ($1, $2, $3, $4, $5, 0, 'active', $6, $6)
-			ON CONFLICT DO NOTHING`,
-			tenantID, appID, journeyID, version, uid, now)
-	}
-	br := s.pg.SendBatch(ctx, batch)
-	defer br.Close()
-	for range userIDs {
-		if _, err := br.Exec(); err != nil {
-			return fmt.Errorf("journey_states 벌크 삽입: %w", err)
+		if err := s.enterUser(ctx, tenantID, appID, journeyID, version, uid, "", "blast"); err != nil {
+			return err
 		}
 	}
 	return nil

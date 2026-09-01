@@ -24,12 +24,16 @@ CREATE TYPE credential_status AS ENUM ('unverified', 'verified', 'error');
 CREATE TABLE tenants (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name         text NOT NULL,
+  -- 조직 전체 2FA 강제 (PRD-06 2.1, T-5). 켜면 미등록 멤버는 로그인 후 등록 화면으로 강제.
+  require_2fa  boolean NOT NULL DEFAULT false,
   -- 삭제 플로우: 요청 → 7일 유예(복구 가능) → 파기 (PRD-06 6장)
   delete_requested_at timestamptz,
   purge_after  timestamptz,
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now()
 );
+-- 기존 설치용(멱등): CREATE TABLE는 기존 tenants에서 스킵되므로 신규 컬럼은 ALTER로 추가.
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS require_2fa boolean NOT NULL DEFAULT false;
 
 CREATE TABLE members (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -252,6 +256,9 @@ CREATE TABLE journey_states (
   next_wake_at   timestamptz,         -- delay 노드 기상 시각 (즉시 실행이면 NULL/과거)
   claimed_by     text,
   claimed_at     timestamptz,
+  claim_token    uuid,                -- v2 stale-worker fencing token
+  entry_id       text,                -- v2 stable source admission identity; v1 stays NULL
+  entry_seq      bigint,              -- receipt sequence at v2 admission
   fail_reason    text,
   entered_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now()
@@ -264,6 +271,40 @@ CREATE UNIQUE INDEX journey_states_active_uniq
 CREATE INDEX journey_states_wake_idx
   ON journey_states (next_wake_at)
   WHERE status IN ('active', 'waiting');
+CREATE UNIQUE INDEX journey_states_entry_uniq
+  ON journey_states (tenant_id, app_id, journey_id, journey_version, user_id, entry_id)
+  WHERE entry_id IS NOT NULL;
+
+-- One node visit per execution: v2 is a DAG, with exclusive (not parallel) paths.
+CREATE TABLE journey_node_executions (
+  state_id        uuid NOT NULL REFERENCES journey_states(id) ON DELETE CASCADE,
+  node_id         text NOT NULL,
+  node_index      int NOT NULL CHECK (node_index BETWEEN 0 AND 65535),
+  tenant_id       uuid NOT NULL REFERENCES tenants(id),
+  app_id          uuid NOT NULL REFERENCES apps(id),
+  journey_id      uuid NOT NULL,
+  journey_version int NOT NULL,
+  user_id         uuid NOT NULL,
+  status          text NOT NULL CHECK (status IN ('arrived', 'waiting', 'retrying', 'resolved', 'failed', 'exited')),
+  arrived_at      timestamptz NOT NULL,
+  resolved_at     timestamptz,
+  output_port     text,
+  context         jsonb NOT NULL DEFAULT '{}',
+  wait_event      text,
+  after_seq       bigint,
+  deadline        timestamptz,
+  matched_insert_id uuid,
+  retry_count     int NOT NULL DEFAULT 0,
+  failure_reason  text,
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (state_id, node_index),
+  UNIQUE (state_id, node_id)
+);
+CREATE INDEX journey_node_executions_wait_idx
+  ON journey_node_executions (tenant_id, app_id, user_id, wait_event, after_seq, deadline)
+  WHERE status = 'waiting' AND wait_event IS NOT NULL;
+CREATE INDEX journey_node_executions_report_idx
+  ON journey_node_executions (tenant_id, app_id, journey_id, journey_version, node_id, status);
 
 -- outbox: 상태 전이와 발송 잡 발행의 원자성 (4.3 정확히-한-번의 구현체)
 CREATE TABLE journey_outbox (
@@ -278,6 +319,43 @@ CREATE TABLE journey_outbox (
 );
 CREATE INDEX journey_outbox_unpublished_idx
   ON journey_outbox (id) WHERE published_at IS NULL;
+-- Scope uniqueness to new keys; legacy rows and in-flight keys are untouched.
+CREATE UNIQUE INDEX journey_outbox_v2_dedup_idx
+  ON journey_outbox (tenant_id, app_id, idempotency_key)
+  WHERE idempotency_key LIKE 'v2:%' OR idempotency_key LIKE 'event.%';
+
+-- Receipt ordering is independent of Redis delivery / device time.
+CREATE TABLE event_customer_cursors (
+  tenant_id  uuid NOT NULL REFERENCES tenants(id),
+  app_id     uuid NOT NULL REFERENCES apps(id),
+  user_id    uuid NOT NULL REFERENCES users(id),
+  last_seq   bigint NOT NULL DEFAULT 0,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, app_id, user_id)
+);
+CREATE TABLE event_receipts (
+  tenant_id   uuid NOT NULL REFERENCES tenants(id),
+  app_id      uuid NOT NULL REFERENCES apps(id),
+  insert_id   uuid NOT NULL,
+  user_id     uuid NOT NULL REFERENCES users(id),
+  event_name  text NOT NULL,
+  properties  jsonb,
+  device      jsonb,
+  client_ts   timestamptz,
+  received_at timestamptz NOT NULL,
+  receipt_seq bigint NOT NULL,
+  projected_at timestamptz,
+  matched_at   timestamptz,
+  purged_at    timestamptz,
+  PRIMARY KEY (tenant_id, app_id, insert_id),
+  UNIQUE (tenant_id, app_id, user_id, receipt_seq)
+);
+CREATE INDEX event_receipts_wait_idx
+  ON event_receipts (tenant_id, app_id, user_id, event_name, receipt_seq, received_at);
+CREATE INDEX event_receipts_projection_idx
+  ON event_receipts (tenant_id, app_id, user_id, receipt_seq) WHERE projected_at IS NULL;
+CREATE INDEX event_receipts_unmatched_idx
+  ON event_receipts (received_at) WHERE matched_at IS NULL;
 
 CREATE TABLE user_merges (
   tenant_id    uuid NOT NULL REFERENCES tenants(id),
@@ -287,3 +365,48 @@ CREATE TABLE user_merges (
   merged_at    timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX user_merges_to_idx ON user_merges (to_user_id);
+
+-- 감사 로그 (PRD-06 · DEV-sub-07 T-9) — 크리덴셜 변경·2FA 리셋·키 작업·속성 편집 등 민감 행위.
+-- actor_email은 스냅샷(멤버 삭제돼도 보존). append-only 성격.
+CREATE TABLE audit_logs (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       uuid NOT NULL REFERENCES tenants(id),
+  actor_member_id uuid REFERENCES members(id) ON DELETE SET NULL, -- 시스템/키 행위는 NULL 가능
+  actor_email     text,                     -- 스냅샷
+  action          text NOT NULL,            -- 예: credential.upsert · member.totp_reset · apikey.rotate
+  target_type     text,                     -- credential | member | apikey | attribute | app ...
+  target_id       text,                     -- 대상 식별자(문자열)
+  detail          jsonb NOT NULL DEFAULT '{}',
+  ip              inet,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX audit_logs_tenant_idx ON audit_logs (tenant_id, created_at DESC);
+
+-- 테넌트 파기 추적 (T-10) — tenants 행 삭제 후에도 ClickHouse 정리 재시도·완료를 추적하는
+-- 시스템 테이블. tenants FK 없음(대상 행이 이미 삭제됨). append-only, ch_purged로 완료 추적.
+CREATE TABLE tenant_purges (
+  tenant_id     uuid PRIMARY KEY,
+  pg_purged_at  timestamptz NOT NULL DEFAULT now(),
+  ch_purged     boolean NOT NULL DEFAULT false,
+  ch_attempts   int NOT NULL DEFAULT 0,
+  ch_last_error text,
+  ch_purged_at  timestamptz
+);
+CREATE INDEX tenant_purges_pending_idx ON tenant_purges (ch_purged, pg_purged_at) WHERE ch_purged = false;
+
+-- 발송 DLQ (R-02) — 재시도 상한 소진된 send.push 원본. 운영 도구(cmd/dlq)로 조회·재처리(replay).
+CREATE TABLE send_dlq (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       uuid NOT NULL REFERENCES tenants(id),
+  app_id          uuid NOT NULL REFERENCES apps(id),
+  idempotency_key text NOT NULL,
+  message_id      uuid,
+  failure_class   text NOT NULL,
+  failure_detail  text,
+  attempts        int NOT NULL,
+  envelope        jsonb NOT NULL,   -- 원본 libqueue Envelope (replay용)
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  replayed_at     timestamptz,
+  UNIQUE (tenant_id, idempotency_key)
+);
+CREATE INDEX send_dlq_tenant_idx ON send_dlq (tenant_id, created_at DESC);

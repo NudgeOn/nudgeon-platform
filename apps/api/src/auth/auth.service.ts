@@ -102,8 +102,10 @@ export class AuthService {
 
   async verifyLogin(email: string, password: string) {
     const { rows } = await this.pg.query(
-      `SELECT id, tenant_id, password_hash FROM members
-        WHERE lower(email) = lower($1) AND status = 'active'`,
+      `SELECT m.id, m.tenant_id, m.password_hash, m.totp_enabled_at,
+              COALESCE(t.require_2fa, false) AS require_2fa
+         FROM members m JOIN tenants t ON t.id = m.tenant_id
+        WHERE lower(m.email) = lower($1) AND m.status = 'active'`,
       [email],
     );
     const row = rows[0];
@@ -113,6 +115,11 @@ export class AuthService {
       "$argon2id$v=19$m=65536,t=3,p=4$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     const ok = await argon2.verify(hash, password).catch(() => false);
     if (!row || !ok) throw new UnauthorizedException("이메일 또는 비밀번호가 올바르지 않습니다");
-    return { memberId: row.id as string, tenantId: row.tenant_id as string };
+    return {
+      memberId: row.id as string,
+      tenantId: row.tenant_id as string,
+      totpEnabled: !!row.totp_enabled_at,
+      requires2fa: row.require_2fa as boolean,
+    };
   }
 }

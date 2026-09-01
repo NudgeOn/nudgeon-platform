@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/ondahq/onda/apps/worker/internal/config"
 )
@@ -27,7 +29,10 @@ func main() {
 	if len(os.Args) > 1 {
 		dir = os.Args[1] // db 디렉터리 경로 (이미지에선 /app/db)
 	}
-	cfg := config.Load()
+	cfg, err := config.Load("DATABASE_URL", "CLICKHOUSE_URL")
+	if err != nil {
+		log.Fatalf("설정 로드: %v", err)
+	}
 	ctx := context.Background()
 
 	if err := migratePostgres(ctx, cfg.DatabaseURL, filepath.Join(dir, "postgres", "schema.sql")); err != nil {
@@ -39,18 +44,26 @@ func main() {
 	fmt.Println("마이그레이션 완료 ✓")
 }
 
-// ignorableErr — 재실행 시 나오는 "이미 존재" 류 오류인지 (멱등 처리)
+// ignorableErr permits only PostgreSQL duplicate schema-object SQLSTATEs.
+// A unique_violation can also say "duplicate" or "already exists", but means
+// existing data violates a new constraint and must stop the migration.
 func ignorableErr(err error) bool {
-	if err == nil {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr == nil {
 		return false
 	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "already exists") ||
-		strings.Contains(msg, "duplicate") ||
-		strings.Contains(msg, "42710") || // duplicate_object (enum type)
-		strings.Contains(msg, "42p07") || // duplicate_table
-		strings.Contains(msg, "42p06") || // duplicate_schema
-		strings.Contains(msg, "42701") // duplicate_column
+	switch pgErr.Code {
+	case "42710", "42P07", "42P06", "42701": // object, table/index, schema, column
+		return true
+	default:
+		return false
+	}
+}
+
+// ClickHouse bootstrap errors have their own format; preserve its existing
+// already-exists compatibility without applying message matching to PostgreSQL.
+func ignorableClickHouseErr(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "already exists")
 }
 
 func migratePostgres(ctx context.Context, url, schemaPath string) error {
@@ -65,6 +78,24 @@ func migratePostgres(ctx context.Context, url, schemaPath string) error {
 	defer conn.Close(ctx)
 
 	applied, skipped := 0, 0
+	// Additive upgrades must precede schema indexes referencing newly added columns.
+	// Atlas users receive the same changes from the declarative schema diff.
+	upgrades, err := filepath.Glob(filepath.Join(filepath.Dir(schemaPath), "upgrades", "*.sql"))
+	if err != nil {
+		return err
+	}
+	sort.Strings(upgrades)
+	for _, path := range upgrades {
+		upgrade, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		for _, stmt := range splitSQL(string(upgrade)) {
+			if _, err := conn.Exec(ctx, stmt); err != nil {
+				return fmt.Errorf("PG upgrade %s: %w", filepath.Base(path), err)
+			}
+		}
+	}
 	for _, stmt := range splitSQL(string(raw)) {
 		if _, err := conn.Exec(ctx, stmt); err != nil {
 			if ignorableErr(err) {
@@ -103,7 +134,7 @@ func migrateClickHouse(ctx context.Context, url, dir string) error {
 		}
 		for _, stmt := range splitSQL(string(raw)) {
 			if err := conn.Exec(ctx, stmt); err != nil {
-				if ignorableErr(err) {
+				if ignorableClickHouseErr(err) {
 					continue
 				}
 				return fmt.Errorf("%s 실행 실패:\n%s\n오류: %w", filepath.Base(f), truncate(stmt), err)

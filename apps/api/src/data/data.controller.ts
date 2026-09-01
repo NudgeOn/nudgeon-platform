@@ -16,6 +16,7 @@ import type { ClickHouseClient } from "@clickhouse/client";
 import type { Pool } from "pg";
 import { CLICKHOUSE, PG } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
+import { AuditService } from "../audit/audit.service";
 
 /** 데이터 섹션 (PRD-05 3.7): 수집 오류 + 속성 사전 */
 @Controller("v1/apps/:appId/data")
@@ -24,6 +25,7 @@ export class DataController {
   constructor(
     @Inject(PG) private readonly pg: Pool,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
+    private readonly audit: AuditService,
   ) {}
 
   /** 수집 오류 뷰 — 타입 불일치 등 거부 건 (고객사 개발자 디버깅) */
@@ -88,6 +90,11 @@ export class DataController {
       [appId, key],
     );
     if (!rowCount) throw new NotFoundException("속성을 찾을 수 없습니다");
+    await this.audit.recordAs(req.member, req.ip, "attribute.delete", {
+      targetType: "attribute",
+      targetId: `${appId}:${key}`,
+      detail: { app_id: appId, key, forced: force === "true" },
+    });
     return { deleted: true };
   }
 

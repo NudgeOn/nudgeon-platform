@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 // SendPushPayload — packages/queue-schemas/schemas/send.push.schema.json의 Go 표현.
 type SendPushPayload struct {
 	IdempotencyKey string       `json:"idempotency_key"`
+	MessageID      string       `json:"message_id"` // 발송 시점 생성 안정 ID (재검증 F)
 	UserID         string       `json:"user_id"`
 	DeviceID       string       `json:"device_id"`
 	PushToken      string       `json:"push_token"`
@@ -38,12 +40,20 @@ type SendPushPayload struct {
 }
 
 const (
-	idemTTL       = 7 * 24 * time.Hour // 멱등 선점 7d (sub-04)
-	credCacheTTL  = 10 * time.Minute   // 워커 메모리 복호 캐시 (sub-04)
-	sendFetch     = 100
-	sendBlock     = time.Second
-	sendReclaim   = 30 * time.Second
-	reclaimPeriod = 10 * time.Second
+	// idemCommitTTL — 종결(전송 완료/영구 실패) 후 유지하는 멱등 클레임 7d (sub-04).
+	idemCommitTTL = 7 * 24 * time.Hour
+	// idemLeaseTTL — 처리 중 임시 선점(리스). sendReclaim보다 짧아야 크래시-전-전송 시
+	// 리스 만료 후 재클레임되어 재전송된다(유실 방지). 종결 시 idemCommitTTL로 연장.
+	idemLeaseTTL = 20 * time.Second
+	// maxSendAttempts — retryable/429 재시도 상한. 초과 시 send_dlq에 적재(재처리 가능 DLQ).
+	maxSendAttempts = 5
+	backoffBase     = 30 * time.Second // 지수 백오프 base (Retry-After 미지정 시)
+	backoffCap      = 15 * time.Minute
+	credCacheTTL    = 10 * time.Minute // 워커 메모리 복호 캐시 (sub-04)
+	sendFetch       = 100
+	sendBlock       = time.Second
+	sendReclaim     = 30 * time.Second
+	reclaimPeriod   = 10 * time.Second
 )
 
 type cachedCred struct {
@@ -120,16 +130,20 @@ func (w *Worker) Run(ctx context.Context) error {
 		logRows := make([][]any, 0, len(msgs))
 		ackIDs := make([]string, 0, len(msgs))
 		for _, m := range msgs {
-			row := w.handleOne(ctx, &m)
+			row, retry := w.handleOne(ctx, &m)
 			if row != nil {
 				logRows = append(logRows, row)
 			}
-			ackIDs = append(ackIDs, m.StreamID)
+			// retryable(일시 실패)은 ACK하지 않는다 → pending으로 남아 reclaim(≈30s)이
+			// 재전달 → 자연 백오프 재시도. 종결(전송/영구실패/중복/소진)만 ACK.
+			if !retry {
+				ackIDs = append(ackIDs, m.StreamID)
+			}
 		}
 		if err := w.flushLog(ctx, logRows); err != nil {
 			w.logger.Error("message_log 적재 실패 — 재시도", "err", err)
 			time.Sleep(time.Second)
-			continue // ack 없이 재처리 (멱등 선점이 실전송 중복을 막는다)
+			continue // ack 없이 재처리 (멱등 커밋이 실전송 중복을 막는다)
 		}
 		if err := w.queue.Ack(ctx, ackIDs...); err != nil {
 			w.logger.Error("ack 실패", "err", err)
@@ -137,30 +151,83 @@ func (w *Worker) Run(ctx context.Context) error {
 	}
 }
 
-// handleOne은 한 건을 처리하고 message_log 행을 돌려준다 (nil이면 기록 없음).
-func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) []any {
+// handleOne은 한 건을 처리하고 (message_log 행, retry 여부)를 돌려준다.
+// retry=true면 호출자는 ACK하지 않아 reclaim이 재전달(자연 백오프) → 재시도한다.
+// 멱등: 임시 리스로 선점 → 전송/영구실패 시 7d 커밋(재전송 차단), 일시실패 시 리스 해제(재시도 허용).
+func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) ([]any, bool) {
 	env := &m.Envelope
 	var p SendPushPayload
 	if err := json.Unmarshal(env.Payload, &p); err != nil || p.IdempotencyKey == "" || p.Content.Push == nil {
 		w.logger.Warn("send.push payload 불량 — skip", "err", err, "msg_id", env.ID)
-		return nil
+		return nil, false // 불량 payload는 재처리 무의미 → ACK
 	}
 
+	// 안정 message_id — 발송 시점 생성값을 그대로 사용(재시도에도 불변). 구(舊) 인플라이트 방어로 없으면 생성.
+	messageID := p.MessageID
+	if messageID == "" {
+		messageID = uuid.NewString()
+	}
 	now := w.clk.Now()
 	base := func(status, class, detail string) []any {
-		return w.logRow(env.TenantID, env.AppID, &p, status, class, detail, now)
+		return w.logRow(env.TenantID, env.AppID, &p, messageID, status, class, detail, now)
 	}
 
-	// 1) 멱등 선점 (C-3): 선점 실패 = 이미 처리됨 → 실전송 없이 duplicate 기록
 	idemKey := fmt.Sprintf("send:idem:%s:%s", env.TenantID, p.IdempotencyKey)
-	acquired, err := w.rdb.SetNX(ctx, idemKey, 1, idemTTL).Result()
+	attemptsKey := fmt.Sprintf("send:attempts:%s:%s", env.TenantID, p.IdempotencyKey)
+	retryAtKey := fmt.Sprintf("send:retryat:%s:%s", env.TenantID, p.IdempotencyKey)
+
+	// commitFailed — 영구 실패 종결(상태에 사유 기록, 재전송 차단).
+	commitFailed := func(class string) {
+		w.rdb.Set(ctx, idemKey, statusFailed+"|"+class, idemCommitTTL)
+		w.rdb.Del(ctx, attemptsKey, retryAtKey)
+	}
+	// retryFail — 상한 내면 백오프 후 재시도(리스 해제), 초과면 DLQ 적재 후 종결.
+	retryFail := func(class, detail string, retryAfter time.Duration) ([]any, bool) {
+		n, err := w.rdb.Incr(ctx, attemptsKey).Result()
+		if err == nil {
+			w.rdb.Expire(ctx, attemptsKey, idemCommitTTL)
+		}
+		if err != nil || n >= maxSendAttempts {
+			w.toDLQ(ctx, env, &p, messageID, class, detail, int(n))
+			w.rdb.Set(ctx, idemKey, statusFailed+"|"+class+"_exhausted", idemCommitTTL)
+			w.rdb.Del(ctx, attemptsKey, retryAtKey)
+			metrics.ChannelSends.WithLabelValues("failed").Inc()
+			return base("failed", class+"_exhausted", detail), false
+		}
+		delay := retryAfter // 429 Retry-After 우선
+		if delay <= 0 {
+			delay = backoff(int(n)) // 없으면 지수 백오프
+		}
+		w.rdb.Set(ctx, retryAtKey, now.Add(delay).Unix(), idemCommitTTL)
+		w.rdb.Del(ctx, idemKey) // 리스 해제 → reclaim이 백오프 이후 재전달
+		return nil, true
+	}
+
+	// 0) 백오프 대기 중이면 처리를 미룬다(리스 없이 → reclaim이 나중에 재전달). Retry-After/지수 백오프 준수.
+	if ts, err := w.rdb.Get(ctx, retryAtKey).Int64(); err == nil && now.Unix() < ts {
+		return nil, true
+	}
+
+	// 1) 멱등 선점 (processing 리스). 실패=이미 종결됐거나 처리 중.
+	acquired, err := w.rdb.SetNX(ctx, idemKey, statusProcessing, idemLeaseTTL).Result()
 	if err != nil {
 		w.logger.Error("멱등 선점 실패", "err", err)
-		return base("failed", "retryable", "멱등 선점 오류: "+err.Error())
+		return nil, true
 	}
 	if !acquired {
-		metrics.ChannelSends.WithLabelValues("duplicate").Inc()
-		return base("duplicate", "", "")
+		// 상태를 읽어 전송 결과를 보존한다: sent였다면 CH 로그 flush 실패 후 재전달에도 sent 재기록(중복 전송 없음).
+		val, _ := w.rdb.Get(ctx, idemKey).Result()
+		switch {
+		case strings.HasPrefix(val, statusSent+"|"):
+			providerID := strings.TrimPrefix(val, statusSent+"|")
+			metrics.ChannelSends.WithLabelValues("duplicate").Inc()
+			return base("sent", "", "provider_id="+providerID), false
+		case strings.HasPrefix(val, statusFailed+"|"):
+			return base("failed", strings.TrimPrefix(val, statusFailed+"|"), ""), false
+		default: // processing — 처리 중이거나 크래시 리스(만료 후 reclaim이 재획득). 이번 전달은 중복.
+			metrics.ChannelSends.WithLabelValues("duplicate").Inc()
+			return base("duplicate", "", ""), false
+		}
 	}
 
 	// 2) 크리덴셜 해석 (verified만, 10분 캐시)
@@ -170,24 +237,28 @@ func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) []any {
 	}
 	creds, ok, err := w.credential(ctx, env.AppID, kind)
 	if err != nil {
-		return base("failed", "retryable", "크리덴셜 조회 오류: "+err.Error())
+		return retryFail("retryable", "크리덴셜 조회 오류: "+err.Error(), 0)
 	}
 	if !ok {
-		return base("failed", "credential_missing", fmt.Sprintf("%s 크리덴셜 미등록/미검증", kind))
+		commitFailed("credential_missing")
+		return base("failed", "credential_missing", fmt.Sprintf("%s 크리덴셜 미등록/미검증", kind)), false
 	}
 
 	// 3) 전송
-	_, sendErr := w.plugin.Send(ctx, SendRequest{
+	p.Content.Push.MessageID = messageID
+	res, sendErr := w.plugin.Send(ctx, SendRequest{
 		IdempotencyKey: p.IdempotencyKey,
 		Target:         Target{Token: p.PushToken, Platform: p.Platform},
 		Content:        MessageContent{Push: p.Content.Push},
 		Credentials:    creds,
 	})
 	if sendErr == nil {
+		// 결과(provider_id)를 상태에 보존 → 로그 flush 실패 후 재전달에도 sent 재기록 가능.
+		w.rdb.Set(ctx, idemKey, statusSent+"|"+res.ProviderID, idemCommitTTL)
+		w.rdb.Del(ctx, attemptsKey, retryAtKey)
 		metrics.ChannelSends.WithLabelValues("sent").Inc()
-		return base("sent", "", "")
+		return base("sent", "", ""), false
 	}
-	metrics.ChannelSends.WithLabelValues("failed").Inc()
 
 	class := w.plugin.ClassifyError(sendErr)
 	switch class {
@@ -207,7 +278,59 @@ func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) []any {
 		}
 		w.invalidateCredCache(env.AppID, kind)
 	}
-	return base("failed", class.String(), sendErr.Error())
+
+	// 일시 실패(네트워크·5xx·429)만 재시도(429는 Retry-After 반영), 나머지는 종결.
+	// 주의(결과 불명): 요청을 보낸 뒤 응답 전 네트워크 오류면 공급자가 이미 수신했을 수 있으나
+	// 여기서는 retryable로 재시도한다 → at-least-once(드물게 중복 발송 가능). 정확-한-번은 공급자
+	// 멱등키(FCM/APNs 지원 시) 연동으로 별도 강화 (R-02 잔여).
+	if class == FailureRetryable || class == FailureRateLimited {
+		return retryFail(class.String(), sendErr.Error(), RetryAfterOf(sendErr))
+	}
+	commitFailed(class.String())
+	metrics.ChannelSends.WithLabelValues("failed").Inc()
+	return base("failed", class.String(), sendErr.Error()), false
+}
+
+// 멱등 상태 값 (idemKey에 저장) — 리스 소유권·완료·실패를 구분해 결과를 보존한다 (R-02).
+const (
+	statusProcessing = "processing"      // 임시 리스(처리 중)
+	statusSent       = "sent"            // 전송 완료 (sent|<provider_id>)
+	statusFailed     = "failed"          // 영구 실패 (failed|<class>)
+)
+
+// backoff는 지수 백오프(base*2^(attempt-1), cap)를 돌려준다.
+func backoff(attempt int) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+	d := backoffBase << (attempt - 1)
+	if d <= 0 || d > backoffCap {
+		return backoffCap
+	}
+	return d
+}
+
+// toDLQ는 재시도 소진된 발송을 send_dlq에 적재한다(원본 envelope 포함 → cmd/dlq로 replay 가능).
+func (w *Worker) toDLQ(ctx context.Context, env *libqueue.Envelope, p *SendPushPayload, messageID, class, detail string, attempts int) {
+	if w.pg == nil {
+		return // 단위 테스트 등 pg 미주입 시 스킵
+	}
+	envJSON, _ := json.Marshal(env)
+	var mid any
+	if messageID != "" {
+		mid = messageID
+	}
+	if _, err := w.pg.Exec(ctx, `
+		INSERT INTO send_dlq (tenant_id, app_id, idempotency_key, message_id,
+			failure_class, failure_detail, attempts, envelope)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		ON CONFLICT (tenant_id, idempotency_key) DO UPDATE SET
+			failure_class = EXCLUDED.failure_class, failure_detail = EXCLUDED.failure_detail,
+			attempts = EXCLUDED.attempts, envelope = EXCLUDED.envelope,
+			created_at = now(), replayed_at = NULL`,
+		env.TenantID, env.AppID, p.IdempotencyKey, mid, class, detail, attempts, envJSON); err != nil {
+		w.logger.Error("DLQ 적재 실패", "err", err, "idem", p.IdempotencyKey)
+	}
 }
 
 func (w *Worker) credential(ctx context.Context, appID, kind string) (Credentials, bool, error) {
@@ -253,7 +376,7 @@ func (w *Worker) invalidateCredCache(appID, kind string) {
 	w.credMu.Unlock()
 }
 
-func (w *Worker) logRow(tenantID, appID string, p *SendPushPayload, status, class, detail string, at time.Time) []any {
+func (w *Worker) logRow(tenantID, appID string, p *SendPushPayload, messageID, status, class, detail string, at time.Time) []any {
 	channel := "push_fcm"
 	if p.Platform == "ios" {
 		channel = "push_apns"
@@ -274,7 +397,7 @@ func (w *Worker) logRow(tenantID, appID string, p *SendPushPayload, status, clas
 		campaignRef = *p.CampaignRef
 	}
 	return []any{
-		tenantID, appID, uuid.NewString(), p.IdempotencyKey,
+		tenantID, appID, messageID, p.IdempotencyKey,
 		journeyID, version, node, campaignRef,
 		p.UserID, p.DeviceID, channel, status, class, detail, at,
 	}

@@ -112,20 +112,39 @@ func signES256(key *ecdsa.PrivateKey, keyID, teamID string, now time.Time) (stri
 }
 
 // send는 APNs 단건 전송. 반환: apns-id.
+// apnsPayload는 공통 계약(R-01)의 APNs payload를 만든다 — iOS는 userInfo["onda"]["message_id"]를 읽는다.
+// aps.mutable-content=1로 NSE 실행(도달 수신·리치 콘텐츠). 사용자 커스텀 data는 최상위(userInfo) 유지.
+func apnsPayload(content *PushContent) map[string]any {
+	onda := map[string]any{"message_id": content.MessageID}
+	if content.DeepLink != "" {
+		onda["deep_link"] = content.DeepLink
+	}
+	if content.ImageURL != "" {
+		onda["image_url"] = content.ImageURL
+	}
+	if len(content.Data) > 0 {
+		// iOS PushPayload.parse는 onda["data"]를 중첩 딕셔너리로 읽는다 (공통 계약 R-01).
+		d := make(map[string]any, len(content.Data))
+		for k, v := range content.Data {
+			d[k] = v
+		}
+		onda["data"] = d
+	}
+	return map[string]any{
+		"aps": map[string]any{
+			"alert":           map[string]string{"title": content.Title, "body": content.Body},
+			"mutable-content": 1,
+		},
+		"onda": onda,
+	}
+}
+
 func (a *apnsClient) send(ctx context.Context, cred *apnsCredential, deviceToken string, content *PushContent) (string, error) {
 	token, err := a.jwt(cred)
 	if err != nil {
 		return "", err
 	}
-	payload := map[string]any{
-		"aps": map[string]any{
-			"alert": map[string]string{"title": content.Title, "body": content.Body},
-		},
-	}
-	for k, v := range content.Data {
-		payload[k] = v
-	}
-	body, _ := json.Marshal(payload)
+	body, _ := json.Marshal(apnsPayload(content))
 
 	url := fmt.Sprintf("%s/3/device/%s", a.host(cred), deviceToken)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
@@ -146,10 +165,10 @@ func (a *apnsClient) send(ctx context.Context, cred *apnsCredential, deviceToken
 	if res.StatusCode == http.StatusOK {
 		return res.Header.Get("apns-id"), nil
 	}
-	return "", classifyAPNSError(res.StatusCode, resBody)
+	return "", classifyAPNSError(res.StatusCode, resBody, parseRetryAfter(res.Header.Get("Retry-After")))
 }
 
-func classifyAPNSError(status int, body []byte) *SendError {
+func classifyAPNSError(status int, body []byte, retryAfter time.Duration) *SendError {
 	var errRes struct {
 		Reason string `json:"reason"`
 	}
@@ -165,7 +184,7 @@ func classifyAPNSError(status int, body []byte) *SendError {
 		status == http.StatusForbidden:
 		return NewSendError(FailureCredentialAuth, "%s", detail)
 	case status == http.StatusTooManyRequests:
-		return NewSendError(FailureRateLimited, "%s", detail)
+		return NewRateLimitError(retryAfter, "%s", detail)
 	case status == http.StatusBadRequest:
 		return NewSendError(FailurePermanentContent, "%s", detail)
 	default:

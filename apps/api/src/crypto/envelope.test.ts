@@ -24,7 +24,8 @@ describe("봉투 암호화", () => {
 
   it("변조된 ciphertext는 GCM 태그 검증에서 실패", () => {
     const env = encryptEnvelope(master, "x");
-    env.ciphertext[env.ciphertext.length - 1] ^= 0xff;
+    const last = env.ciphertext.length - 1;
+    env.ciphertext[last] = env.ciphertext[last]! ^ 0xff;
     expect(() => decryptEnvelope(master, env)).toThrow();
   });
 

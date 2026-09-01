@@ -21,6 +21,36 @@ export interface MeResponse {
   email: string;
   name: string;
   role: "owner" | "admin" | "editor" | "viewer";
+  permissions?: string[];
+}
+
+/**
+ * 로그인 결과 — 2FA 활성 계정은 totp_required, 조직 2FA 강제인데 미등록이면 enrollment_required.
+ */
+export type LoginResult =
+  | { ok: true }
+  | { totp_required: true }
+  | { enrollment_required: true };
+
+export interface TotpEnrollResponse {
+  secret: string;
+  otpauth_uri: string;
+}
+
+export interface TotpVerifyResponse {
+  backup_codes: string[];
+}
+
+export interface AuditEntry {
+  id: string;
+  actor_member_id: string | null;
+  actor_email: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  detail: Record<string, unknown>;
+  ip: string | null;
+  created_at: string;
 }
 
 export interface SignupResponse {
@@ -57,10 +87,57 @@ export class OndaClient {
       name: string;
       tenant_name: string;
     }) => this.request<SignupResponse>("POST", "/v1/auth/signup", input),
-    login: (input: { email: string; password: string }) =>
-      this.request<{ ok: true }>("POST", "/v1/auth/login", input),
+    login: (input: { email: string; password: string; totp?: string }) =>
+      this.request<LoginResult>("POST", "/v1/auth/login", input),
     logout: () => this.request<{ ok: true }>("POST", "/v1/auth/logout"),
     me: () => this.request<MeResponse>("GET", "/v1/auth/me"),
+
+    // TOTP 2FA (PRD-06 2.1)
+    totpStatus: () =>
+      this.request<{ enabled: boolean }>("GET", "/v1/auth/totp/status"),
+    totpEnroll: () =>
+      this.request<TotpEnrollResponse>("POST", "/v1/auth/totp/enroll"),
+    totpEnrollVerify: (code: string) =>
+      this.request<TotpVerifyResponse>("POST", "/v1/auth/totp/enroll/verify", { code }),
+    totpDisable: (code: string) =>
+      this.request<{ ok: true }>("POST", "/v1/auth/totp/disable", { code }),
+  };
+
+  readonly members = {
+    /** 관리자 2FA 리셋 (Owner/Admin) */
+    resetTotp: (memberId: string) =>
+      this.request<{ ok: true }>("POST", `/v1/members/${memberId}/totp/reset`),
+  };
+
+  readonly audit = {
+    /** 감사 로그 조회 (Admin/Owner) — DEV-sub-07 T-9 */
+    list: (limit?: number) =>
+      this.request<{ entries: AuditEntry[] }>(
+        "GET",
+        `/v1/audit${limit ? `?limit=${limit}` : ""}`,
+      ),
+  };
+
+  readonly tenant = {
+    /** 조직 설정·상태 조회 (보안·삭제 유예) */
+    get: () =>
+      this.request<{
+        name: string | null;
+        require_2fa: boolean;
+        delete_requested_at: string | null;
+        purge_after: string | null;
+      }>("GET", "/v1/tenant"),
+    /** 조직 전체 2FA 강제 on/off (Admin/Owner) — DEV-sub-07 T-5 */
+    setRequire2fa: (require2fa: boolean) =>
+      this.request<{ ok: true; require_2fa: boolean }>("PUT", "/v1/tenant/security", {
+        require_2fa: require2fa,
+      }),
+    /** 테넌트 삭제 요청 — 7일 유예 후 파기 (Owner) — DEV-sub-07 T-10 */
+    requestDeletion: () =>
+      this.request<{ ok: true; purge_after: string | null }>("DELETE", "/v1/tenant"),
+    /** 삭제 취소 — 유예 내 복구 (Owner) */
+    restoreDeletion: () =>
+      this.request<{ ok: true }>("POST", "/v1/tenant/restore"),
   };
 
   readonly apps = {
@@ -103,19 +180,20 @@ export class OndaClient {
 
   readonly journeys = {
     list: (appId: string) =>
-      this.request<{ journeys: JourneySummary[] }>("GET", `/v1/apps/${appId}/journeys`),
+      this.request<{ journeys: JourneySummary[]; capabilities: JourneyCapabilities }>("GET", `/v1/apps/${appId}/journeys`),
     get: (appId: string, id: string) =>
       this.request<JourneyDetail>("GET", `/v1/apps/${appId}/journeys/${id}`),
     create: (appId: string, input: { name: string; definition: unknown }) =>
-      this.request<{ id: string }>("POST", `/v1/apps/${appId}/journeys`, input),
+      this.request<{ id: string; revision: string }>("POST", `/v1/apps/${appId}/journeys`, input),
     update: (appId: string, id: string, input: { name: string; definition: unknown }) =>
-      this.request<{ ok: true }>("PATCH", `/v1/apps/${appId}/journeys/${id}`, input),
+      this.request<{ ok: true; revision: string }>("PATCH", `/v1/apps/${appId}/journeys/${id}`, input),
     validate: (appId: string, id: string) =>
       this.request<JourneyValidation>("POST", `/v1/apps/${appId}/journeys/${id}/validate`),
-    activate: (appId: string, id: string) =>
+    activate: (appId: string, id: string, input?: { revision: string }) =>
       this.request<{ version: number; entry: string; audience_ref?: string }>(
         "POST",
         `/v1/apps/${appId}/journeys/${id}/activate`,
+        input,
       ),
     pause: (appId: string, id: string) =>
       this.request<{ ok: true }>("POST", `/v1/apps/${appId}/journeys/${id}/pause`),
@@ -141,8 +219,8 @@ export class OndaClient {
   readonly analytics = {
     dashboard: (appId: string) =>
       this.request<DashboardData>("GET", `/v1/apps/${appId}/dashboard`),
-    journeyReport: (appId: string, id: string) =>
-      this.request<JourneyReport>("GET", `/v1/apps/${appId}/journeys/${id}/report`),
+    journeyReport: (appId: string, id: string, params?: { version?: number }) =>
+      this.request<JourneyReport>("GET", `/v1/apps/${appId}/journeys/${id}/report${params?.version ? `?version=${params.version}` : ""}`),
     usage: (appId: string) => this.request<UsageData>("GET", `/v1/apps/${appId}/usage`),
   };
 
@@ -262,11 +340,20 @@ export interface JourneySummary {
 
 export interface JourneyDetail extends JourneySummary {
   draft_definition: unknown;
+  revision: string;
+  published_ab_nodes: Record<string, { variants: Array<{ id: string; label: string; weight: number }> }>;
+  capabilities: JourneyCapabilities;
+}
+
+export interface JourneyCapabilities {
+  graph_v2: boolean;
+  supported_node_types: string[];
 }
 
 export interface JourneyValidation {
-  issues: Array<{ level: "error" | "warning"; message: string; node_index?: number }>;
+  issues: Array<{ level: "error" | "warning"; message: string; node_index?: number; node_id?: string; edge_id?: string; field?: string }>;
   estimated_count: number | null;
+  revision: string;
 }
 
 export interface IngestionErrorEntry {
@@ -296,6 +383,22 @@ export interface JourneyReport {
   status: string;
   state_distribution: Record<string, number>;
   sends: Array<{ status: string; node_index: number; count: number }>;
+  version: number | null;
+  versions: Array<{ version: number; created_at: string }>;
+  definition: unknown | null;
+  instrumentation: "available" | "unsupported" | "unpublished";
+  nodes: JourneyNodeReport[];
+}
+
+export interface JourneyNodeReport {
+  node_id: string;
+  node_index: number;
+  type: string;
+  arrived: number;
+  waiting: number;
+  completed: number;
+  failed: number;
+  paths: Array<{ output_port: string; executions: number; unique_users: number }>;
 }
 
 export interface UsageData {

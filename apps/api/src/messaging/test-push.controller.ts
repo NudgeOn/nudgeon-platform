@@ -18,6 +18,8 @@ import { QueueProducer } from "@onda/libqueue";
 import { STREAMS, type SendPushPayload } from "@onda/queue-schemas";
 import { PG, QUEUE } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
+import { PermissionGuard } from "../authz/permission.guard";
+import { RequirePermission } from "../authz/require-permission.decorator";
 
 const testPushSchema = z.object({
   external_id: z.string().min(1).max(256),
@@ -31,15 +33,17 @@ const testPushSchema = z.object({
  * 테스트 발송은 transactional 취급 (정책 검사에 걸려 사라지지 않도록, PRD-03 6.3).
  */
 @Controller("v1/apps/:appId")
-@UseGuards(SessionGuard)
+@UseGuards(SessionGuard, PermissionGuard)
 export class TestPushController {
   constructor(
     @Inject(PG) private readonly pg: Pool,
     @Inject(QUEUE) private readonly queue: QueueProducer,
   ) {}
 
+  // 실제 공급자 전송을 유발하는 작업 — 조회 전용(Viewer) 권한으로는 불가 (재검증: Viewer 발송 허용)
   @Post("test-push")
   @HttpCode(202)
+  @RequirePermission("journeys:activate")
   async testPush(
     @Param("appId", ParseUUIDPipe) appId: string,
     @Body() body: unknown,
@@ -74,6 +78,7 @@ export class TestPushController {
     for (const device of rows) {
       const payload: SendPushPayload = {
         idempotency_key: `test:${testRunId}:${device.device_id}`,
+        message_id: randomUUID(), // 안정 발송 ID — message_log·SDK 도달/오픈 연결 (재검증 F)
         user_id: device.user_id,
         device_id: device.device_id,
         push_token: device.push_token,

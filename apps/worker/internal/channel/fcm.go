@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -69,12 +70,9 @@ func (f *fcmClient) send(ctx context.Context, saJSON []byte, token string, conte
 
 	msg := map[string]any{
 		"message": map[string]any{
-			"token": token,
-			"notification": map[string]string{
-				"title": content.Title,
-				"body":  content.Body,
-			},
-			"data": content.Data,
+			"token":   token,
+			"data":    fcmData(content),
+			"android": map[string]any{"priority": "high"},
 		},
 		"validate_only": validateOnly,
 	}
@@ -101,10 +99,31 @@ func (f *fcmClient) send(ctx context.Context, saJSON []byte, token string, conte
 		_ = json.Unmarshal(resBody, &ok)
 		return ok.Name, nil
 	}
-	return "", classifyFCMError(res.StatusCode, resBody)
+	return "", classifyFCMError(res.StatusCode, resBody, parseRetryAfter(res.Header.Get("Retry-After")))
 }
 
-func classifyFCMError(status int, body []byte) *SendError {
+// fcmData는 공통 계약(R-01)의 FCM 평면 data 맵을 만든다 — Android SDK PushPayload.parse가 읽는 키.
+// data-only(알림 블록 없음) → onMessageReceived가 항상 호출돼 SDK가 message_id 포착·자동 표시.
+func fcmData(content *PushContent) map[string]string {
+	data := map[string]string{
+		"message_id": content.MessageID,
+		"title":      content.Title,
+		"body":       content.Body,
+	}
+	if content.DeepLink != "" {
+		data["deep_link"] = content.DeepLink
+	}
+	if content.ImageURL != "" {
+		data["image_url"] = content.ImageURL
+	}
+	if len(content.Data) > 0 {
+		b, _ := json.Marshal(content.Data)
+		data["data"] = string(b) // 사용자 커스텀 속성 — SDK가 data["data"]를 JSON 파싱
+	}
+	return data
+}
+
+func classifyFCMError(status int, body []byte, retryAfter time.Duration) *SendError {
 	var errRes struct {
 		Error struct {
 			Status  string `json:"status"`
@@ -130,7 +149,7 @@ func classifyFCMError(status int, body []byte) *SendError {
 	case status == http.StatusUnauthorized || status == http.StatusForbidden:
 		return NewSendError(FailureCredentialAuth, "%s", detail)
 	case status == http.StatusTooManyRequests:
-		return NewSendError(FailureRateLimited, "%s", detail)
+		return NewRateLimitError(retryAfter, "%s", detail)
 	case status == http.StatusBadRequest:
 		return NewSendError(FailurePermanentContent, "%s", detail)
 	default:

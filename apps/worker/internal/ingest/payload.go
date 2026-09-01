@@ -3,6 +3,8 @@ package ingest
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -17,6 +19,22 @@ type IngestBatchPayload struct {
 	Attributes []AttrUpdate       `json:"attributes,omitempty"`
 	Token      *TokenPayload      `json:"token,omitempty"`
 	UserDelete *UserDeletePayload `json:"user_delete,omitempty"`
+	// R-03: SDK 수신 동의 변경·로그아웃(토큰 소유권 해제)의 서버 동기화.
+	Subscription *SubscriptionPayload `json:"subscription,omitempty"`
+	Logout       *LogoutPayload       `json:"logout,omitempty"`
+}
+
+// SubscriptionPayload — 수신 동의 변경(setPushOptIn) 서버 반영. state: opted_in|unsubscribed.
+type SubscriptionPayload struct {
+	AnonID     *string `json:"anon_id"`
+	ExternalID *string `json:"external_id"`
+	Channel    string  `json:"channel"` // push (v1.5+ 알림톡·SMS)
+	State      string  `json:"state"`   // opted_in | unsubscribed
+}
+
+// LogoutPayload — 로그아웃/reset 시 디바이스 토큰 분리(이후 이전 사용자 대상 발송 차단).
+type LogoutPayload struct {
+	DeviceID string `json:"device_id"`
 }
 
 type IdentifyPayload struct {
@@ -52,6 +70,9 @@ type DeviceInfo struct {
 
 type TrackEvent struct {
 	InsertID   string          `json:"insert_id"`
+	UserID     string          `json:"user_id,omitempty"`
+	ReceiptSeq string          `json:"receipt_seq,omitempty"`
+	ReceivedAt time.Time       `json:"received_at,omitempty"`
 	AnonID     *string         `json:"anon_id"`
 	ExternalID *string         `json:"external_id"`
 	Event      string          `json:"event"`
@@ -71,11 +92,21 @@ func ParsePayload(raw json.RawMessage) (*IngestBatchPayload, error) {
 	}
 	for i := range p.Events {
 		e := &p.Events[i]
+		e.InsertID = strings.ToLower(e.InsertID)
 		if e.InsertID == "" || e.Event == "" {
 			return nil, fmt.Errorf("ingest payload: events[%d] insert_id/event 누락", i)
 		}
-		if e.AnonID == nil && e.ExternalID == nil {
+		if e.AnonID == nil && e.ExternalID == nil && e.UserID == "" {
 			return nil, fmt.Errorf("ingest payload: events[%d] 식별자 누락", i)
+		}
+		if e.UserID != "" && (e.ReceiptSeq == "" || e.ReceivedAt.IsZero()) {
+			return nil, fmt.Errorf("ingest payload: events[%d] durable receipt 누락", i)
+		}
+		if e.ReceiptSeq != "" {
+			seq, err := strconv.ParseInt(e.ReceiptSeq, 10, 64)
+			if err != nil || seq <= 0 || e.UserID == "" || e.ReceivedAt.IsZero() {
+				return nil, fmt.Errorf("ingest payload: events[%d] receipt 순서/식별자 오류", i)
+			}
 		}
 	}
 	switch p.Endpoint {

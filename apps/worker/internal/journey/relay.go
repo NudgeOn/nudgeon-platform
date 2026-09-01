@@ -3,6 +3,7 @@ package journey
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -35,9 +36,9 @@ func (s *Scheduler) relayOnce(ctx context.Context) error {
 		return err
 	}
 	type row struct {
-		id                        int64
-		tenantID, appID, stream   string
-		payload                   []byte
+		id                      int64
+		tenantID, appID, stream string
+		payload                 []byte
 	}
 	var pending []row
 	for rows.Next() {
@@ -48,12 +49,20 @@ func (s *Scheduler) relayOnce(ctx context.Context) error {
 		}
 		pending = append(pending, r)
 	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
 	rows.Close()
 
 	for _, r := range pending {
+		kind, err := outboxType(r.stream)
+		if err != nil {
+			return err
+		}
 		env := &libqueue.Envelope{
 			ID:         uuidString(),
-			Type:       "send.push",
+			Type:       kind,
 			SchemaVer:  1,
 			TenantID:   r.tenantID,
 			AppID:      r.appID,
@@ -73,6 +82,21 @@ func (s *Scheduler) relayOnce(ctx context.Context) error {
 	return nil
 }
 
+func outboxType(stream string) (string, error) {
+	switch stream {
+	case libqueue.StreamIngest:
+		return "ingest.batch", nil
+	case libqueue.StreamEvents:
+		return "event.normalized", nil
+	case libqueue.StreamJourneyEntry:
+		return "journey.enter", nil
+	case libqueue.StreamSendPush:
+		return "send.push", nil
+	default:
+		return "", fmt.Errorf("unsupported outbox stream %q", stream)
+	}
+}
+
 // RunReaper는 claimed 상태가 claimReap을 넘기면 회수한다 (죽은 워커 복구 — DEV-sub-03).
 func (s *Scheduler) RunReaper(ctx context.Context) error {
 	ticker := time.NewTicker(time.Minute)
@@ -82,10 +106,7 @@ func (s *Scheduler) RunReaper(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			cutoff := s.clk.Now().Add(-claimReap)
-			tag, err := s.pg.Exec(ctx, `
-				UPDATE journey_states SET status = 'waiting', claimed_by = NULL, claimed_at = NULL, updated_at = $2
-				 WHERE status = 'claimed' AND claimed_at < $1`, cutoff, s.clk.Now())
+			n, err := s.reapOnce(ctx)
 			if err != nil {
 				if ctx.Err() != nil {
 					return ctx.Err()
@@ -93,11 +114,18 @@ func (s *Scheduler) RunReaper(ctx context.Context) error {
 				s.logger.Error("리퍼 실패", "err", err)
 				continue
 			}
-			if n := tag.RowsAffected(); n > 0 {
+			if n > 0 {
 				s.logger.Info("claimed 상태 회수", "count", n)
 			}
 		}
 	}
+}
+
+func (s *Scheduler) reapOnce(ctx context.Context) (int64, error) {
+	cutoff := s.clk.Now().Add(-claimReap)
+	tag, err := s.pg.Exec(ctx, `UPDATE journey_states SET status='waiting',claimed_by=NULL,
+		claimed_at=NULL,claim_token=NULL,updated_at=$2 WHERE status='claimed' AND claimed_at<$1`, cutoff, s.clk.Now())
+	return tag.RowsAffected(), err
 }
 
 func uuidString() string {

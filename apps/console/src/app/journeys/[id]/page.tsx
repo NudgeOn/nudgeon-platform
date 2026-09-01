@@ -1,61 +1,38 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { ApiError } from "@onda/api-client";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { JourneyDefinition } from "@onda/journey-model";
-import { useAppId } from "../../use-app-id";
 import { api } from "@/lib/api";
+import { JourneyAppGate } from "../JourneyAppGate";
 import { JourneyEditor } from "../JourneyEditor";
+import { JourneyState } from "../journey-ui";
 
 export default function EditJourneyPage() {
-  const appId = useAppId();
   const params = useParams<{ id: string }>();
+  return <JourneyAppGate>{(appId) => <JourneyDetailView appId={appId} id={params.id} />}</JourneyAppGate>;
+}
+
+function JourneyDetailView({ appId, id }: { appId: string; id: string }) {
   const journey = useQuery({
-    queryKey: ["journey", appId, params.id],
-    queryFn: () => api.journeys.get(appId!, params.id),
-    enabled: !!appId,
+    queryKey: ["journey", appId, id],
+    queryFn: () => api.journeys.get(appId, id),
   });
 
-  if (!appId || journey.isPending) {
-    return <main className="p-8 text-sm text-muted-foreground">불러오는 중…</main>;
-  }
-  if (journey.isError) {
-    return <main className="p-8 text-sm text-destructive">저니를 찾을 수 없습니다.</main>;
-  }
+  if (journey.isPending) return <JourneyState title="저니를 불러오고 있어요" description="저장된 흐름과 메시지를 준비하고 있습니다." />;
+  if (journey.isError) return <JourneyState error title={journey.error instanceof ApiError && journey.error.status === 401 ? "로그인이 필요합니다" : "저니를 불러오지 못했습니다"}
+    description="로그인과 저니 상태를 확인해 주세요. 저장된 내용은 변경되지 않았습니다."
+    action={<div className="j-topbar-actions">
+      <Link href="/journeys" className="j-button">목록으로</Link>
+      {journey.error instanceof ApiError && journey.error.status === 401 ? <Link href="/login" className="j-button j-button-primary">로그인</Link>
+        : <button type="button" className="j-button j-button-primary" onClick={() => { void journey.refetch(); }}>다시 시도</button>}
+    </div>} />;
 
-  return (
-    <main className="mx-auto max-w-3xl p-8">
-      <header className="mb-6">
-        <p className="text-sm text-muted-foreground">
-          <Link href="/journeys" className="underline">
-            ← 캠페인 · 저니
-          </Link>
-        </p>
-        <h1 className="mt-2 text-2xl font-bold">
-          {journey.data.name}
-          <span className="ml-2 text-sm font-normal text-muted-foreground">
-            {journey.data.status !== "draft" && `(${journey.data.status})`}
-          </span>
-        </h1>
-        {journey.data.status !== "draft" && journey.data.status !== "paused" && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            활성 저니는 읽기 전용입니다 — 수정하려면 일시정지하세요.
-          </p>
-        )}
-        {journey.data.status !== "draft" && (
-          <Link href={`/journeys/${journey.data.id}/report`} className="mt-1 inline-block text-sm text-primary underline">
-            📊 리포트 보기
-          </Link>
-        )}
-      </header>
-      <JourneyEditor
-        appId={appId}
-        journeyId={journey.data.id}
-        initialName={journey.data.name}
-        initialDef={journey.data.draft_definition as JourneyDefinition}
-        status={journey.data.status}
-      />
-    </main>
-  );
+  return <JourneyEditor key={`${appId}:${journey.data.id}`} appId={appId}
+    journeyId={journey.data.id} initialName={journey.data.name}
+    initialDef={journey.data.draft_definition as JourneyDefinition}
+    capabilities={journey.data.capabilities} publishedABNodes={journey.data.published_ab_nodes}
+    status={journey.data.status} />;
 }

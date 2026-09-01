@@ -16,6 +16,7 @@ import type { ClickHouseClient } from "@clickhouse/client";
 import type { Pool } from "pg";
 import { CLICKHOUSE, PG } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
+import { AuditService } from "../audit/audit.service";
 import { generateApiKey } from "../auth/api-key.service";
 
 const KEY_ADMIN_ROLES = ["owner", "admin"];
@@ -28,6 +29,7 @@ export class AppsController {
   constructor(
     @Inject(PG) private readonly pg: Pool,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
+    private readonly audit: AuditService,
   ) {}
 
   @Get()
@@ -103,6 +105,11 @@ export class AppsController {
     } finally {
       client.release();
     }
+    await this.audit.recordAs(req.member, req.ip, "apikey.rotate", {
+      targetType: "apikey",
+      targetId: keyId,
+      detail: { app_id: appId, kind: "sdk" },
+    });
     return {
       sdk_key: newKey.key, // 1회 노출
       grace_days: SDK_ROTATION_GRACE_DAYS,
@@ -123,6 +130,11 @@ export class AppsController {
        VALUES ($1, $2, 'server', 'full', $3, $4) RETURNING id`,
       [req.member.tenantId, appId, newKey.prefix, newKey.hash],
     );
+    await this.audit.recordAs(req.member, req.ip, "apikey.create", {
+      targetType: "apikey",
+      targetId: rows[0].id,
+      detail: { app_id: appId, kind: "server" },
+    });
     return { id: rows[0].id, server_key: newKey.key }; // 1회 노출
   }
 
@@ -141,6 +153,11 @@ export class AppsController {
       [keyId, req.member.tenantId, appId],
     );
     if (!rowCount) throw new NotFoundException();
+    await this.audit.recordAs(req.member, req.ip, "apikey.revoke", {
+      targetType: "apikey",
+      targetId: keyId,
+      detail: { app_id: appId },
+    });
     return { ok: true };
   }
 

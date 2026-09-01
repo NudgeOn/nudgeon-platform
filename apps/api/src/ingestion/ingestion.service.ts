@@ -1,16 +1,25 @@
 import { randomUUID } from "node:crypto";
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import type { ClickHouseClient } from "@clickhouse/client";
+import type { Pool } from "pg";
 import { QueueProducer } from "@onda/libqueue";
 import { STREAMS, type IngestBatchPayload } from "@onda/queue-schemas";
-import { CLICKHOUSE, QUEUE } from "../infra/infra.module";
+import { CLICKHOUSE, PG, QUEUE } from "../infra/infra.module";
 import type { ResolvedApiKey } from "../auth/api-key.service";
-import type { AttributesBody, IdentifyBody, TokenBody, TrackBody } from "./schemas";
+import type {
+  AttributesBody,
+  IdentifyBody,
+  LogoutBody,
+  SubscriptionBody,
+  TokenBody,
+  TrackBody,
+} from "./schemas";
+import { persistTrackReceipts } from "./event-receipts";
 
 /**
  * Ingestion 처리 (DEV-sub-01 §2):
- * raw_ingestions async insert(응답 비대기) → ingest 스트림 XADD → 202.
- * PG upsert·CH events insert는 ingest-consumer(Go)의 몫.
+ * Track: PG receipt + outbox commit → 202. CH projection is asynchronous.
+ * Other endpoints retain their existing ingest-stream contract.
  */
 @Injectable()
 export class IngestionService {
@@ -19,37 +28,18 @@ export class IngestionService {
   constructor(
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @Inject(QUEUE) private readonly queue: QueueProducer,
+    @Inject(PG) private readonly pg: Pool,
   ) {}
 
   async track(key: ResolvedApiKey, body: TrackBody, rawBody: unknown) {
     const requestId = randomUUID();
-    const serverTs = new Date().toISOString();
-
-    // 1) 원본 보존 (감사·replay의 안전망) — 실패해도 수집은 계속한다
+    try {
+      await persistTrackReceipts(this.pg, key, body, requestId);
+    } catch {
+      this.logger.error("track receipt/outbox transaction failed; batch was not acknowledged");
+      throw new ServiceUnavailableException("이벤트를 저장하지 못했습니다. 동일 insert_id로 다시 시도해 주세요.");
+    }
     this.insertRaw(key, "track", rawBody, requestId);
-
-    // 2) 정규화 payload를 ingest 스트림으로
-    const payload: IngestBatchPayload = {
-      endpoint: "track",
-      request_id: requestId,
-      api_key_id: key.id,
-      device: body.device,
-      events: body.batch.map((e) => ({
-        insert_id: e.insert_id,
-        anon_id: e.anon_id ?? null,
-        external_id: e.external_id ?? null,
-        event: e.event,
-        properties: e.properties ?? {},
-        client_ts: e.client_ts,
-        server_ts: serverTs,
-      })),
-    };
-    await this.queue.publish(STREAMS.ingest, {
-      type: "ingest.batch",
-      tenantId: key.tenantId,
-      appId: key.appId,
-      payload: payload as unknown as Record<string, unknown>,
-    });
 
     return { accepted: body.batch.length, request_id: requestId };
   }
@@ -99,6 +89,37 @@ export class IngestionService {
         anon_id: body.anon_id ?? null,
         external_id: body.external_id ?? null,
       },
+    };
+    await this.publish(key, payload);
+    return { request_id: requestId };
+  }
+
+  async subscriptions(key: ResolvedApiKey, body: SubscriptionBody, rawBody: unknown) {
+    const requestId = randomUUID();
+    this.insertRaw(key, "subscriptions", rawBody, requestId);
+    const payload: IngestBatchPayload = {
+      endpoint: "subscriptions",
+      request_id: requestId,
+      api_key_id: key.id,
+      subscription: {
+        channel: body.channel,
+        state: body.state,
+        anon_id: body.anon_id ?? null,
+        external_id: body.external_id ?? null,
+      },
+    };
+    await this.publish(key, payload);
+    return { request_id: requestId };
+  }
+
+  async deviceLogout(key: ResolvedApiKey, body: LogoutBody, rawBody: unknown) {
+    const requestId = randomUUID();
+    this.insertRaw(key, "devices_logout", rawBody, requestId);
+    const payload: IngestBatchPayload = {
+      endpoint: "devices_logout",
+      request_id: requestId,
+      api_key_id: key.id,
+      logout: { device_id: body.device_id },
     };
     await this.publish(key, payload);
     return { request_id: requestId };

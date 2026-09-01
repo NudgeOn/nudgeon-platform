@@ -204,17 +204,14 @@ func compileDevice(c *Condition, p *params) (string, error) {
 	if !ok {
 		return "", errf("device 연산자 화이트리스트 위반: %q", c.Op)
 	}
-	v, _, err := scalarValue(c.Value)
-	if err != nil {
+	if _, _, err := scalarValue(c.Value); err != nil {
 		return "", err
 	}
-	// 버전 문자열 비교는 사전식 — MVP 한계, 시맨틱 버전 비교는 v1.5.
-	// device_meta는 mirror에 없으므로 platforms만 지원하는 것이 정확하나,
-	// 여기서는 app_version/os_version을 custom_attrs 우회 없이 명시 거부하지 않고
-	// platforms 존재로 근사. (실제 device 조건은 S4 스냅샷 단계에서 정밀화)
 	_ = sqlOp
-	_ = v
-	return "1", nil // TODO(S4): device_meta를 mirror에 편입 후 정밀 비교
+	// fail-closed (재검증 B): device_meta(app_version/os_version 등)는 아직 mirror에 없어
+	// 정밀 비교가 불가능하다. 이전 구현은 SQL "1"(전건 매치)을 반환해 조건에 맞지 않는 대상까지
+	// 포함시켰다. 구현 전까지는 명시적으로 거부해 잘못된 타기팅을 막는다(세그먼트는 broken 처리됨).
+	return "", errf("device 조건 %q는 아직 지원되지 않습니다 — 지원 전까지 대상 오포함 방지를 위해 거부(재검증 B)", c.Key)
 }
 
 // 이벤트 조건 — events 서브쿼리. server_ts 기준(신뢰). 병합 매핑(user_merges)은 S4(G-9).
@@ -222,14 +219,15 @@ func compileEvent(c *Condition, tenantID, appID string, p *params) (string, erro
 	if c.Event == "" {
 		return "", errf("event 조건에 event 없음")
 	}
-	window := ""
-	if c.WindowDays != nil {
-		window = fmt.Sprintf(" AND server_ts >= now() - INTERVAL %s DAY", p.add(*c.WindowDays))
-	}
 	base := func() string {
-		return fmt.Sprintf(
-			"SELECT user_id FROM events WHERE tenant_id = toUUID(%s) AND app_id = toUUID(%s) AND event_name = %s%s",
-			p.add(tenantID), p.add(appID), p.add(c.Event), window)
+		query := fmt.Sprintf(
+			"SELECT user_id FROM events WHERE tenant_id = toUUID(%s) AND app_id = toUUID(%s) AND event_name = %s",
+			p.add(tenantID), p.add(appID), p.add(c.Event))
+		// SQL 순서대로 tenant/app/event 이후에 window 인자를 바인딩한다.
+		if c.WindowDays != nil {
+			query += fmt.Sprintf(" AND server_ts >= now() - INTERVAL %s DAY", p.add(*c.WindowDays))
+		}
+		return query
 	}
 
 	switch c.Op {
@@ -246,7 +244,8 @@ func compileEvent(c *Condition, tenantID, appID string, p *params) (string, erro
 		if c.Op == "count_lte" {
 			cmp = "<="
 		}
-		return fmt.Sprintf("user_id IN (%s GROUP BY user_id HAVING count() %s %s)",
+		// insert_id 유일 집계 — ReplacingMergeTree 병합 전 중복 행이 카운트를 부풀리지 않게 (R-05).
+		return fmt.Sprintf("user_id IN (%s GROUP BY user_id HAVING uniqExact(insert_id) %s %s)",
 			base(), cmp, p.add(n)), nil
 	case "first_performed", "last_performed":
 		return "", errf("first/last_performed는 S4 지원 예정")

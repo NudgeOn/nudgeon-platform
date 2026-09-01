@@ -5,7 +5,7 @@
   "description": "Onda 어드민 콘솔 (Next.js 15)",
   "license": "MIT",
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev --turbopack -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
@@ -13,10 +13,12 @@
     "lint": "echo 'no lint yet'"
   },
   "dependencies": {
+    "@dagrejs/dagre": "3.1.1",
     "@onda/api-client": "workspace:*",
     "@onda/journey-model": "workspace:*",
     "@onda/segment-dsl": "workspace:*",
     "@tanstack/react-query": "^5.66.0",
+    "@xyflow/react": "^12.11.5",
     "clsx": "^2.1.0",
     "next": "^15.3.0",
     "react": "^19.0.0",

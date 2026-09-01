@@ -6,7 +6,7 @@
   "type": "object",
   "required": ["endpoint", "request_id"],
   "properties": {
-    "endpoint": { "type": "string", "enum": ["track", "identify", "attributes", "devices_token", "user_delete"] },
+    "endpoint": { "type": "string", "enum": ["track", "identify", "attributes", "devices_token", "user_delete", "subscriptions", "devices_logout"] },
     "request_id": { "type": "string", "format": "uuid" },
     "api_key_id": { "type": "string", "format": "uuid" },
     "device": {
@@ -30,6 +30,9 @@
         "required": ["insert_id", "event", "client_ts"],
         "properties": {
           "insert_id": { "type": "string", "format": "uuid" },
+          "user_id": { "type": "string", "format": "uuid" },
+          "receipt_seq": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "received_at": { "type": "string", "format": "date-time" },
           "anon_id": { "type": ["string", "null"], "format": "uuid" },
           "external_id": { "type": ["string", "null"] },
           "event": { "type": "string", "minLength": 1, "maxLength": 128 },
@@ -79,6 +82,25 @@
       "required": ["external_id"],
       "properties": {
         "external_id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "subscription": {
+      "type": "object",
+      "required": ["channel", "state"],
+      "properties": {
+        "channel": { "type": "string", "enum": ["push"] },
+        "state": { "type": "string", "enum": ["opted_in", "unsubscribed"] },
+        "anon_id": { "type": ["string", "null"], "format": "uuid" },
+        "external_id": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "logout": {
+      "type": "object",
+      "required": ["device_id"],
+      "properties": {
+        "device_id": { "type": "string", "format": "uuid" }
       },
       "additionalProperties": false
     }

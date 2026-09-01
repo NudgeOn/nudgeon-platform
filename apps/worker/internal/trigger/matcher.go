@@ -28,6 +28,9 @@ type Matcher struct {
 	clk      clock.Clock
 	logger   *slog.Logger
 	idx      *activeIndex
+	runtime  interface {
+		HandleEvent(context.Context, *libqueue.Message) error
+	}
 
 	lastReload time.Time
 }
@@ -46,7 +49,14 @@ func NewMatcher(
 	}
 }
 
+func (m *Matcher) SetRuntime(runtime interface {
+	HandleEvent(context.Context, *libqueue.Message) error
+}) {
+	m.runtime = runtime
+}
+
 type normalizedEvent struct {
+	InsertID  string `json:"insert_id"`
 	UserID    string `json:"user_id"`
 	EventName string `json:"event_name"`
 }
@@ -82,6 +92,11 @@ func (m *Matcher) Run(ctx context.Context) error {
 			time.Sleep(time.Second)
 			continue
 		}
+		pending, reclaimErr := m.queue.Reclaim(ctx, 30*time.Second, fetchCount)
+		if reclaimErr != nil && ctx.Err() == nil {
+			m.logger.Error("events pending 회수 실패", "err", reclaimErr)
+		}
+		msgs = append(pending, msgs...)
 		for _, msg := range msgs {
 			if err := m.handle(ctx, &msg); err != nil {
 				m.logger.Error("이벤트 매칭 실패 — 재시도", "err", err, "msg_id", msg.Envelope.ID)
@@ -99,19 +114,27 @@ func (m *Matcher) handle(ctx context.Context, msg *libqueue.Message) error {
 	if err := json.Unmarshal(msg.Envelope.Payload, &e); err != nil {
 		return nil // 형식 불량 — skip (ack)
 	}
+	if e.InsertID != "" && m.runtime != nil {
+		return m.runtime.HandleEvent(ctx, msg)
+	}
 	appID := msg.Envelope.AppID
 	tenantID := msg.Envelope.TenantID
 
 	// 1) conversion 이탈 (진입보다 먼저 — 같은 이벤트가 이탈이면 진입시키지 않는 게 자연스러움)
+	converted := map[string]bool{}
 	for _, ex := range m.idx.exitRules(appID, e.EventName) {
-		if err := m.exitUser(ctx, ex.JourneyID, e.UserID); err != nil {
+		if err := m.exitUser(ctx, tenantID, appID, ex.JourneyID, ex.Version, e.UserID); err != nil {
 			return err
 		}
+		converted[ex.JourneyID] = true
 	}
 
 	// 2) 이벤트 트리거 진입
 	for _, en := range m.idx.entryRules(appID, e.EventName) {
-		ok, err := m.canEnter(ctx, &en, e.UserID)
+		if converted[en.JourneyID] || en.ConversionEvent == e.EventName {
+			continue
+		}
+		ok, err := m.canEnter(ctx, tenantID, appID, &en, e.UserID)
 		if err != nil {
 			return err
 		}
@@ -127,22 +150,34 @@ func (m *Matcher) handle(ctx context.Context, msg *libqueue.Message) error {
 
 // exitUser는 진행 중인 journey_states를 exited로 전이하고 전환을 기록한다 (O-5).
 // 후속 노드는 스케줄러가 exited 상태를 클레임하지 않으므로 실행되지 않는다.
-func (m *Matcher) exitUser(ctx context.Context, journeyID, userID string) error {
-	tag, err := m.pg.Exec(ctx, `
-		UPDATE journey_states SET status = 'exited', updated_at = $3
-		 WHERE journey_id = $1 AND user_id = $2 AND status IN ('active', 'waiting', 'claimed')`,
-		journeyID, userID, m.clk.Now())
+func (m *Matcher) exitUser(ctx context.Context, tenantID, appID, journeyID string, version int, userID string) error {
+	tx, err := m.pg.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, `SELECT id FROM journeys WHERE tenant_id=$1 AND app_id=$2 AND id=$3 FOR SHARE`, tenantID, appID, journeyID); err != nil {
+		return err
+	}
+	tag, err := tx.Exec(ctx, `
+		UPDATE journey_states SET status = 'exited', updated_at = $5,claim_token=NULL,claimed_by=NULL,claimed_at=NULL
+		 WHERE tenant_id=$1 AND app_id=$2 AND journey_id = $3 AND user_id = $4 AND journey_version=$6 AND status IN ('active', 'waiting', 'claimed')`,
+		tenantID, appID, journeyID, userID, m.clk.Now(), version)
 	if err != nil {
 		return fmt.Errorf("conversion 이탈: %w", err)
 	}
 	if tag.RowsAffected() > 0 {
 		m.logger.Info("conversion 이탈", "journey", journeyID, "user", userID)
 	}
-	return nil
+	if _, err := tx.Exec(ctx, `UPDATE journey_node_executions SET status='exited',resolved_at=$5,updated_at=$5
+		WHERE tenant_id=$1 AND app_id=$2 AND journey_id=$3 AND user_id=$4 AND journey_version=$6 AND status IN ('arrived','waiting','retrying')`, tenantID, appID, journeyID, userID, m.clk.Now(), version); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // canEnter는 재진입 정책 + 쿨다운을 검사한다 (O-6).
-func (m *Matcher) canEnter(ctx context.Context, en *entryRule, userID string) (bool, error) {
+func (m *Matcher) canEnter(ctx context.Context, tenantID, appID string, en *entryRule, userID string) (bool, error) {
 	// 진입 쿨다운 (동일 유저·저니 60s) — 트리거 폭주 방어
 	cdKey := fmt.Sprintf("trig:cd:%s:%s", en.JourneyID, userID)
 	set, err := m.rdb.SetNX(ctx, cdKey, 1, entryCooldown).Result()
@@ -157,8 +192,8 @@ func (m *Matcher) canEnter(ctx context.Context, en *entryRule, userID string) (b
 	var activeCount int
 	if err := m.pg.QueryRow(ctx, `
 		SELECT count(*) FROM journey_states
-		 WHERE journey_id = $1 AND user_id = $2 AND status IN ('active','waiting','claimed')`,
-		en.JourneyID, userID).Scan(&activeCount); err != nil {
+		 WHERE tenant_id=$3 AND app_id=$4 AND journey_id = $1 AND user_id = $2 AND status IN ('active','waiting','claimed')`,
+		en.JourneyID, userID, tenantID, appID).Scan(&activeCount); err != nil {
 		return false, err
 	}
 	if activeCount > 0 {
@@ -173,16 +208,16 @@ func (m *Matcher) canEnter(ctx context.Context, en *entryRule, userID string) (b
 		var recent int
 		if err := m.pg.QueryRow(ctx, `
 			SELECT count(*) FROM journey_states
-			 WHERE journey_id = $1 AND user_id = $2 AND entered_at > $3`,
-			en.JourneyID, userID, m.clk.Now().AddDate(0, 0, -en.ReentryDays)).Scan(&recent); err != nil {
+			 WHERE tenant_id=$4 AND app_id=$5 AND journey_id = $1 AND user_id = $2 AND entered_at > $3`,
+			en.JourneyID, userID, m.clk.Now().AddDate(0, 0, -en.ReentryDays), tenantID, appID).Scan(&recent); err != nil {
 			return false, err
 		}
 		return recent == 0, nil
 	default: // never — 과거 진입 이력이 있으면 차단
 		var everCount int
 		if err := m.pg.QueryRow(ctx, `
-			SELECT count(*) FROM journey_states WHERE journey_id = $1 AND user_id = $2`,
-			en.JourneyID, userID).Scan(&everCount); err != nil {
+			SELECT count(*) FROM journey_states WHERE tenant_id=$3 AND app_id=$4 AND journey_id = $1 AND user_id = $2`,
+			en.JourneyID, userID, tenantID, appID).Scan(&everCount); err != nil {
 			return false, err
 		}
 		return everCount == 0, nil

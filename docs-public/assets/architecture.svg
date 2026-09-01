@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="825" viewBox="0 0 1220 825" role="img" font-family="Arial, Helvetica, sans-serif" fill="#15201e" aria-labelledby="title desc">
+<title id="title">Onda system architecture</title><desc id="desc">SDKs and customer servers connect to NestJS APIs, Redis Streams and Go workers. PostgreSQL stores identities, journeys and Outbox. ClickHouse stores events and logs. FCM and APNs send push notifications. Retry, message identity, consent sync and delivery reporting remain incomplete.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10" fill="none" stroke="#466368" stroke-width="1.5"/></marker></defs>
+<rect width="1220" height="825" rx="16" fill="#f5f4ef"/>
+
+<text x="40" y="42" font-size="17" font-weight="600" letter-spacing="1.5">ONDA / SYSTEM ARCHITECTURE</text>
+<text x="40" y="66" font-size="13" fill="#69766c">Push MVP · solid lines show code connections, not release approval</text>
+<rect x="265" y="95" width="190" height="58" rx="10" fill="#ffffff" stroke="#cbd3c8"/>
+<text x="282" y="120" font-size="18" font-weight="600">Console · Next.js</text>
+<text x="282" y="141" font-size="13" fill="#69766c">Session / management</text>
+<path d="M360 153 V189" fill="none" stroke="#466368" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="40" y="190" width="184" height="237" rx="10" fill="#fff" stroke="#cbd3c8"/>
+<text x="58" y="224" font-size="23" font-weight="600">Sources</text>
+<text x="58" y="260" font-size="16" fill="#465b55">iOS · Android</text>
+<text x="58" y="285" font-size="16" fill="#465b55">RN · Flutter bridges</text>
+<text x="58" y="310" font-size="16" fill="#465b55"></text>
+<text x="58" y="335" font-size="16" fill="#465b55">Customer backend</text>
+<text x="58" y="360" font-size="16" fill="#465b55">SDK / server keys</text>
+<rect x="265" y="190" width="190" height="237" rx="10" fill="#edf4f0" stroke="#cbd3c8"/>
+<text x="283" y="224" font-size="23" font-weight="600">API · NestJS</text>
+<text x="283" y="260" font-size="16" fill="#465b55">Ingestion</text>
+<text x="283" y="285" font-size="16" fill="#465b55">Identity · validation</text>
+<text x="283" y="310" font-size="16" fill="#465b55">Rate limits</text>
+<text x="283" y="335" font-size="16" fill="#465b55"></text>
+<text x="283" y="360" font-size="16" fill="#465b55">Management</text>
+<text x="283" y="385" font-size="16" fill="#465b55">Segments · journeys</text>
+<rect x="500" y="190" width="190" height="237" rx="10" fill="#e2eccd" stroke="#cbd3c8"/>
+<text x="518" y="224" font-size="23" font-weight="600">Redis</text>
+<text x="518" y="260" font-family="monospace" font-size="14" fill="#465b55">stream:ingest</text>
+<text x="518" y="285" font-family="monospace" font-size="14" fill="#465b55">stream:events</text>
+<text x="518" y="310" font-family="monospace" font-size="14" fill="#465b55">stream:journey.entry</text>
+<text x="518" y="335" font-family="monospace" font-size="14" fill="#465b55">stream:send.push</text>
+<text x="518" y="360" font-size="16" fill="#465b55"></text>
+<text x="518" y="385" font-size="16" fill="#465b55">Dedup · caps · cache</text>
+<rect x="735" y="190" width="240" height="237" rx="10" fill="#edf4f0" stroke="#cbd3c8"/>
+<text x="753" y="224" font-size="23" font-weight="600">Workers · Go</text>
+<text x="753" y="260" font-size="16" fill="#465b55">Ingest consumer</text>
+<text x="753" y="285" font-size="16" fill="#465b55">Trigger matcher</text>
+<text x="753" y="310" font-size="16" fill="#465b55">Journey scheduler</text>
+<text x="753" y="335" font-size="16" fill="#465b55">Outbox relay</text>
+<text x="753" y="360" font-size="16" fill="#465b55">Channel worker</text>
+<rect x="1020" y="190" width="160" height="237" rx="10" fill="#fff" stroke="#cbd3c8"/>
+<text x="1038" y="224" font-size="23" font-weight="600">Push</text>
+<text x="1038" y="260" font-size="16" fill="#465b55">FCM</text>
+<text x="1038" y="285" font-size="16" fill="#465b55">APNs</text>
+<text x="1038" y="310" font-size="16" fill="#465b55"></text>
+<text x="1038" y="335" font-size="16" fill="#465b55">Customer device</text>
+<path d="M224 303 H259" fill="none" stroke="#466368" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M455 303 H494" fill="none" stroke="#466368" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M690 303 H729" fill="none" stroke="#466368" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M975 303 H1014" fill="none" stroke="#466368" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M855 190 V170 H595 V190" fill="none" stroke="#466368" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="710" y="160" font-size="13" fill="#69766c">events / entries / sends</text>
+<path d="M360 427 V495 H440 V550" fill="none" stroke="#466368" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M815 427 V478 H440 V550" fill="none" stroke="#466368" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M883 427 V550" fill="none" stroke="#466368" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M318 427 V520 H785 V550" fill="none" stroke="#466368" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text x="515" y="508" font-size="13" fill="#69766c">profiles, events, state and logs</text>
+<rect x="280" y="550" width="330" height="133" rx="10" fill="#eaf0e4" stroke="#cbd3c8"/>
+<text x="300" y="584" font-size="23" font-weight="600">PostgreSQL</text>
+<text x="300" y="613" font-size="16" fill="#465b55">Tenants · members · encrypted keys</text>
+<text x="300" y="639" font-size="16" fill="#465b55">Profiles · devices · consent</text>
+<text x="300" y="664" font-size="16" fill="#465b55">Journey state · transactional Outbox</text>
+<rect x="650" y="550" width="330" height="133" rx="10" fill="#eaf0e4" stroke="#cbd3c8"/>
+<text x="670" y="584" font-size="23" font-weight="600">ClickHouse</text>
+<text x="670" y="613" font-size="16" fill="#465b55">Raw events · profile mirror</text>
+<text x="670" y="639" font-size="16" fill="#465b55">Audience snapshots · message logs</text>
+<text x="670" y="664" font-size="16" fill="#465b55">Usage aggregates</text>
+<path d="M1100 427 V730 H132 V427" fill="none" stroke="#a57730" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+<text x="213" y="758" font-size="16" fill="#465b55">PENDING CONTRACT: message ID · delivery/open events · consent · token detachment</text>
+<text x="40" y="799" font-size="13" fill="#69766c">Still to complete: send retries / DLQ · trigger replay · device filters · SDK integration · operational validation</text>
+</svg>

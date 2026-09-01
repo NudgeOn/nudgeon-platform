@@ -143,7 +143,7 @@ func TestClassifyFCMError(t *testing.T) {
 		{503, `{}`, FailureRetryable},
 	}
 	for _, c := range cases {
-		if got := classifyFCMError(c.status, []byte(c.body)).Class; got != c.want {
+		if got := classifyFCMError(c.status, []byte(c.body), 0).Class; got != c.want {
 			t.Errorf("FCM %d: %v 기대, %v", c.status, c.want, got)
 		}
 	}
@@ -163,7 +163,7 @@ func TestClassifyAPNSError(t *testing.T) {
 		{500, `{"reason":"InternalServerError"}`, FailureRetryable},
 	}
 	for _, c := range cases {
-		if got := classifyAPNSError(c.status, []byte(c.body)).Class; got != c.want {
+		if got := classifyAPNSError(c.status, []byte(c.body), 0).Class; got != c.want {
 			t.Errorf("APNs %d %s: %v 기대, %v", c.status, c.body, c.want, got)
 		}
 	}

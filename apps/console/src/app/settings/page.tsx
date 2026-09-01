@@ -29,8 +29,6 @@ export default function SettingsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["app-settings", appId] }),
   });
 
-  if (!form) return <main className="p-8 text-sm text-muted-foreground">불러오는 중…</main>;
-
   return (
     <main className="mx-auto max-w-2xl p-8">
       <header className="mb-6">
@@ -39,10 +37,13 @@ export default function SettingsPage() {
             ← 대시보드
           </Link>
         </p>
-        <h1 className="mt-2 text-2xl font-bold">앱 설정</h1>
+        <h1 className="mt-2 text-2xl font-bold">설정</h1>
       </header>
 
       <div className="flex flex-col gap-4">
+        <SecurityCard />
+        {form ? (
+          <>
         <Card>
           <CardHeader className="p-4">
             <CardTitle className="text-sm">시간대</CardTitle>
@@ -147,8 +148,149 @@ export default function SettingsPage() {
           {save.isSuccess && <span className="text-sm text-primary">✓ 저장됨</span>}
           {save.isError && <span className="text-sm text-destructive">저장 실패</span>}
         </div>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">앱 설정 불러오는 중…</p>
+        )}
       </div>
     </main>
+  );
+}
+
+/** 2단계 인증(TOTP) 관리 — 설정·확인·백업코드·해제 (PRD-06 2.1) */
+function SecurityCard() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["totp-status"], queryFn: () => api.auth.totpStatus() });
+  const [step, setStep] = useState<"idle" | "enroll" | "done">("idle");
+  const [enroll, setEnroll] = useState<{ secret: string; otpauth_uri: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
+  const [disableCode, setDisableCode] = useState("");
+
+  const startEnroll = useMutation({
+    mutationFn: () => api.auth.totpEnroll(),
+    onSuccess: (d) => {
+      setEnroll(d);
+      setStep("enroll");
+    },
+  });
+  const confirm = useMutation({
+    mutationFn: () => api.auth.totpEnrollVerify(code),
+    onSuccess: (d) => {
+      setBackupCodes(d.backup_codes);
+      setStep("done");
+      setCode("");
+      qc.invalidateQueries({ queryKey: ["totp-status"] });
+    },
+  });
+  const disable = useMutation({
+    mutationFn: () => api.auth.totpDisable(disableCode),
+    onSuccess: () => {
+      setDisableCode("");
+      qc.invalidateQueries({ queryKey: ["totp-status"] });
+    },
+  });
+
+  const enabled = status.data?.enabled;
+
+  return (
+    <Card>
+      <CardHeader className="p-4">
+        <CardTitle className="flex items-center justify-between text-sm">
+          2단계 인증 (2FA)
+          {enabled != null && (
+            <span className={enabled ? "text-xs text-primary" : "text-xs text-muted-foreground"}>
+              {enabled ? "사용 중" : "미사용"}
+            </span>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 p-4 pt-0 text-sm">
+        {enabled && step !== "done" && (
+          <>
+            <p className="text-muted-foreground">
+              인증 앱으로 로그인 2단계를 보호하고 있습니다.
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                className="w-40"
+                placeholder="코드로 해제"
+                value={disableCode}
+                onChange={(e) => setDisableCode(e.target.value)}
+              />
+              <Button
+                variant="outline"
+                disabled={disable.isPending || disableCode.length < 6}
+                onClick={() => disable.mutate()}
+              >
+                2FA 해제
+              </Button>
+            </div>
+            {disable.isError && <span className="text-destructive">코드가 올바르지 않습니다</span>}
+          </>
+        )}
+
+        {!enabled && step === "idle" && (
+          <>
+            <p className="text-muted-foreground">
+              인증 앱(Google Authenticator 등)으로 로그인 보안을 강화하세요.
+            </p>
+            <Button
+              className="self-start"
+              disabled={startEnroll.isPending}
+              onClick={() => startEnroll.mutate()}
+            >
+              2FA 설정
+            </Button>
+          </>
+        )}
+
+        {step === "enroll" && enroll && (
+          <>
+            <p className="text-muted-foreground">
+              인증 앱에 아래 키를 추가한 뒤 6자리 코드를 입력하세요.
+            </p>
+            <code className="break-all rounded bg-muted p-2 text-xs">{enroll.secret}</code>
+            <a className="break-all text-xs text-primary underline" href={enroll.otpauth_uri}>
+              otpauth 링크로 추가
+            </a>
+            <div className="flex items-center gap-2">
+              <Input
+                className="w-32"
+                inputMode="numeric"
+                placeholder="6자리 코드"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+              <Button
+                disabled={confirm.isPending || code.length < 6}
+                onClick={() => confirm.mutate()}
+              >
+                확인·활성화
+              </Button>
+            </div>
+            {confirm.isError && <span className="text-destructive">코드가 올바르지 않습니다</span>}
+          </>
+        )}
+
+        {step === "done" && backupCodes && (
+          <>
+            <p className="font-medium text-primary">2FA가 활성화되었습니다.</p>
+            <p className="text-muted-foreground">
+              백업 코드를 안전한 곳에 보관하세요. 각 코드는 1회만 사용됩니다.
+            </p>
+            <div className="grid grid-cols-2 gap-1 rounded bg-muted p-3 font-mono text-xs">
+              {backupCodes.map((c) => (
+                <span key={c}>{c}</span>
+              ))}
+            </div>
+            <Button variant="outline" className="self-start" onClick={() => setStep("idle")}>
+              완료
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

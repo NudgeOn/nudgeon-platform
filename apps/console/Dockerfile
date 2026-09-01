@@ -10,6 +10,10 @@ COPY packages/segment-dsl/package.json ./packages/segment-dsl/
 COPY packages/journey-model/package.json ./packages/journey-model/
 RUN pnpm install --frozen-lockfile
 COPY . .
+# Next.js는 NEXT_PUBLIC_*를 빌드 시점에 클라이언트 번들에 인라인한다 — 런타임 env로는 안 바뀐다.
+# 따라서 배포 대상 API 주소를 build-arg로 받아 build 전에 주입한다 (재검증 #3).
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 RUN pnpm --filter @onda/console... build
 
 FROM node:22-slim AS runtime

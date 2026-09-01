@@ -37,6 +37,17 @@ describe("골든 스위트 (TS 컴파일러)", () => {
 });
 
 describe("tenant 주입 불변식 (G-2)", () => {
+  it("복수 이벤트의 기간과 횟수 인자가 SQL 순서로 바인딩된다", () => {
+    const dsl: SegmentDSL = {
+      version: 1, operator: "AND", groups: [{ operator: "AND", conditions: [
+        { type: "event", event: "purchase", op: "count_gte", value: 2, window_days: 30 },
+        { type: "event", event: "cancel", op: "not_performed", window_days: 7 },
+      ] }],
+    };
+    const { args } = compile(dsl, TENANT, APP, "marketing");
+    expect(args).toEqual([TENANT, APP, TENANT, APP, "purchase", 30, 2, TENANT, APP, "cancel", 7]);
+  });
+
   it("모든 SQL에 tenant/app/status 필터가 주입되고 첫 두 인자가 tenant/app", () => {
     const dsl: SegmentDSL = {
       version: 1,

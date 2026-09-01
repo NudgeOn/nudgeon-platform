@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -31,51 +32,71 @@ func (s *Scheduler) RunTick(ctx context.Context) error {
 
 // claimedState — 클레임한 상태 스냅샷
 type claimedState struct {
-	id         string
-	tenantID   string
-	appID      string
-	journeyID  string
-	version    int
-	userID     string
+	id          string
+	tenantID    string
+	appID       string
+	journeyID   string
+	version     int
+	userID      string
 	currentNode int
+	claimToken  string
+	entrySeq    *int64
+	nextWake    *time.Time // 예정 기상 시각 — 재개 후 오래된 발송 skip 판정에 사용 (R-06)
 }
 
+// staleSendThreshold — 예정보다 이만큼 넘게 늦은 marketing 발송은 skip (재개 등, PRD-03 9장 Q1).
+const staleSendThreshold = 24 * time.Hour
+
 func (s *Scheduler) tickOnce(ctx context.Context) error {
+	claimed, err := s.claimDue(ctx)
+	if err != nil {
+		return err
+	}
+	for _, c := range claimed {
+		if err := s.executeNode(ctx, &c); err != nil {
+			s.logger.Error("노드 실행 실패", "state", c.id, "err", err)
+			s.failClaim(ctx, &c, err)
+		}
+	}
+	return nil
+}
+
+func (s *Scheduler) claimDue(ctx context.Context) ([]claimedState, error) {
 	// 배치 클레임: waiting/active 중 기상 도래분을 claimed로 선점 (FOR UPDATE SKIP LOCKED)
 	now := s.clk.Now()
 	rows, err := s.pg.Query(ctx, `
-		UPDATE journey_states SET status = 'claimed', claimed_by = $1, claimed_at = $2, updated_at = $2
+		UPDATE journey_states SET status = 'claimed', claimed_by = $1, claimed_at = $2,
+		       claim_token = gen_random_uuid(), updated_at = $2
 		 WHERE id IN (
 		   SELECT id FROM journey_states
 		    WHERE status IN ('active', 'waiting')
 		      AND (next_wake_at IS NULL OR next_wake_at <= $2)
+		      -- 부모 저니가 active일 때만 진행 — paused/archived면 이미 진입한 고객도 동결 (재검증 E)
+		      AND journey_id IN (SELECT id FROM journeys WHERE status = 'active')
 		    ORDER BY next_wake_at NULLS FIRST
 		    LIMIT $3
 		    FOR UPDATE SKIP LOCKED
 		 )
-		 RETURNING id, tenant_id, app_id, journey_id, journey_version, user_id, current_node`,
+		 RETURNING id, tenant_id, app_id, journey_id, journey_version, user_id, current_node, claim_token::text, entry_seq, next_wake_at`,
 		s.consumer, now, claimBatch)
 	if err != nil {
-		return fmt.Errorf("클레임: %w", err)
+		return nil, fmt.Errorf("클레임: %w", err)
 	}
 	var claimed []claimedState
 	for rows.Next() {
 		var c claimedState
-		if err := rows.Scan(&c.id, &c.tenantID, &c.appID, &c.journeyID, &c.version, &c.userID, &c.currentNode); err != nil {
+		if err := rows.Scan(&c.id, &c.tenantID, &c.appID, &c.journeyID, &c.version, &c.userID, &c.currentNode, &c.claimToken, &c.entrySeq, &c.nextWake); err != nil {
 			rows.Close()
-			return err
+			return nil, err
 		}
 		claimed = append(claimed, c)
 	}
-	rows.Close()
-
-	for _, c := range claimed {
-		if err := s.executeNode(ctx, &c); err != nil {
-			s.logger.Error("노드 실행 실패", "state", c.id, "err", err)
-			s.failState(ctx, c.id, err.Error())
-		}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
 	}
-	return nil
+	rows.Close()
+	return claimed, nil
 }
 
 // executeNode는 한 상태의 현재 노드를 실행하고 전이를 커밋한다 (전이+outbox 원자성).
@@ -84,66 +105,86 @@ func (s *Scheduler) executeNode(ctx context.Context, c *claimedState) error {
 	if err != nil {
 		return err
 	}
-	// 종료 조건: 노드 소진
-	if c.currentNode >= len(def.Nodes) {
-		return s.complete(ctx, c.id)
-	}
-	node := def.Nodes[c.currentNode]
-
-	tx, err := s.pg.Begin(ctx)
+	tx, sequence, now, err := s.lockClaim(ctx, c, def)
 	if err != nil {
 		return err
 	}
+	if tx == nil {
+		return nil
+	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if c.currentNode < 0 {
+		return fmt.Errorf("negative current_node")
+	}
+	if exited, err := s.applyPendingConversion(ctx, tx, c, def, now); err != nil || exited {
+		if err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
+	if def.SchemaVersion == 2 {
+		return s.executeDAG(ctx, tx, c, def, sequence, now)
+	}
+	if c.currentNode >= len(def.Nodes) {
+		if err := s.moveState(ctx, tx, c, c.currentNode, "completed", nil, now); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
+	node := def.Nodes[c.currentNode]
 
 	switch node.Type {
 	case "delay":
 		// 대기: 다음 노드로 전이 + 기상 시각 설정
 		wake := s.clk.Now().Add(time.Duration(node.DurationSeconds) * time.Second)
-		if _, err := tx.Exec(ctx, `
-			UPDATE journey_states SET current_node = current_node + 1, status = 'waiting',
-			       next_wake_at = $2, claimed_by = NULL, claimed_at = NULL, updated_at = $3
-			 WHERE id = $1`, c.id, wake, s.clk.Now()); err != nil {
+		if err := s.moveState(ctx, tx, c, c.currentNode+1, "waiting", &wake, now); err != nil {
 			return err
 		}
 
 	case "message":
 		// 정책 검사: quiet hours가 delay면 전이하지 않고 다음 open까지 대기 (노드 유지)
-		pol, err := s.loadAppPolicy(ctx, c.appID)
+		pol, err := s.loadAppPolicy(ctx, tx, c.tenantID, c.appID)
 		if err != nil {
 			return err
 		}
 		cat := policy.Category(def.Settings.Category)
+		// R-06 재개 정책: 예정보다 24h+ 늦은 marketing 발송은 skip(오래된 알림 방지, PRD-03 9장 Q1).
+		// pause 중 경과한 delay가 재개 시 몰려 발송되는 것을 차단. transactional은 우회.
+		if cat != policy.Transactional && c.nextWake != nil && s.clk.Now().Sub(*c.nextWake) > staleSendThreshold {
+			s.logSkip(ctx, c, def, "skipped_stale")
+			nextStatus := "active"
+			if c.currentNode+1 >= len(def.Nodes) {
+				nextStatus = "completed"
+			}
+			if err := s.moveState(ctx, tx, c, c.currentNode+1, nextStatus, nil, now); err != nil {
+				return err
+			}
+			return tx.Commit(ctx)
+		}
 		qd, err := policy.EvaluateQuietHours(cat, pol.quietHours, pol.tz, s.clk.Now())
 		if err != nil {
 			return err
 		}
 		if qd.Action == policy.ActionDelay {
 			// 발송 보류 — 노드 유지, 다음 허용 시각에 재실행 (PRD-03 6.1 delay_until_open)
-			if _, err := tx.Exec(ctx, `
-				UPDATE journey_states SET status = 'waiting', next_wake_at = $2,
-				       claimed_by = NULL, claimed_at = NULL, updated_at = $3
-				 WHERE id = $1`, c.id, qd.DelayUntil, s.clk.Now()); err != nil {
+			if err := s.moveState(ctx, tx, c, c.currentNode, "waiting", &qd.DelayUntil, now); err != nil {
 				return err
 			}
 			return tx.Commit(ctx)
 		}
 		// send 또는 skip(quiet_hours skip 정책) — 어느 쪽이든 노드는 전진
 		if qd.Action == policy.ActionSend {
-			if err := s.enqueueSends(ctx, tx, c, def, node, pol); err != nil {
+			if _, err := s.enqueueSends(ctx, tx, c, def, node, pol); err != nil {
 				return err
 			}
 		} else {
-			s.logSkip(ctx, c, "skipped_quiet_hours")
+			s.logSkip(ctx, c, def, "skipped_quiet_hours")
 		}
 		nextStatus := "active"
 		if c.currentNode+1 >= len(def.Nodes) {
 			nextStatus = "completed"
 		}
-		if _, err := tx.Exec(ctx, `
-			UPDATE journey_states SET current_node = current_node + 1, status = $2,
-			       next_wake_at = NULL, claimed_by = NULL, claimed_at = NULL, updated_at = $3
-			 WHERE id = $1`, c.id, nextStatus, s.clk.Now()); err != nil {
+		if err := s.moveState(ctx, tx, c, c.currentNode+1, nextStatus, nil, now); err != nil {
 			return err
 		}
 
@@ -156,7 +197,10 @@ func (s *Scheduler) executeNode(ctx context.Context, c *claimedState) error {
 
 // enqueueSends는 유저의 도달 가능 디바이스마다 send.push outbox 행을 기록한다.
 // 도달성·정책 검사(카테고리 반영)는 메시지 노드 실행 시점 (PRD-03 3.1, 6장).
-func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState, def *Definition, node Node, pol *appPolicy) error {
+func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState, def *Definition, node Node, pol *appPolicy) (string, error) {
+	if node.Push == nil {
+		return "", fmt.Errorf("message node has no push content")
+	}
 	cat := policy.Category(def.Settings.Category)
 	marketing := cat != policy.Transactional
 
@@ -164,39 +208,40 @@ func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState
 	var stdAttrs, customAttrs []byte
 	var subscriptions []byte
 	err := tx.QueryRow(ctx,
-		`SELECT std_attrs, custom_attrs, subscriptions FROM users WHERE id = $1`, c.userID).
+		`SELECT std_attrs, custom_attrs, subscriptions FROM users WHERE tenant_id=$1 AND app_id=$2 AND id=$3 AND status='active'`, c.tenantID, c.appID, c.userID).
 		Scan(&stdAttrs, &customAttrs, &subscriptions)
 	if err != nil {
-		return fmt.Errorf("유저 조회: %w", err)
+		return "", fmt.Errorf("유저 조회: %w", err)
 	}
 	// marketing이면 opt-in 필수 (transactional은 우회)
 	if marketing {
 		var sub map[string]string
 		_ = json.Unmarshal(subscriptions, &sub)
 		if sub["push"] != "opted_in" {
-			s.logSkip(ctx, c, "skipped_unreachable") // opt-out
-			return nil
+			s.logSkip(ctx, c, def, "skipped_unreachable") // opt-out
+			return "skipped_unreachable", nil
 		}
 	}
 	// frequency cap (유저당 24h N건, transactional 우회) — 원자 검사+증가
 	allowed, err := s.freqCap.Allow(ctx, cat, pol.freqCap, c.appID, c.userID)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if !allowed {
-		s.logSkip(ctx, c, "skipped_cap")
-		return nil
+		s.logSkip(ctx, c, def, "skipped_cap")
+		return "skipped_cap", nil
 	}
 	attrs := mergeAttrs(stdAttrs, customAttrs)
 	title := Render(node.Push.Title, attrs)
 	body := Render(node.Push.Body, attrs)
+	deepLink := Render(node.Push.DeepLink, attrs) // 공통 계약(R-01): deep_link를 발송에 연결
 
 	rows, err := tx.Query(ctx, `
 		SELECT id, push_token, platform FROM devices
-		 WHERE user_id = $1 AND push_token IS NOT NULL
-		   AND token_status = 'active' AND os_permission = 'granted'`, c.userID)
+		 WHERE tenant_id=$1 AND app_id=$2 AND user_id=$3 AND push_token IS NOT NULL
+		   AND token_status = 'active' AND os_permission = 'granted'`, c.tenantID, c.appID, c.userID)
 	if err != nil {
-		return err
+		return "", err
 	}
 	type dev struct{ id, token, platform string }
 	var devices []dev
@@ -204,9 +249,13 @@ func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState
 		var d dev
 		if err := rows.Scan(&d.id, &d.token, &d.platform); err != nil {
 			rows.Close()
-			return err
+			return "", err
 		}
 		devices = append(devices, d)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
 	}
 	rows.Close()
 
@@ -215,14 +264,15 @@ func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState
 		category = "transactional"
 	}
 	for _, d := range devices {
-		idemKey := fmt.Sprintf("%s:%d:%s:%d:%s", c.journeyID, c.version, c.userID, c.currentNode, d.id)
+		idemKey := sendKey(c, def, d.id)
 		payload := map[string]any{
 			"idempotency_key": idemKey,
+			"message_id":      uuidString(), // 안정 발송 ID — message_log·SDK 도달/오픈 연결 (재검증 F)
 			"user_id":         c.userID,
 			"device_id":       d.id,
 			"push_token":      d.token,
 			"platform":        d.platform,
-			"content":         map[string]any{"push": map[string]any{"title": title, "body": body}},
+			"content":         map[string]any{"push": pushContent(title, body, deepLink)},
 			"category":        category,
 			"journey_id":      c.journeyID,
 			"journey_version": c.version,
@@ -231,18 +281,35 @@ func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState
 		payloadJSON, _ := json.Marshal(payload)
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO journey_outbox (tenant_id, app_id, stream, idempotency_key, payload)
-			VALUES ($1, $2, 'stream:send.push', $3, $4)`,
+			VALUES ($1, $2, 'stream:send.push', $3, $4) ON CONFLICT DO NOTHING`,
 			c.tenantID, c.appID, idemKey, payloadJSON); err != nil {
-			return err
+			return "", err
 		}
 	}
-	return nil
+	if len(devices) == 0 {
+		return "skipped_unreachable", nil
+	}
+	return "queued", nil
+}
+
+// pushContent는 send.push의 content.push 맵을 만든다. deep_link는 있을 때만 포함(공통 계약 R-01).
+func pushContent(title, body, deepLink string) map[string]any {
+	push := map[string]any{"title": title, "body": body}
+	if strings.TrimSpace(deepLink) != "" {
+		push["deep_link"] = deepLink
+	}
+	return push
 }
 
 // logSkip은 발송 생략 사유를 message_log에 기록한다 (PRD-04 5장 — "왜 안 갔는지").
 // 디바이스 단위가 아닌 유저 단위 skip이므로 device_id는 0.
-func (s *Scheduler) logSkip(ctx context.Context, c *claimedState, status string) {
-	idemKey := fmt.Sprintf("%s:%d:%s:%d:skip", c.journeyID, c.version, c.userID, c.currentNode)
+func (s *Scheduler) logSkip(ctx context.Context, c *claimedState, def *Definition, status string) {
+	if s.ch == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	idemKey := sendKey(c, def, "skip")
 	err := s.ch.Exec(ctx, `
 		INSERT INTO message_log (tenant_id, app_id, message_id, idempotency_key,
 			journey_id, journey_version, node_index, campaign_ref,
@@ -257,20 +324,12 @@ func (s *Scheduler) logSkip(ctx context.Context, c *claimedState, status string)
 	}
 }
 
-func (s *Scheduler) complete(ctx context.Context, stateID string) error {
-	_, err := s.pg.Exec(ctx, `
-		UPDATE journey_states SET status = 'completed', claimed_by = NULL, claimed_at = NULL, updated_at = $2
-		 WHERE id = $1`, stateID, s.clk.Now())
-	return err
-}
-
-func (s *Scheduler) failState(ctx context.Context, stateID, reason string) {
-	if _, err := s.pg.Exec(ctx, `
-		UPDATE journey_states SET status = 'failed', fail_reason = $2,
-		       claimed_by = NULL, claimed_at = NULL, updated_at = $3
-		 WHERE id = $1`, stateID, reason, s.clk.Now()); err != nil {
-		s.logger.Error("failState 실패", "state", stateID, "err", err)
+func sendKey(c *claimedState, def *Definition, deviceID string) string {
+	legacy := fmt.Sprintf("%s:%d:%s:%d:%s", c.journeyID, c.version, c.userID, c.currentNode, deviceID)
+	if def.SchemaVersion == 2 {
+		return "v2:" + legacy + ":" + c.id
 	}
+	return legacy
 }
 
 func (s *Scheduler) loadDefinition(ctx context.Context, journeyID string, version int) (*Definition, error) {

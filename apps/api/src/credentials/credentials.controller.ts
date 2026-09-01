@@ -18,6 +18,7 @@ import { z } from "zod";
 import { PG } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
 import { encryptEnvelope, loadMasterKey } from "../crypto/envelope";
+import { AuditService } from "../audit/audit.service";
 
 /** FCM: 서비스 계정 JSON (HTTP v1 API — PRD-04 3장) */
 const fcmPayloadSchema = z.object({
@@ -48,7 +49,10 @@ const credentialSchema = z.discriminatedUnion("kind", [fcmPayloadSchema, apnsPay
 @Controller("v1/apps/:appId/credentials")
 @UseGuards(SessionGuard)
 export class CredentialsController {
-  constructor(@Inject(PG) private readonly pg: Pool) {}
+  constructor(
+    @Inject(PG) private readonly pg: Pool,
+    private readonly audit: AuditService,
+  ) {}
 
   /** 등록/교체 — 저장은 unverified, 검증은 channel 워커가 비동기 수행 (C-1) */
   @Put()
@@ -75,6 +79,11 @@ export class CredentialsController {
        RETURNING id, status`,
       [req.member.tenantId, appId, kind, env.ciphertext, env.dekWrapped],
     );
+    await this.audit.recordAs(req.member, req.ip, "credential.upsert", {
+      targetType: "credential",
+      targetId: `${appId}:${kind}`,
+      detail: { app_id: appId, kind },
+    });
     return { id: rows[0].id, kind, status: rows[0].status };
   }
 
@@ -105,6 +114,11 @@ export class CredentialsController {
       [req.member.tenantId, appId, kind],
     );
     if (!rowCount) throw new NotFoundException();
+    await this.audit.recordAs(req.member, req.ip, "credential.delete", {
+      targetType: "credential",
+      targetId: `${appId}:${kind}`,
+      detail: { app_id: appId, kind },
+    });
     return { ok: true };
   }
 

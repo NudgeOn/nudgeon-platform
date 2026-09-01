@@ -13,16 +13,18 @@ import (
 
 // entryRule — 활성 저니의 트리거 진입 설정
 type entryRule struct {
-	JourneyID    string
-	Version      int
-	TriggerEvent string
-	Reentry      string // never | always | after_days
-	ReentryDays  int
+	JourneyID       string
+	Version         int
+	TriggerEvent    string
+	Reentry         string // never | always | after_days
+	ReentryDays     int
+	ConversionEvent string
 }
 
 // exitRule — conversion 이탈 설정
 type exitRule struct {
 	JourneyID       string
+	Version         int
 	ConversionEvent string
 }
 
@@ -52,7 +54,8 @@ func (idx *activeIndex) exitRules(appID, eventName string) []exitRule {
 }
 
 type journeyDef struct {
-	Entry struct {
+	SchemaVersion int `json:"schema_version"`
+	Entry         struct {
 		Type         string `json:"type"`
 		TriggerEvent string `json:"trigger_event"`
 	} `json:"entry"`
@@ -85,10 +88,15 @@ func parseReentry(raw json.RawMessage) (string, int) {
 // reload는 활성 저니의 트리거/이탈 설정을 PG에서 읽어 인덱스를 재구축한다.
 func (idx *activeIndex) reload(ctx context.Context, pg *pgxpool.Pool) error {
 	rows, err := pg.Query(ctx, `
-		SELECT j.id, j.app_id, j.active_version, v.definition
+		SELECT j.id, j.app_id, j.active_version, v.definition, true AS allow_entry
 		  FROM journeys j
 		  JOIN journey_versions v ON v.journey_id = j.id AND v.version = j.active_version
-		 WHERE j.status = 'active' AND j.active_version IS NOT NULL`)
+		 WHERE j.status = 'active' AND j.active_version IS NOT NULL
+		 UNION ALL
+		SELECT DISTINCT st.journey_id,st.app_id,st.journey_version,v.definition,false AS allow_entry
+		FROM journey_states st JOIN journeys j ON j.id=st.journey_id
+		JOIN journey_versions v ON v.journey_id=st.journey_id AND v.version=st.journey_version
+		WHERE st.status IN ('active','waiting','claimed') AND j.status IN ('active','paused')`)
 	if err != nil {
 		return err
 	}
@@ -100,25 +108,32 @@ func (idx *activeIndex) reload(ctx context.Context, pg *pgxpool.Pool) error {
 		var journeyID, appID string
 		var version int
 		var rawDef []byte
-		if err := rows.Scan(&journeyID, &appID, &version, &rawDef); err != nil {
+		var allowEntry bool
+		if err := rows.Scan(&journeyID, &appID, &version, &rawDef, &allowEntry); err != nil {
 			return err
 		}
 		var def journeyDef
 		if json.Unmarshal(rawDef, &def) != nil {
 			continue
 		}
-		if def.Entry.Type == "trigger" && def.Entry.TriggerEvent != "" {
+		// Receipted events use the authoritative runtime. A legacy queue payload
+		// must not silently create a v2 entry without its durable identity.
+		if def.SchemaVersion != 0 && def.SchemaVersion != 1 {
+			continue
+		}
+		if allowEntry && def.Entry.Type == "trigger" && def.Entry.TriggerEvent != "" {
 			mode, days := parseReentry(def.Settings.Reentry)
 			k := indexKey(appID, def.Entry.TriggerEvent)
 			entries[k] = append(entries[k], entryRule{
 				JourneyID: journeyID, Version: version, TriggerEvent: def.Entry.TriggerEvent,
 				Reentry: mode, ReentryDays: days,
+				ConversionEvent: def.Exit.ConversionEvent,
 			})
 		}
-		if def.Exit.ConversionEvent != "" {
+		if !allowEntry && def.Exit.ConversionEvent != "" {
 			k := indexKey(appID, def.Exit.ConversionEvent)
 			exits[k] = append(exits[k], exitRule{
-				JourneyID: journeyID, ConversionEvent: def.Exit.ConversionEvent,
+				JourneyID: journeyID, Version: version, ConversionEvent: def.Exit.ConversionEvent,
 			})
 		}
 	}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onda.dev/schemas/queue/event.normalized.json",
+  "title": "NormalizedEventPayload",
+  "description": "Stable PG receipt after ClickHouse projection. Receipt fields are additive for pre-upgrade stream compatibility; v2 waits require the durable receipt.",
+  "type": "object",
+  "required": ["user_id", "event_name", "occurred_at"],
+  "properties": {
+    "user_id": { "type": "string", "format": "uuid" },
+    "event_name": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "insert_id": { "type": "string", "format": "uuid" },
+    "receipt_seq": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+    "received_at": { "type": "string", "format": "date-time" },
+    "client_ts": { "type": "string", "format": "date-time" },
+    "properties": { "type": "object" }
+  },
+  "additionalProperties": false
+}

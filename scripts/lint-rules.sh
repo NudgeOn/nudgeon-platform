@@ -68,6 +68,17 @@ while IFS= read -r f; do
   fi
 done < <(src_files)
 
+# 규칙 5: 테넌트 격리 — 모든 PG/CH 쿼리에 tenant_id 필터 (정적 스캔).
+#          정당한 예외는 scripts/tenant-scan-allowlist.txt에 사유와 함께 등록.
+if command -v python3 >/dev/null 2>&1; then
+  if ! python3 scripts/tenant-scan.py; then
+    echo "RULE-5 위반: 위 쿼리에 tenant_id 필터가 없습니다 (allowlist 미등록)"
+    fail=1
+  fi
+else
+  echo "RULE-5 스킵: python3 없음 (CI에서는 반드시 실행되어야 함)"
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo ""
   echo "절대 규칙 위반이 발견되었습니다. CLAUDE.md를 참조하세요."

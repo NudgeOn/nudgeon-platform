@@ -11,8 +11,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -85,6 +85,9 @@ func (c *Consumer) Run(ctx context.Context) error {
 				c.logger.Info("pending 회수", "count", len(reclaimed))
 				msgs = append(msgs, reclaimed...)
 			}
+			if err := c.repairReceipts(ctx); err != nil {
+				c.logger.Error("receipt 복구/정리 실패 — 다음 주기에 재시도", "err", err)
+			}
 		}
 		if len(msgs) == 0 {
 			continue
@@ -104,20 +107,15 @@ type chRows struct {
 	errors  [][]any
 	// affected — 이 배치에서 상태가 바뀐 유저(미러 재생성 대상). map으로 중복 제거.
 	affected map[string]struct{}
-	// normEvents — 정규화 이벤트(트리거 매처용). flush 성공 후 발행.
-	normEvents []normEvent
-}
-
-type normEvent struct {
-	tenantID  string
-	appID     string
-	userID    string
-	eventName string
-	serverTS  time.Time
+	// receipts — stable PG receipts; CH success is committed with normalized outbox.
+	receipts []*receipt
+	// seen — 배치 내 insert_id 중복 제거(호출 간 공유). markKeys — flush 성공 후 dedup 등록 대상.
+	seen     map[string]bool
+	markKeys []string
 }
 
 func newCHRows() *chRows {
-	return &chRows{affected: map[string]struct{}{}}
+	return &chRows{affected: map[string]struct{}{}, seen: map[string]bool{}}
 }
 
 func (r *chRows) touch(userID string) {
@@ -145,35 +143,15 @@ func (c *Consumer) processBatch(ctx context.Context, msgs []libqueue.Message) er
 		ackIDs = append(ackIDs, m.StreamID)
 	}
 
-	if err := c.flushCH(ctx, rows); err != nil {
+	if err := c.flushAndProject(ctx, rows); err != nil {
 		return err
 	}
-	// 정규화 이벤트 발행 (트리거 매처용) — flush 성공 후. 발행 실패는 로그만(수집은 이미 확정).
-	c.publishNormEvents(ctx, rows.normEvents)
-	return c.queue.Ack(ctx, ackIDs...)
-}
-
-func (c *Consumer) publishNormEvents(ctx context.Context, events []normEvent) {
-	for _, e := range events {
-		payload, _ := json.Marshal(map[string]any{
-			"user_id":     e.userID,
-			"event_name":  e.eventName,
-			"occurred_at": e.serverTS,
-		})
-		env := &libqueue.Envelope{
-			ID:         uuid.NewString(),
-			Type:       "event.normalized",
-			SchemaVer:  1,
-			TenantID:   e.tenantID,
-			AppID:      e.appID,
-			OccurredAt: c.clk.Now(),
-			TraceID:    uuid.NewString(),
-			Payload:    json.RawMessage(payload),
-		}
-		if _, err := c.producer.Publish(ctx, libqueue.StreamEvents, env); err != nil {
-			c.logger.Error("정규화 이벤트 발행 실패", "err", err, "event", e.eventName)
-		}
+	// 영속 저장·발행 모두 성공 후에만 dedup 마킹 — 저장/발행 실패→재처리 경로에서 유실 방지 (재검증 A).
+	// Mark 실패는 로그만: 최악의 경우 재처리로 중복이 생기지만 위 두 계층이 흡수한다(유실보다 안전).
+	if err := c.dedup.Mark(ctx, rows.markKeys); err != nil {
+		c.logger.Error("dedup 마킹 실패 — 재처리 시 중복 가능(유실보다 안전)", "err", err)
 	}
+	return c.queue.Ack(ctx, ackIDs...)
 }
 
 func (c *Consumer) handle(ctx context.Context, tenantID, appID string, p *IngestBatchPayload, rows *chRows) error {
@@ -242,15 +220,59 @@ func (c *Consumer) handle(ctx context.Context, tenantID, appID string, p *Ingest
 
 	case "user_delete":
 		// D-8: PG 즉시 익명화 + 디바이스 토큰 폐기, CH는 비동기 mutation.
-		deletedID, err := c.anonymizeUser(ctx, tenantID, appID, p.UserDelete.ExternalID)
+		deletedIDs, err := c.anonymizeUser(ctx, tenantID, appID, p.UserDelete.ExternalID)
 		if err != nil {
 			return err
 		}
-		if deletedID == "" {
+		if len(deletedIDs) == 0 {
 			return nil // 대상 없음 — 멱등
 		}
-		c.deleteFromClickHouse(ctx, tenantID, appID, deletedID)
-		rows.touch(deletedID) // 미러 status=deleted 반영 → 평가 제외
+		for _, deletedID := range deletedIDs {
+			c.deleteFromClickHouse(ctx, tenantID, appID, deletedID)
+			rows.touch(deletedID) // 미러 status=deleted 반영 → 평가 제외
+		}
+		return nil
+
+	case "subscriptions":
+		// R-03: 수신 동의 변경을 users.subscriptions에 반영 → 발송 정책이 즉시 준수.
+		if p.Subscription == nil {
+			return nil
+		}
+		userID, err := c.resolveOrCreateUser(ctx, tenantID, appID, p.Subscription.ExternalID, p.Subscription.AnonID, now)
+		if err != nil {
+			return err
+		}
+		channel := p.Subscription.Channel
+		if channel == "" {
+			channel = "push"
+		}
+		if _, err := c.pg.Exec(ctx, `
+			UPDATE users SET subscriptions = subscriptions || jsonb_build_object($3::text, $4::text),
+			                 updated_at = now()
+			 WHERE tenant_id = $1 AND id = $2`,
+			tenantID, userID, channel, p.Subscription.State); err != nil {
+			return fmt.Errorf("구독 갱신: %w", err)
+		}
+		rows.touch(userID) // 미러 갱신 → 평가 반영
+		return nil
+
+	case "devices_logout":
+		// R-03: 로그아웃/reset 시 디바이스 토큰 분리 → 이후 이전 사용자 대상 발송 차단(active 아님).
+		if p.Logout == nil || p.Logout.DeviceID == "" {
+			return nil
+		}
+		var uid string
+		err := c.pg.QueryRow(ctx, `
+			UPDATE devices SET push_token = NULL, token_status = 'invalid', updated_at = now()
+			 WHERE tenant_id = $1 AND app_id = $2 AND id = $3
+			 RETURNING user_id`, tenantID, appID, p.Logout.DeviceID).Scan(&uid)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil // 대상 없음 — 멱등
+			}
+			return fmt.Errorf("로그아웃 토큰 분리: %w", err)
+		}
+		rows.touch(uid)
 		return nil
 
 	default:
@@ -260,70 +282,40 @@ func (c *Consumer) handle(ctx context.Context, tenantID, appID string, p *Ingest
 }
 
 func (c *Consumer) handleTrack(ctx context.Context, tenantID, appID string, p *IngestBatchPayload, rows *chRows) error {
-	fresh, err := c.dedup.FilterNew(ctx, tenantID, p.Events)
-	if err != nil {
-		return err
-	}
-	for _, e := range fresh {
-		userID, err := c.resolveOrCreateUser(ctx, tenantID, appID, e.ExternalID, e.AnonID, c.clk.Now())
-		if err != nil {
-			return fmt.Errorf("user upsert: %w", err)
+	for _, e := range p.Events {
+		key := "receipt:" + tenantID + ":" + appID + ":" + e.InsertID
+		if rows.seen[key] {
+			continue
 		}
-		deviceID, err := c.upsertDevice(ctx, tenantID, appID, userID, p.Device)
+		var r *receipt
+		var err error
+		if e.ReceiptSeq != "" {
+			r, err = loadReceipt(ctx, c.pg, tenantID, appID, e.InsertID)
+		} else {
+			r, err = c.legacyReceipt(ctx, tenantID, appID, e, p.Device, rows)
+		}
+		if err != nil {
+			return err
+		}
+		rows.seen[key] = true
+		if r == nil || r.projectedAt != nil {
+			continue
+		}
+		if r.clientTS == nil || len(r.properties) == 0 {
+			return fmt.Errorf("receipt projection body missing")
+		}
+		deviceID, err := c.upsertDevice(ctx, tenantID, appID, r.userID, r.device)
 		if err != nil {
 			return fmt.Errorf("device upsert: %w", err)
 		}
-		props := "{}"
-		if len(e.Properties) > 0 {
-			props = string(e.Properties)
-		}
 		rows.events = append(rows.events, []any{
-			tenantID, appID, e.Event, userID, deviceID, props, e.ClientTS, e.ServerTS, e.InsertID,
+			tenantID, appID, r.eventName, r.userID, deviceID, string(r.properties), *r.clientTS, r.receivedAt, r.insertID,
 		})
 		metrics.IngestProcessed.WithLabelValues(tenantID).Inc()
-		rows.touch(userID)
-		rows.normEvents = append(rows.normEvents, normEvent{
-			tenantID: tenantID, appID: appID, userID: userID, eventName: e.Event, serverTS: e.ServerTS,
-		})
+		rows.touch(r.userID)
+		rows.receipts = append(rows.receipts, r)
 	}
 	return nil
-}
-
-// anonymizeUser는 PG 프로필을 즉시 익명화한다 (PRD-01 8장):
-// PII(std/custom 속성) 제거, external_id·anon_id null화, 디바이스 토큰 폐기, status=deleted.
-// 반환: 삭제된 유저 id (없으면 빈 문자열).
-func (c *Consumer) anonymizeUser(ctx context.Context, tenantID, appID, externalID string) (string, error) {
-	tx, err := c.pg.Begin(ctx)
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	var id string
-	err = tx.QueryRow(ctx, `
-		UPDATE users SET
-		  status = 'deleted', external_id = NULL, anon_id = NULL,
-		  std_attrs = '{}', custom_attrs = '{}', subscriptions = '{}',
-		  updated_at = now()
-		 WHERE tenant_id = $1 AND app_id = $2 AND external_id = $3 AND status = 'active'
-		 RETURNING id`,
-		tenantID, appID, externalID).Scan(&id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return "", nil
-		}
-		return "", err
-	}
-	// 디바이스 토큰 폐기 (이후 발송 대상에서 제외)
-	if _, err := tx.Exec(ctx, `
-		UPDATE devices SET push_token = NULL, token_status = 'invalid', updated_at = now()
-		 WHERE user_id = $1`, id); err != nil {
-		return "", err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return "", err
-	}
-	return id, nil
 }
 
 // deleteFromClickHouse는 CH의 유저 관련 행을 비동기 mutation으로 삭제한다.
@@ -403,6 +395,7 @@ func (c *Consumer) upsertDevice(ctx context.Context, tenantID, appID, userID str
 		ON CONFLICT (id)
 		DO UPDATE SET user_id = EXCLUDED.user_id, device_meta = EXCLUDED.device_meta,
 		              last_active_at = EXCLUDED.last_active_at, updated_at = now()
+		WHERE devices.tenant_id = EXCLUDED.tenant_id AND devices.app_id = EXCLUDED.app_id
 		RETURNING id`,
 		d.DeviceID, tenantID, appID, userID, d.Platform, meta, c.clk.Now()).Scan(&id)
 	return id, err
@@ -444,10 +437,14 @@ func (c *Consumer) insertCH(ctx context.Context, insertSQL string, rows [][]any)
 	if len(rows) == 0 {
 		return nil
 	}
+	// Projection readiness is a durable insert acknowledgement, never an async
+	// buffer acknowledgement inherited from an API-oriented ClickHouse DSN.
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{"async_insert": 0, "wait_for_async_insert": 1}))
 	batch, err := c.ch.PrepareBatch(ctx, insertSQL)
 	if err != nil {
 		return err
 	}
+	defer func() { _ = batch.Close() }()
 	for _, r := range rows {
 		if err := batch.Append(r...); err != nil {
 			return err

@@ -39,7 +39,7 @@
           { "type": "event", "event": "purchase", "op": "count_gte", "value": 3, "window_days": 30 }
         ] }
       ] },
-      "expect": { "compiles": true, "contains": ["FROM events", "event_name = ?", "server_ts >= now() - INTERVAL ? DAY", "HAVING count() >= ?"] }
+      "expect": { "compiles": true, "contains": ["FROM events", "event_name = ?", "server_ts >= now() - INTERVAL ? DAY", "HAVING uniqExact(insert_id) >= ?"] }
     },
     {
       "name": "휴면 (not_performed)",

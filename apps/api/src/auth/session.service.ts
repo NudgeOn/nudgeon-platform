@@ -10,6 +10,9 @@ export interface SessionMember {
   email: string;
   name: string;
   role: string;
+  /** 2FA 등록 여부 + 테넌트 강제 정책 — 등록 강제 게이트(T-5)에서 사용 */
+  totpEnabled: boolean;
+  requires2fa: boolean;
 }
 
 /**
@@ -38,9 +41,12 @@ export class SessionService {
   async resolve(token: string): Promise<SessionMember | null> {
     if (!token) return null;
     const { rows } = await this.pg.query(
-      `SELECT s.tenant_id, m.id AS member_id, m.email, m.name, m.role
+      `SELECT s.tenant_id, m.id AS member_id, m.email, m.name, m.role,
+              (m.totp_enabled_at IS NOT NULL) AS totp_enabled,
+              COALESCE(t.require_2fa, false) AS requires_2fa
          FROM sessions s
          JOIN members m ON m.id = s.member_id AND m.status = 'active'
+         JOIN tenants t ON t.id = s.tenant_id
         WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now()`,
       [hashToken(token)],
     );
@@ -52,6 +58,8 @@ export class SessionService {
       email: row.email,
       name: row.name,
       role: row.role,
+      totpEnabled: row.totp_enabled,
+      requires2fa: row.requires_2fa,
     };
   }
 

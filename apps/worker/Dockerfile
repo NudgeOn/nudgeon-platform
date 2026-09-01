@@ -11,12 +11,14 @@ COPY apps/worker ./apps/worker
 COPY packages/libqueue-go ./packages/libqueue-go
 RUN cd apps/worker && CGO_ENABLED=0 go build -o /out/onda-worker ./cmd/worker \
  && CGO_ENABLED=0 go build -o /out/onda-migrate ./cmd/migrate \
- && CGO_ENABLED=0 go build -o /out/onda-seed ./cmd/seed
+ && CGO_ENABLED=0 go build -o /out/onda-seed ./cmd/seed \
+ && CGO_ENABLED=0 go build -o /out/onda-dlq ./cmd/dlq
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/onda-worker /onda-worker
 COPY --from=build /out/onda-migrate /onda-migrate
 COPY --from=build /out/onda-seed /onda-seed
+COPY --from=build /out/onda-dlq /onda-dlq
 # 마이그레이터가 참조할 SQL (migrator는 /db 인자로 실행)
 COPY db /db
 USER nonroot:nonroot

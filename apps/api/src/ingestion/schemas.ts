@@ -88,11 +88,32 @@ export const attributesBodySchema = z
 
 export type AttributesBody = z.infer<typeof attributesBodySchema>;
 
+/**
+ * OS 권한 값 정규화 — 플랫폼 SDK의 원시 문자열을 서버 표준(granted/denied/undetermined)으로 맞춘다.
+ * iOS UNAuthorizationStatus(authorized/provisional/ephemeral/notDetermined)와 Android 값을 흡수한다
+ * (재검증: iOS 토큰 권한 값 불일치로 정상 등록 실패). 알 수 없는 값은 그대로 두어 enum에서 400.
+ */
+const osPermissionSchema = z
+  .preprocess((v) => {
+    if (typeof v !== "string") return v;
+    const map: Record<string, "granted" | "denied" | "undetermined"> = {
+      granted: "granted",
+      authorized: "granted",
+      provisional: "granted",
+      ephemeral: "granted",
+      denied: "denied",
+      undetermined: "undetermined",
+      notdetermined: "undetermined",
+    };
+    return map[v.toLowerCase().replace(/[\s_-]/g, "")] ?? v;
+  }, z.enum(["granted", "denied", "undetermined"]))
+  .optional();
+
 export const tokenBodySchema = z
   .object({
     device: deviceSchema,
     push_token: z.string().min(1).max(4096),
-    os_permission: z.enum(["granted", "denied", "undetermined"]).optional(),
+    os_permission: osPermissionSchema,
     anon_id: z.string().uuid().nullable().optional(),
     external_id: z.string().min(1).max(256).nullable().optional(),
   })
@@ -102,3 +123,25 @@ export const tokenBodySchema = z
   });
 
 export type TokenBody = z.infer<typeof tokenBodySchema>;
+
+/** 수신 동의 변경 (setPushOptIn 서버 동기화 — R-03). anon_id/external_id 중 하나 필수. */
+export const subscriptionBodySchema = z
+  .object({
+    channel: z.literal("push").default("push"),
+    state: z.enum(["opted_in", "unsubscribed"]),
+    anon_id: z.string().uuid().nullable().optional(),
+    external_id: z.string().min(1).max(256).nullable().optional(),
+  })
+  .strict()
+  .refine((b) => b.anon_id || b.external_id, {
+    message: "anon_id 또는 external_id 중 하나는 필수입니다",
+  });
+
+export type SubscriptionBody = z.infer<typeof subscriptionBodySchema>;
+
+/** 로그아웃/reset — 디바이스 토큰 분리(이후 이전 사용자 대상 발송 차단, R-03). */
+export const logoutBodySchema = z
+  .object({ device_id: z.string().uuid() })
+  .strict();
+
+export type LogoutBody = z.infer<typeof logoutBodySchema>;

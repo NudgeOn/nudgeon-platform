@@ -35,7 +35,10 @@ func main() {
 		log.Fatal("--tenant 와 --app 은 필수입니다")
 	}
 
-	cfg := config.Load()
+	cfg, err := config.Load("DATABASE_URL", "CLICKHOUSE_URL")
+	if err != nil {
+		log.Fatalf("설정 로드: %v", err)
+	}
 	ctx := context.Background()
 	pg, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {

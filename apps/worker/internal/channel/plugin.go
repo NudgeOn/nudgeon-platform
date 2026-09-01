@@ -6,6 +6,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -70,6 +73,8 @@ type PushContent struct {
 	ImageURL string            `json:"image_url,omitempty"`
 	DeepLink string            `json:"deep_link,omitempty"`
 	Data     map[string]string `json:"data,omitempty"`
+	// MessageID — 발송 안정 ID. 워커가 렌더 직전 설정. FCM data["message_id"] / APNs onda.message_id로 방출.
+	MessageID string `json:"-"`
 }
 
 type MessageContent struct {
@@ -116,12 +121,19 @@ type ChannelPlugin interface {
 type SendError struct {
 	Class  FailureClass
 	Detail string
+	// RetryAfter — 429 등에서 공급자가 지정한 재시도 대기 시간(0이면 미지정 → 지수 백오프).
+	RetryAfter time.Duration
 }
 
 func (e *SendError) Error() string { return fmt.Sprintf("%s: %s", e.Class, e.Detail) }
 
 func NewSendError(class FailureClass, format string, args ...any) *SendError {
 	return &SendError{Class: class, Detail: fmt.Sprintf(format, args...)}
+}
+
+// NewRateLimitError — 429 전용. Retry-After를 실어 백오프에 반영한다.
+func NewRateLimitError(retryAfter time.Duration, format string, args ...any) *SendError {
+	return &SendError{Class: FailureRateLimited, Detail: fmt.Sprintf(format, args...), RetryAfter: retryAfter}
 }
 
 // Classify는 SendError면 그 분류를, 아니면 Retryable(네트워크 등)을 돌려준다.
@@ -134,4 +146,29 @@ func Classify(err error) FailureClass {
 		return se.Class
 	}
 	return FailureRetryable
+}
+
+// RetryAfterOf는 SendError의 Retry-After를 돌려준다(없으면 0).
+func RetryAfterOf(err error) time.Duration {
+	var se *SendError
+	if errors.As(err, &se) {
+		return se.RetryAfter
+	}
+	return 0
+}
+
+// parseRetryAfter는 HTTP Retry-After 헤더(초 또는 HTTP-date)를 Duration으로 파싱한다.
+func parseRetryAfter(v string) time.Duration {
+	if v == "" {
+		return 0
+	}
+	if secs, err := strconv.Atoi(strings.TrimSpace(v)); err == nil && secs >= 0 {
+		return time.Duration(secs) * time.Second
+	}
+	if t, err := http.ParseTime(strings.TrimSpace(v)); err == nil {
+		if d := time.Until(t); d > 0 {
+			return d
+		}
+	}
+	return 0
 }
