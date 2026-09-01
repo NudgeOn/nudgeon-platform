@@ -163,6 +163,7 @@ export interface SendPushPayload {
       image_url?: string;
       deep_link?: string;
       data?: Record<string, string>;
+      silent?: boolean;
     };
   };
   category: "marketing" | "transactional";

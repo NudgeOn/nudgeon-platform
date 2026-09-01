@@ -130,6 +130,13 @@ func apnsPayload(content *PushContent) map[string]any {
 		}
 		onda["data"] = d
 	}
+	if content.Silent {
+		// 무음(백그라운드) 푸시: alert 없이 content-available만 → 사용자 미노출. 삭제 감지 ping.
+		return map[string]any{
+			"aps":  map[string]any{"content-available": 1},
+			"onda": onda,
+		}
+	}
 	return map[string]any{
 		"aps": map[string]any{
 			"alert":           map[string]string{"title": content.Title, "body": content.Body},
@@ -153,7 +160,12 @@ func (a *apnsClient) send(ctx context.Context, cred *apnsCredential, deviceToken
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("apns-topic", cred.BundleID)
-	req.Header.Set("apns-push-type", "alert")
+	if content.Silent {
+		req.Header.Set("apns-push-type", "background")
+		req.Header.Set("apns-priority", "5") // 무음 푸시는 priority 5 필수 (APNs 규칙)
+	} else {
+		req.Header.Set("apns-push-type", "alert")
+	}
 
 	res, err := a.http.Do(req)
 	if err != nil {

@@ -249,6 +249,14 @@ export class OndaClient {
     journeyReport: (appId: string, id: string, params?: { version?: number }) =>
       this.request<JourneyReport>("GET", `/v1/apps/${appId}/journeys/${id}/report${params?.version ? `?version=${params.version}` : ""}`),
     usage: (appId: string) => this.request<UsageData>("GET", `/v1/apps/${appId}/usage`),
+    uninstalls: (appId: string, days?: number) =>
+      this.request<{ days: number; uninstalls: number; active_devices: number; uninstall_rate: number }>(
+        "GET",
+        `/v1/apps/${appId}/uninstalls${days ? `?days=${days}` : ""}`,
+      ),
+    /** 앱 삭제 감지 스윕 — 활성 토큰에 무음 푸시 발행(죽은 토큰=삭제 신호) */
+    uninstallSweep: (appId: string) =>
+      this.request<{ queued: number; run_id: string }>("POST", `/v1/apps/${appId}/uninstall-sweep`),
     deliveryReport: (appId: string, id: string) =>
       this.request<DeliveryReport>("GET", `/v1/apps/${appId}/journeys/${id}/delivery`),
   };

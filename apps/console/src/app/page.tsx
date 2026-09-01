@@ -22,9 +22,18 @@ export default function DashboardPage() {
     queryFn: () => api.analytics.usage(appId!),
     enabled: !!appId,
   });
+  const uninstalls = useQuery({
+    queryKey: ["uninstalls", appId],
+    queryFn: () => api.analytics.uninstalls(appId!, 30),
+    enabled: !!appId,
+  });
   const logout = useMutation({
     mutationFn: () => api.auth.logout(),
     onSuccess: () => router.push("/login"),
+  });
+  const sweep = useMutation({
+    mutationFn: () => api.analytics.uninstallSweep(appId!),
+    onSuccess: () => uninstalls.refetch(),
   });
 
   useEffect(() => {
@@ -64,6 +73,11 @@ export default function DashboardPage() {
         <Stat label="DAU (오늘)" value={usage.data?.dau_today ?? 0} />
         <Stat label="MAU (30일)" value={usage.data?.mau_30d ?? 0} />
         <Stat
+          label={`앱 삭제 (30일) ${((uninstalls.data?.uninstall_rate ?? 0) * 100).toFixed(2)}%`}
+          value={uninstalls.data?.uninstalls ?? 0}
+          accent={(uninstalls.data?.uninstalls ?? 0) > 0}
+        />
+        <Stat
           label="발송량 (30일)"
           value={usage.data?.sends_30d.reduce((a, b) => a + b.sent, 0) ?? 0}
         />
@@ -99,6 +113,11 @@ export default function DashboardPage() {
           {me.data.permissions?.includes("journeys:read") && (
             <Button variant="outline" onClick={() => router.push("/email-templates")}>
               이메일 템플릿
+            </Button>
+          )}
+          {me.data.permissions?.includes("journeys:activate") && (
+            <Button variant="outline" disabled={sweep.isPending} onClick={() => sweep.mutate()}>
+              {sweep.isPending ? "삭제 감지 중…" : "앱 삭제 감지 스윕"}
             </Button>
           )}
           {me.data.permissions?.includes("team:read") && (

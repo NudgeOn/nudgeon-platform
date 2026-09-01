@@ -14,6 +14,7 @@ import { AuditController } from "./audit/audit.controller";
 import { TenantController } from "./tenant/tenant.controller";
 import { EmailTemplatesController } from "./email/email-templates.controller";
 import { TestEmailController } from "./email/test-email.controller";
+import { UninstallController } from "./messaging/uninstall.controller";
 import { MembersController } from "./members/members.controller";
 import { MembersService } from "./members/members.service";
 import { IngestionService } from "./ingestion/ingestion.service";
@@ -49,6 +50,7 @@ import { PermissionGuard } from "./authz/permission.guard";
     TestPushController,
     EmailTemplatesController,
     TestEmailController,
+    UninstallController,
     AppsController,
     AppSettingsController,
     SegmentsController,

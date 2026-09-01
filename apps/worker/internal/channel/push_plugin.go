@@ -23,8 +23,8 @@ func NewPushPlugin(clk clock.Clock) *PushPlugin {
 	}
 }
 
-func (p *PushPlugin) Kind() ChannelKind       { return KindPush }
-func (p *PushPlugin) TargetType() TargetType  { return TargetDeviceToken }
+func (p *PushPlugin) Kind() ChannelKind                    { return KindPush }
+func (p *PushPlugin) TargetType() TargetType               { return TargetDeviceToken }
 func (p *PushPlugin) ClassifyError(err error) FailureClass { return Classify(err) }
 
 // ValidateCredentials — C-1: 무효 크리덴셜은 구체 사유와 함께 거부.

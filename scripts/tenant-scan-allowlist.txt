@@ -11,9 +11,11 @@ apps/api/src/messaging/message-log.controller.ts::5a5b7de69f41   # message_log: 
 # --- app_id 스코프: app_id는 uuid PK로 단일 테넌트 소속 → 교차 테넌트 불가 ---
 apps/api/src/data/data.controller.ts::363172899ed7   # attribute_registry DELETE by app_id (assertApp로 tenant 선검증)
 apps/api/src/messaging/test-push.controller.ts::1610ab0fc9cb   # devices JOIN users WHERE u.app_id (app_id 스코프)
+apps/api/src/messaging/uninstall.controller.ts::3ccc550efa66   # devices JOIN users WHERE u.app_id (삭제 스윕, assertApp 후 app_id 스코프)
+apps/api/src/analytics/analytics.controller.ts::299339662317   # 활성 디바이스 count by u.app_id (삭제율 분모, assertApp 후 app_id 스코프)
 apps/worker/internal/ingest/tokens.go::fa26595a3775   # devices by app_id (수집 워커, 큐 envelope의 app_id)
 apps/worker/internal/ingest/consumer.go::dc2d6598ce69   # users by app_id+anon_id (수집 워커, app_id 스코프)
-apps/worker/internal/channel/worker.go::5c57d4108565   # devices by app_id+push_token (발송 워커, app_id 스코프)
+apps/worker/internal/channel/worker.go::cbcad58c6370   # devices invalid 전이 by app_id+push_token (발송 워커, app_id 스코프, 삭제감지)
 apps/worker/internal/channel/worker.go::7d8537a05f0e   # credentials by app_id+kind (발송 워커, app_id 스코프)
 apps/worker/internal/channel/worker.go::9a03cfeef80d   # credentials by app_id+kind (발송 워커, app_id 스코프)
 apps/worker/internal/channel/email_worker.go::854c40c1f1f7   # credentials by app_id+email kind (이메일 발송 워커, app_id 스코프)
