@@ -328,7 +328,14 @@ export class OndaClient {
     /** 테스트 이메일 발송 — 템플릿/인라인을 {{ }} 치환 후 실전송 (journeys:activate) */
     test: (
       appId: string,
-      input: { to_email: string; template_id?: string; subject?: string; html?: string; variables?: Record<string, unknown> },
+      input: {
+        to_email: string;
+        template_id?: string;
+        subject?: string;
+        html?: string;
+        provider?: "email_smtp" | "email_nhn";
+        variables?: Record<string, unknown>;
+      },
     ) => this.request<{ queued: number; test_run_id: string }>("POST", `/v1/apps/${appId}/test-email`, input),
   };
 }
