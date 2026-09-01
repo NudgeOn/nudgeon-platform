@@ -28,6 +28,7 @@ const testEmailSchema = z
     template_id: z.string().uuid().optional(),
     subject: z.string().min(1).max(998).optional(),
     html: z.string().min(1).max(1_000_000).optional(),
+    provider: z.enum(["email_smtp", "email_nhn"]).optional(),
     variables: z.record(z.unknown()).default({}),
   })
   .refine((b) => b.template_id || (b.subject && b.html), {
@@ -82,6 +83,7 @@ export class TestEmailController {
       idempotency_key: `test:${testRunId}`,
       message_id: randomUUID(),
       email: parsed.data.to_email,
+      ...(parsed.data.provider ? { provider: parsed.data.provider } : {}),
       content: { email: { subject, html } },
       category: "transactional",
       campaign_ref: `test:${testRunId}`,

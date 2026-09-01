@@ -179,6 +179,7 @@ export interface SendEmailPayload {
   message_id?: string;
   user_id?: string | null;
   email: string;
+  provider?: "email_smtp" | "email_nhn";
   content: {
     email: {
       subject: string;

@@ -104,7 +104,18 @@ function TemplateEditor({
   const [html, setHtml] = useState("<h1>안녕하세요 {{name}}님</h1>\n<p>Onda에 오신 것을 환영합니다.</p>");
   const [varsText, setVarsText] = useState("name=홍길동");
   const [toEmail, setToEmail] = useState("");
+  const [provider, setProvider] = useState<"" | "email_smtp" | "email_nhn">("");
   const [err, setErr] = useState<string | null>(null);
+
+  // 설정(검증)된 이메일 발송기만 선택 가능하도록 목록을 크리덴셜에서 구성.
+  const creds = useQuery({
+    queryKey: ["credentials", appId],
+    queryFn: () => api.credentials.list(appId),
+    enabled: !!appId,
+  });
+  const verifiedProviders = (creds.data?.credentials ?? []).filter(
+    (c) => (c.kind === "email_smtp" || c.kind === "email_nhn") && c.status === "verified",
+  );
 
   useEffect(() => {
     if (existing.data) {
@@ -134,8 +145,16 @@ function TemplateEditor({
     onError: onErr,
   });
   const testSend = useMutation({
-    mutationFn: () => api.email.test(appId, { to_email: toEmail, template_id: templateId ?? undefined, subject, html, variables: vars }),
-    onSuccess: () => setErr("테스트 발송 큐 적재 완료 — 메일함/SMTP 로그 확인"),
+    mutationFn: () =>
+      api.email.test(appId, {
+        to_email: toEmail,
+        template_id: templateId ?? undefined,
+        subject,
+        html,
+        provider: provider || undefined,
+        variables: vars,
+      }),
+    onSuccess: () => setErr("테스트 발송 큐 적재 완료 — 메일함/발송기 로그 확인"),
     onError: onErr,
   });
 
@@ -187,10 +206,27 @@ function TemplateEditor({
               <Label htmlFor="t-to">테스트 수신 이메일</Label>
               <Input id="t-to" type="email" value={toEmail} onChange={(e) => setToEmail(e.target.value)} placeholder="me@example.com" />
             </div>
-            <Button variant="outline" disabled={testSend.isPending || !toEmail || !subject || !html}
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="t-provider">발송기</Label>
+              <select id="t-provider" className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+                value={provider} onChange={(e) => setProvider(e.target.value as typeof provider)}>
+                <option value="">자동(활성 발송기)</option>
+                {verifiedProviders.map((c) => (
+                  <option key={c.kind} value={c.kind}>{c.kind}</option>
+                ))}
+              </select>
+            </div>
+            <Button variant="outline"
+              disabled={testSend.isPending || !toEmail || !subject || !html || verifiedProviders.length === 0}
               onClick={() => testSend.mutate()}>{testSend.isPending ? "발송 중…" : "테스트 발송"}</Button>
           </div>
-          <p className="text-xs text-muted-foreground">테스트 발송은 등록·검증된 이메일 크리덴셜(SMTP/AWS SES/NHN)을 사용합니다.</p>
+          {verifiedProviders.length === 0 ? (
+            <p className="text-xs text-destructive">검증된 이메일 발송기가 없습니다 — 왼쪽 &lsquo;이메일 발송기&rsquo;에서 먼저 등록·검증하세요.</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              발송기를 선택하지 않으면 활성(최근 검증) 발송기로 나갑니다. 설정된 발송기: {verifiedProviders.map((c) => c.kind).join(", ")}
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

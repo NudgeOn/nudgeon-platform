@@ -27,7 +27,8 @@ type SendEmailPayload struct {
 	IdempotencyKey string `json:"idempotency_key"`
 	MessageID      string `json:"message_id"`
 	UserID         string `json:"user_id"`
-	Email          string `json:"email"` // 수신 이메일 주소
+	Email          string `json:"email"`    // 수신 이메일 주소
+	Provider       string `json:"provider"` // email_smtp | email_nhn (미지정=활성 발송기 폴백)
 	Content        struct {
 		Email *EmailContent `json:"email"`
 	} `json:"content"`
@@ -175,7 +176,7 @@ func (w *EmailWorker) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 		}
 	}
 
-	creds, ok, err := w.emailCredential(ctx, env.AppID)
+	creds, ok, err := w.emailCredential(ctx, env.AppID, p.Provider)
 	if err != nil {
 		return retryFail("retryable", "크리덴셜 조회 오류: "+err.Error(), 0)
 	}
@@ -214,14 +215,23 @@ func (w *EmailWorker) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 // emailCredential — verified 이메일 공급자 크리덴셜 복호화(요청당 조회 — 이메일 볼륨 낮음).
 // 앱이 설정한 email_* 공급자(email_smtp/email_nhn) 중 최근 검증된 것을 선택하고 kind를 실어
 // 플러그인이 공급자별로 분기하도록 한다.
-func (w *EmailWorker) emailCredential(ctx context.Context, appID string) (Credentials, bool, error) {
+// provider 지정 시 그 발송기만, 미지정 시 최근 검증된 활성 발송기로 폴백.
+func (w *EmailWorker) emailCredential(ctx context.Context, appID, provider string) (Credentials, bool, error) {
 	var kind string
 	var ciphertext, dekWrapped []byte
-	err := w.pg.QueryRow(ctx, `
-		SELECT kind::text, ciphertext, dek_wrapped FROM credentials
-		 WHERE app_id = $1 AND kind IN ('email_smtp','email_nhn') AND status = 'verified'
-		 ORDER BY last_verified_at DESC NULLS LAST LIMIT 1`, appID).
-		Scan(&kind, &ciphertext, &dekWrapped)
+	var err error
+	if provider == "email_smtp" || provider == "email_nhn" {
+		err = w.pg.QueryRow(ctx, `
+			SELECT kind::text, ciphertext, dek_wrapped FROM credentials
+			 WHERE app_id = $1 AND kind = $2 AND status = 'verified'`, appID, provider).
+			Scan(&kind, &ciphertext, &dekWrapped)
+	} else {
+		err = w.pg.QueryRow(ctx, `
+			SELECT kind::text, ciphertext, dek_wrapped FROM credentials
+			 WHERE app_id = $1 AND kind IN ('email_smtp','email_nhn') AND status = 'verified'
+			 ORDER BY last_verified_at DESC NULLS LAST LIMIT 1`, appID).
+			Scan(&kind, &ciphertext, &dekWrapped)
+	}
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Credentials{}, false, nil
