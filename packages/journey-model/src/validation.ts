@@ -75,10 +75,16 @@ export function validateJourney(def: JourneyDefinition): ValidationIssue[] {
     const fail = (message: string, field?: string) => issue(message, { ...details, field });
     if (!graph && !["message", "delay"].includes(node.type)) fail("분기·이벤트 대기는 v2 그래프에서만 지원합니다");
     switch (node.type) {
-      case "message":
+      case "message": {
         hasMessage = true;
-        if (!node.push?.title?.trim() || !node.push?.body?.trim()) fail("빈 메시지 노드입니다", "push");
+        // 채널: push 또는 email 중 하나. 각 채널의 필수 내용이 비면 오류.
+        if (node.email) {
+          if (!node.email.subject?.trim() || !node.email.html?.trim()) fail("빈 이메일 노드입니다", "email");
+        } else if (!node.push?.title?.trim() || !node.push?.body?.trim()) {
+          fail("빈 메시지 노드입니다", "push");
+        }
         break;
+      }
       case "delay":
         if (!validDuration(node.duration_seconds)) fail("대기 시간은 0보다 큰 정수여야 합니다", "duration_seconds");
         break;
