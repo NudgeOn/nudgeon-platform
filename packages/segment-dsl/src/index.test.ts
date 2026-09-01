@@ -45,7 +45,12 @@ describe("tenant 주입 불변식 (G-2)", () => {
       ] }],
     };
     const { args } = compile(dsl, TENANT, APP, "marketing");
-    expect(args).toEqual([TENANT, APP, TENANT, APP, "purchase", 30, 2, TENANT, APP, "cancel", 7]);
+    // R-10 병합 매핑 조인으로 각 이벤트 조건은 mergeMap(tenant/app) + events(tenant/app/event) 순으로 바인딩.
+    expect(args).toEqual([
+      TENANT, APP,
+      TENANT, APP, TENANT, APP, "purchase", 30, 2,
+      TENANT, APP, TENANT, APP, "cancel", 7,
+    ]);
   });
 
   it("모든 SQL에 tenant/app/status 필터가 주입되고 첫 두 인자가 tenant/app", () => {
