@@ -120,6 +120,9 @@ func fcmData(content *PushContent) map[string]string {
 		b, _ := json.Marshal(content.Data)
 		data["data"] = string(b) // 사용자 커스텀 속성 — SDK가 data["data"]를 JSON 파싱
 	}
+	if content.Silent {
+		data["silent"] = "1" // SDK는 표시를 생략(무음 삭제 감지 ping) — data-only라 배송 시 UNREGISTERED로 삭제 판정
+	}
 	return data
 }
 

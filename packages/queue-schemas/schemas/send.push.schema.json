@@ -28,7 +28,8 @@
             "body": { "type": "string", "maxLength": 2048 },
             "image_url": { "type": "string" },
             "deep_link": { "type": "string" },
-            "data": { "type": "object", "additionalProperties": { "type": "string" } }
+            "data": { "type": "object", "additionalProperties": { "type": "string" } },
+            "silent": { "type": "boolean" }
           },
           "additionalProperties": false
         }

@@ -268,6 +268,39 @@ export class AnalyticsController {
     };
   }
 
+  /** 앱 삭제율 (최근 N일): silent/일반 푸시의 UNREGISTERED/410 기반 삭제 감지 (기본 30일) */
+  @Get("uninstalls")
+  async uninstalls(
+    @Param("appId", ParseUUIDPipe) appId: string,
+    @Req() req: SessionRequest,
+    @Query("days") days?: string,
+  ) {
+    await this.assertApp(appId, req);
+    const n = Math.min(Math.max(Number(days) || 30, 1), 365);
+    const res = await this.ch.query({
+      query: `SELECT count() AS uninstalls FROM app_uninstalls
+               WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
+                 AND detected_at > now() - INTERVAL {n:UInt16} DAY`,
+      query_params: { tid: req.member.tenantId, aid: appId, n },
+      format: "JSONEachRow",
+    });
+    const uninstalls = Number(((await res.json()) as Array<{ uninstalls: string }>)[0]?.uninstalls ?? 0);
+    // 현재 활성 디바이스(분모) — 삭제 감지 시점엔 이미 invalid이므로 분모에 삭제 수를 더해 근사한다.
+    const active = await this.pg.query(
+      `SELECT count(*)::int AS n FROM devices d JOIN users u ON u.id = d.user_id
+        WHERE u.app_id = $1 AND d.push_token IS NOT NULL AND d.token_status = 'active'`,
+      [appId],
+    );
+    const activeCount = active.rows[0]?.n ?? 0;
+    const denom = activeCount + uninstalls;
+    return {
+      days: n,
+      uninstalls,
+      active_devices: activeCount,
+      uninstall_rate: denom > 0 ? Math.round((uninstalls / denom) * 10000) / 10000 : 0,
+    };
+  }
+
   private async assertApp(appId: string, req: SessionRequest) {
     const { rowCount } = await this.pg.query(`SELECT 1 FROM apps WHERE id = $1 AND tenant_id = $2`, [
       appId,

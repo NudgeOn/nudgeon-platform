@@ -23,12 +23,12 @@ import (
 
 // SendPushPayload — packages/queue-schemas/schemas/send.push.schema.json의 Go 표현.
 type SendPushPayload struct {
-	IdempotencyKey string       `json:"idempotency_key"`
-	MessageID      string       `json:"message_id"` // 발송 시점 생성 안정 ID (재검증 F)
-	UserID         string       `json:"user_id"`
-	DeviceID       string       `json:"device_id"`
-	PushToken      string       `json:"push_token"`
-	Platform       string       `json:"platform"`
+	IdempotencyKey string `json:"idempotency_key"`
+	MessageID      string `json:"message_id"` // 발송 시점 생성 안정 ID (재검증 F)
+	UserID         string `json:"user_id"`
+	DeviceID       string `json:"device_id"`
+	PushToken      string `json:"push_token"`
+	Platform       string `json:"platform"`
 	Content        struct {
 		Push *PushContent `json:"push"`
 	} `json:"content"`
@@ -74,8 +74,8 @@ type Worker struct {
 	clk       clock.Clock
 	logger    *slog.Logger
 
-	credMu    sync.Mutex
-	credCache map[string]cachedCred // key: appID+kind
+	credMu      sync.Mutex
+	credCache   map[string]cachedCred // key: appID+kind
 	lastReclaim time.Time
 }
 
@@ -263,10 +263,16 @@ func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) ([]any, boo
 	class := w.plugin.ClassifyError(sendErr)
 	switch class {
 	case FailureInvalidTarget:
-		// 토큰 피드백 루프 (C-5): 즉시 invalid 반영 → 이후 발송·세그먼트 제외
-		if _, err := w.pg.Exec(ctx, `
+		// 토큰 피드백 루프 (C-5): 즉시 invalid 반영 → 이후 발송·세그먼트 제외.
+		// active→invalid 전이는 앱 삭제 신호(공급자 UNREGISTERED/410) → app_uninstalls에 기록.
+		var duid, dpuid, dplat string
+		err := w.pg.QueryRow(ctx, `
 			UPDATE devices SET token_status = 'invalid', updated_at = now()
-			 WHERE app_id = $1 AND push_token = $2`, env.AppID, p.PushToken); err != nil {
+			 WHERE app_id = $1 AND push_token = $2 AND token_status = 'active'
+			 RETURNING id, user_id, platform`, env.AppID, p.PushToken).Scan(&duid, &dpuid, &dplat)
+		if err == nil {
+			w.recordUninstall(ctx, env.TenantID, env.AppID, dpuid, duid, dplat)
+		} else if !errors.Is(err, pgx.ErrNoRows) {
 			w.logger.Error("토큰 invalid 반영 실패", "err", err)
 		}
 	case FailureCredentialAuth:
@@ -293,9 +299,9 @@ func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) ([]any, boo
 
 // 멱등 상태 값 (idemKey에 저장) — 리스 소유권·완료·실패를 구분해 결과를 보존한다 (R-02).
 const (
-	statusProcessing = "processing"      // 임시 리스(처리 중)
-	statusSent       = "sent"            // 전송 완료 (sent|<provider_id>)
-	statusFailed     = "failed"          // 영구 실패 (failed|<class>)
+	statusProcessing = "processing" // 임시 리스(처리 중)
+	statusSent       = "sent"       // 전송 완료 (sent|<provider_id>)
+	statusFailed     = "failed"     // 영구 실패 (failed|<class>)
 )
 
 // backoff는 지수 백오프(base*2^(attempt-1), cap)를 돌려준다.
@@ -400,6 +406,26 @@ func (w *Worker) logRow(tenantID, appID string, p *SendPushPayload, messageID, s
 		tenantID, appID, messageID, p.IdempotencyKey,
 		journeyID, version, node, campaignRef,
 		p.UserID, p.DeviceID, channel, status, class, detail, at,
+	}
+}
+
+// recordUninstall — active 토큰이 공급자 UNREGISTERED/410로 invalid 전이 시 앱 삭제 1건 기록.
+func (w *Worker) recordUninstall(ctx context.Context, tenantID, appID, userID, deviceID, platform string) {
+	if w.ch == nil {
+		return
+	}
+	batch, err := w.ch.PrepareBatch(ctx, `INSERT INTO app_uninstalls
+		(tenant_id, app_id, user_id, device_id, platform, detected_at)`)
+	if err != nil {
+		w.logger.Error("uninstall 기록 준비 실패", "err", err)
+		return
+	}
+	if err := batch.Append(tenantID, appID, userID, deviceID, platform, w.clk.Now()); err != nil {
+		w.logger.Error("uninstall 기록 append 실패", "err", err)
+		return
+	}
+	if err := batch.Send(); err != nil {
+		w.logger.Error("uninstall 기록 전송 실패", "err", err)
 	}
 }
 

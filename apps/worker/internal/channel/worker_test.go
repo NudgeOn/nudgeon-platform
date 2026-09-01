@@ -22,8 +22,8 @@ type mockPlugin struct {
 	sends   int // 실제 Send 호출 수 (재전송 없음 검증용)
 }
 
-func (m *mockPlugin) Kind() ChannelKind       { return KindPush }
-func (m *mockPlugin) TargetType() TargetType  { return TargetDeviceToken }
+func (m *mockPlugin) Kind() ChannelKind      { return KindPush }
+func (m *mockPlugin) TargetType() TargetType { return TargetDeviceToken }
 func (m *mockPlugin) ValidateCredentials(context.Context, Credentials) error {
 	return nil
 }
@@ -110,7 +110,7 @@ func TestHandleOneRetryableThenExhaust(t *testing.T) {
 		if !mr.Exists("send:retryat:t1:idem-1") {
 			t.Fatalf("시도 %d: 백오프 retryat 미설정", i)
 		}
-		fk.Advance(backoffCap + time.Second)                                                         // 백오프 경과 시뮬
+		fk.Advance(backoffCap + time.Second)                                                               // 백오프 경과 시뮬
 		w.storeCredCache("a1/push_fcm", Credentials{Kind: "push_fcm", JSON: []byte("{}")}, true, fk.Now()) // 크리덴셜 캐시 갱신(pg 우회)
 	}
 
