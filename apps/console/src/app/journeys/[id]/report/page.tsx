@@ -16,7 +16,7 @@ const STATES: Record<string, string> = { active: "진행", waiting: "대기", cl
 const SENDS: Record<string, string> = { sent: "발송 접수", failed: "실패", duplicate: "중복 제외", skipped_quiet_hours: "조용시간 생략", skipped_cap: "빈도제한 생략", skipped_unreachable: "도달불가 생략" };
 const TYPES: Record<string, string> = { message: "푸시 메시지", delay: "고정 대기", branch: "조건 분기", event_wait: "이벤트 대기", ab_split: "A/B 분기" };
 const number = (n: number) => n.toLocaleString("ko-KR");
-const label = (node: JourneyNode) => node.type === "message" ? node.push.title || TYPES.message : TYPES[node.type];
+const label = (node: JourneyNode) => node.type === "message" ? (node.push?.title || node.email?.subject || TYPES.message) : TYPES[node.type];
 const ArrowLeft = ({ size }: { size: number }) => <JourneyIcon name="arrow-left" size={size} />;
 const ArrowUpRight = ({ size }: { size: number }) => <JourneyIcon name="arrow-right" size={size} />;
 const BarChart3 = ({ size }: { size: number }) => <JourneyIcon name="chart" size={size} />;

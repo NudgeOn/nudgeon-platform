@@ -338,9 +338,15 @@ function CanvasContent({ definition, selectedId, segmentName, editable, supporte
       let detail = "";
       let needsSetup = false;
       if (node.type === "message") {
-        title = node.push.title || "새 푸시 메시지";
-        detail = node.push.body || "메시지를 선택하고 내용을 작성해 주세요.";
-        needsSetup = !node.push.title.trim() || !node.push.body.trim();
+        if (node.email) {
+          title = node.email.subject || "새 이메일 메시지";
+          detail = "이메일 · " + (node.email.provider || "활성 발송기");
+          needsSetup = !node.email.subject.trim() || !node.email.html.trim();
+        } else {
+          title = node.push?.title || "새 푸시 메시지";
+          detail = node.push?.body || "메시지를 선택하고 내용을 작성해 주세요.";
+          needsSetup = !node.push?.title.trim() || !node.push?.body.trim();
+        }
       } else if (node.type === "delay") {
         title = formatDuration(node.duration_seconds); needsSetup = !(node.duration_seconds > 0);
       } else if (node.type === "branch") {

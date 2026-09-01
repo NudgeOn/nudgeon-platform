@@ -26,7 +26,9 @@ interface NodeIdentity { id?: string }
 export type JourneyNode = MessageNode | DelayNode | BranchNode | EventWaitNode | ABSplitNode;
 export interface MessageNode extends NodeIdentity {
   type: "message";
-  push: { title: string; body: string; image_url?: string; deep_link?: string };
+  // 채널 선택: push 또는 email 중 정확히 하나.
+  push?: { title: string; body: string; image_url?: string; deep_link?: string };
+  email?: { subject: string; html: string; provider?: "email_smtp" | "email_nhn" };
 }
 export interface DelayNode extends NodeIdentity {
   type: "delay";

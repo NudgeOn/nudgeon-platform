@@ -8,10 +8,17 @@ const identifierSchema = z.string().min(1).max(128).refine(value => Buffer.byteL
 });
 const identity = { id: identifierSchema.optional() };
 const nodeSchema = z.discriminatedUnion("type", [
-  z.object({ ...identity, type: z.literal("message"), push: z.object({
-    title: z.string().max(256), body: z.string().max(2048),
-    image_url: z.string().optional(), deep_link: z.string().optional(),
-  }) }).strict(),
+  z.object({ ...identity, type: z.literal("message"),
+    // 채널 선택: push 또는 email 중 하나 (정확히 하나 — 최상위 refine에서 강제)
+    push: z.object({
+      title: z.string().max(256), body: z.string().max(2048),
+      image_url: z.string().optional(), deep_link: z.string().optional(),
+    }).optional(),
+    email: z.object({
+      subject: z.string().min(1).max(998), html: z.string().min(1).max(1_000_000),
+      provider: z.enum(["email_smtp", "email_nhn"]).optional(),
+    }).optional(),
+  }).strict(),
   z.object({ ...identity, type: z.literal("delay"), duration_seconds: z.number().int() }).strict(),
   z.object({ ...identity, type: z.literal("branch"), condition: z.custom<SegmentDSL>(
     value => value !== null && typeof value === "object" && !Array.isArray(value),
@@ -46,6 +53,14 @@ export const definitionSchema = z.object({
     }
   } else if (def.edges !== undefined || def.start_node_id !== undefined || def.nodes.some(node => !["message", "delay"].includes(node.type))) {
     ctx.addIssue({ code: "custom", message: "그래프 정의는 schema_version: 2가 필요합니다" });
+  }
+  // message 노드는 push 또는 email 중 정확히 하나의 채널을 가져야 한다.
+  for (const node of def.nodes) {
+    if (node.type !== "message") continue;
+    const channels = (node.push ? 1 : 0) + (node.email ? 1 : 0);
+    if (channels !== 1) {
+      ctx.addIssue({ code: "custom", message: "message 노드는 push 또는 email 중 정확히 하나여야 합니다" });
+    }
   }
 });
 

@@ -92,6 +92,8 @@ func outboxType(stream string) (string, error) {
 		return "journey.enter", nil
 	case libqueue.StreamSendPush:
 		return "send.push", nil
+	case libqueue.StreamSendEmail:
+		return "send.email", nil
 	default:
 		return "", fmt.Errorf("unsupported outbox stream %q", stream)
 	}

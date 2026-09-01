@@ -29,7 +29,11 @@ export function graphReadIssue(definition: GraphDefinition): string | null {
     const indegree = new Map(ids.map((id) => [id, 0]));
     for (const node of definition.nodes) {
       if (!NODE_TOOLS.some((tool) => tool.type === node.type)) return "현재 콘솔에서 지원하지 않는 단계가 포함되어 있습니다. 원본은 변경하지 않았습니다.";
-      if (node.type === "message" && (typeof node.push?.title !== "string" || typeof node.push?.body !== "string")) return fail;
+      if (node.type === "message") {
+        const okPush = typeof node.push?.title === "string" && typeof node.push?.body === "string";
+        const okEmail = typeof node.email?.subject === "string" && typeof node.email?.html === "string";
+        if (!okPush && !okEmail) return fail;
+      }
       if (node.type === "branch" && (!Array.isArray(node.condition?.groups) || node.condition.groups.some((group) => !Array.isArray(group.conditions) ||
         group.conditions.some((condition) => !condition || (condition.type === "attribute" && typeof condition.key !== "string") ||
           (condition.type === "event" && typeof condition.event !== "string"))))) return fail;
@@ -59,7 +63,10 @@ export function graphReadIssue(definition: GraphDefinition): string | null {
 }
 
 export function nodeTitle(node: JourneyNode): string {
-  if (node.type === "message" && node.push.title.trim()) return node.push.title;
+  if (node.type === "message") {
+    if (node.push?.title?.trim()) return node.push.title;
+    if (node.email?.subject?.trim()) return node.email.subject;
+  }
   if (node.type === "event_wait" && node.event_name.trim()) return node.event_name;
   return NODE_TOOLS.find((tool) => tool.type === node.type)?.label ?? node.type;
 }

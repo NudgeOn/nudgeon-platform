@@ -1,8 +1,11 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { SegmentSummary } from "@onda/api-client";
 import type { MessageNode, DelayNode, JourneyNode } from "@onda/journey-model";
+import { api } from "@/lib/api";
+import { useAppId } from "../use-app-id";
 import { ABSplitSettings, EventWaitSettings, JourneyConditionEditor, RouteSettings } from "./JourneyDecisionSettings";
 import { canMoveNode, outgoingEdges, type GraphDefinition, type PublishedABNodes } from "./journey-graph";
 import { DURATION_UNITS, durationUnit, formatDuration } from "./journey-editor-model";
@@ -350,12 +353,46 @@ function ExitSettings({ definition, editable, onUpdate, id }: {
 function MessageSettings({ node, index, editable, onUpdate, id }: {
   node: MessageNode; index: number; editable: boolean; onUpdate: UpdateDefinition; id: string;
 }) {
-  const { title, body } = node.push;
+  const channel: "push" | "email" = node.email ? "email" : "push";
+
+  function setChannel(next: "push" | "email") {
+    if (next === channel) return;
+    onUpdate((draft) => {
+      const current = draft.nodes[index];
+      if (current?.type !== "message") return;
+      draft.nodes[index] = next === "email"
+        ? { id: current.id, type: "message", email: { subject: "", html: "" } }
+        : { id: current.id, type: "message", push: { title: "", body: "" } };
+    });
+  }
+
+  return (
+    <>
+      <Field id={`${id}-channel`} label="채널">
+        <div className="j-inspector-segmented" role="group" aria-label="발송 채널">
+          <button type="button" disabled={!editable} aria-pressed={channel === "push"}
+            className={channel === "push" ? "is-active" : undefined} onClick={() => setChannel("push")}>푸시</button>
+          <button type="button" disabled={!editable} aria-pressed={channel === "email"}
+            className={channel === "email" ? "is-active" : undefined} onClick={() => setChannel("email")}>이메일</button>
+        </div>
+      </Field>
+      {channel === "email"
+        ? <EmailMessageFields node={node} index={index} editable={editable} onUpdate={onUpdate} id={id} />
+        : <PushMessageFields node={node} index={index} editable={editable} onUpdate={onUpdate} id={id} />}
+    </>
+  );
+}
+
+function PushMessageFields({ node, index, editable, onUpdate, id }: {
+  node: MessageNode; index: number; editable: boolean; onUpdate: UpdateDefinition; id: string;
+}) {
+  const title = node.push?.title ?? "";
+  const body = node.push?.body ?? "";
   function change(field: "title" | "body", value: string) {
     onUpdate((draft) => {
       const current = draft.nodes[index];
       if (current?.type === "message") {
-        draft.nodes[index] = { ...current, push: { ...current.push, [field]: value } };
+        draft.nodes[index] = { ...current, push: { ...(current.push ?? { title: "", body: "" }), [field]: value }, email: undefined };
       }
     });
   }
@@ -394,8 +431,60 @@ function MessageSettings({ node, index, editable, onUpdate, id }: {
         </div>
         <p className="j-inspector-preview-caption">표시 예시 · 실제 기기에 따라 다를 수 있습니다.</p>
       </section>
-      {(node.push.image_url || node.push.deep_link) && (
+      {(node.push?.image_url || node.push?.deep_link) && (
         <Note>기존 이미지 URL·딥링크는 보존됩니다. 현재 저니 발송에는 제목과 본문만 전달됩니다.</Note>
+      )}
+    </>
+  );
+}
+
+/** 이메일 노드 편집 — 제목·HTML {{ }} 개인화 + 발송기(provider) 선택(검증된 것만). */
+function EmailMessageFields({ node, index, editable, onUpdate, id }: {
+  node: MessageNode; index: number; editable: boolean; onUpdate: UpdateDefinition; id: string;
+}) {
+  const appId = useAppId();
+  const subject = node.email?.subject ?? "";
+  const html = node.email?.html ?? "";
+  const provider = node.email?.provider ?? "";
+  const creds = useQuery({
+    queryKey: ["credentials", appId],
+    queryFn: () => api.credentials.list(appId!),
+    enabled: !!appId,
+  });
+  const verified = (creds.data?.credentials ?? []).filter(
+    (c) => (c.kind === "email_smtp" || c.kind === "email_nhn") && c.status === "verified",
+  );
+
+  function change(patch: Partial<{ subject: string; html: string; provider: "email_smtp" | "email_nhn" | undefined }>) {
+    onUpdate((draft) => {
+      const current = draft.nodes[index];
+      if (current?.type === "message") {
+        const base = current.email ?? { subject: "", html: "" };
+        draft.nodes[index] = { ...current, email: { ...base, ...patch }, push: undefined };
+      }
+    });
+  }
+
+  return (
+    <>
+      <Field id={`${id}-email-subject`} label="이메일 제목 ({{변수}} 가능)">
+        <input id={`${id}-email-subject`} value={subject} maxLength={998} disabled={!editable}
+          placeholder="{{first_name}}님, 안녕하세요" onChange={(e) => change({ subject: e.currentTarget.value })} />
+      </Field>
+      <Field id={`${id}-email-html`} label="HTML 본문 ({{변수}} 가능)">
+        <textarea id={`${id}-email-html`} value={html} rows={8} disabled={!editable}
+          className="j-inspector-code" placeholder="<h1>안녕하세요 {{first_name}}님</h1>"
+          onChange={(e) => change({ html: e.currentTarget.value })} />
+      </Field>
+      <Field id={`${id}-email-provider`} label="발송기">
+        <select id={`${id}-email-provider`} value={provider} disabled={!editable}
+          onChange={(e) => change({ provider: (e.currentTarget.value || undefined) as "email_smtp" | "email_nhn" | undefined })}>
+          <option value="">자동(활성 발송기)</option>
+          {verified.map((c) => <option key={c.kind} value={c.kind}>{c.kind}</option>)}
+        </select>
+      </Field>
+      {verified.length === 0 && (
+        <Note>검증된 이메일 발송기가 없습니다 — &lsquo;이메일 템플릿 &gt; 이메일 발송기&rsquo;에서 먼저 등록·검증하세요.</Note>
       )}
     </>
   );

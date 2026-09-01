@@ -179,7 +179,7 @@ describe("structural DAG layout", () => {
     const original = fork();
     const edited = structuredClone(original);
     const message = edited.nodes.find((node) => node.type === "message")!;
-    if (message.type === "message") message.push.title = "긴 제목을 작성하는 중에도 화면 위치는 그대로";
+    if (message.type === "message" && message.push) message.push.title = "긴 제목을 작성하는 중에도 화면 위치는 그대로";
     const split = edited.nodes[0]!;
     if (split.type === "ab_split") {
       split.variants[0]!.label = "변경한 이름";

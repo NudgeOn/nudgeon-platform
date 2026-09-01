@@ -41,14 +41,22 @@ type Entry struct {
 type Node struct {
 	ID   string `json:"id,omitempty"`
 	Type string `json:"type"` // message | delay
-	// message
-	Push *PushContent `json:"push,omitempty"`
+	// message — push 또는 email 중 하나 (채널 선택)
+	Push  *PushContent  `json:"push,omitempty"`
+	Email *EmailContent `json:"email,omitempty"`
 	// delay
 	DurationSeconds int64        `json:"duration_seconds,omitempty"`
 	Condition       *segment.DSL `json:"condition,omitempty"`
 	EventName       string       `json:"event_name,omitempty"`
 	TimeoutSeconds  int64        `json:"timeout_seconds,omitempty"`
 	Variants        []Variant    `json:"variants,omitempty"`
+}
+
+// EmailContent — 저니 이메일 노드. subject/html은 {{ }} 개인화, provider는 발송기 선택(빈값=활성).
+type EmailContent struct {
+	Subject  string `json:"subject"`
+	HTML     string `json:"html"`
+	Provider string `json:"provider,omitempty"` // email_smtp | email_nhn | ""(활성)
 }
 
 type Variant struct {

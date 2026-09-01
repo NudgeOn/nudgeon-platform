@@ -198,13 +198,13 @@ func (s *Scheduler) executeNode(ctx context.Context, c *claimedState) error {
 // enqueueSends는 유저의 도달 가능 디바이스마다 send.push outbox 행을 기록한다.
 // 도달성·정책 검사(카테고리 반영)는 메시지 노드 실행 시점 (PRD-03 3.1, 6장).
 func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState, def *Definition, node Node, pol *appPolicy) (string, error) {
-	if node.Push == nil {
-		return "", fmt.Errorf("message node has no push content")
+	if node.Push == nil && node.Email == nil {
+		return "", fmt.Errorf("message node has no push/email content")
 	}
 	cat := policy.Category(def.Settings.Category)
 	marketing := cat != policy.Transactional
 
-	// 도달 가능 디바이스 + 렌더용 속성 조회
+	// 렌더용 속성 + 구독 상태 조회
 	var stdAttrs, customAttrs []byte
 	var subscriptions []byte
 	err := tx.QueryRow(ctx,
@@ -213,10 +213,16 @@ func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState
 	if err != nil {
 		return "", fmt.Errorf("유저 조회: %w", err)
 	}
-	// marketing이면 opt-in 필수 (transactional은 우회)
+	var sub map[string]string
+	_ = json.Unmarshal(subscriptions, &sub)
+
+	// 이메일 노드는 별도 경로 (디바이스 무관, std_attrs.email 대상)
+	if node.Email != nil {
+		return s.enqueueEmail(ctx, tx, c, def, node, pol, cat, marketing, sub, mergeAttrs(stdAttrs, customAttrs))
+	}
+
+	// marketing이면 push opt-in 필수 (transactional은 우회)
 	if marketing {
-		var sub map[string]string
-		_ = json.Unmarshal(subscriptions, &sub)
 		if sub["push"] != "opted_in" {
 			s.logSkip(ctx, c, def, "skipped_unreachable") // opt-out
 			return "skipped_unreachable", nil
@@ -292,6 +298,56 @@ func (s *Scheduler) enqueueSends(ctx context.Context, tx pgx.Tx, c *claimedState
 	return "queued", nil
 }
 
+// enqueueEmail은 이메일 노드를 처리한다: std_attrs.email 대상, {{ }} 렌더 후 send.email outbox 발행.
+// 발송기(provider)는 노드가 지정하면 그 발송기, 미지정이면 활성 발송기(워커 폴백).
+func (s *Scheduler) enqueueEmail(ctx context.Context, tx pgx.Tx, c *claimedState, def *Definition, node Node, pol *appPolicy, cat policy.Category, marketing bool, sub map[string]string, attrs map[string]string) (string, error) {
+	email := strings.TrimSpace(attrs["email"])
+	if email == "" || !strings.Contains(email, "@") {
+		s.logSkipChannel(ctx, c, def, "skipped_unreachable", "email") // 이메일 주소 없음
+		return "skipped_unreachable", nil
+	}
+	// marketing은 이메일 수신거부(unsubscribed) 존중 (transactional 우회). 기본 수신 허용.
+	if marketing && sub["email"] == "unsubscribed" {
+		s.logSkipChannel(ctx, c, def, "skipped_unreachable", "email")
+		return "skipped_unreachable", nil
+	}
+	allowed, err := s.freqCap.Allow(ctx, cat, pol.freqCap, c.appID, c.userID)
+	if err != nil {
+		return "", err
+	}
+	if !allowed {
+		s.logSkipChannel(ctx, c, def, "skipped_cap", "email")
+		return "skipped_cap", nil
+	}
+	category := "marketing"
+	if !marketing {
+		category = "transactional"
+	}
+	idemKey := sendKey(c, def, "email")
+	payload := map[string]any{
+		"idempotency_key": idemKey,
+		"message_id":      uuidString(),
+		"user_id":         c.userID,
+		"email":           email,
+		"content":         map[string]any{"email": map[string]any{"subject": Render(node.Email.Subject, attrs), "html": Render(node.Email.HTML, attrs)}},
+		"category":        category,
+		"journey_id":      c.journeyID,
+		"journey_version": c.version,
+		"node_index":      c.currentNode,
+	}
+	if node.Email.Provider != "" {
+		payload["provider"] = node.Email.Provider
+	}
+	payloadJSON, _ := json.Marshal(payload)
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO journey_outbox (tenant_id, app_id, stream, idempotency_key, payload)
+		VALUES ($1, $2, 'stream:send.email', $3, $4) ON CONFLICT DO NOTHING`,
+		c.tenantID, c.appID, idemKey, payloadJSON); err != nil {
+		return "", err
+	}
+	return "queued", nil
+}
+
 // pushContent는 send.push의 content.push 맵을 만든다. deep_link는 있을 때만 포함(공통 계약 R-01).
 func pushContent(title, body, deepLink string) map[string]any {
 	push := map[string]any{"title": title, "body": body}
@@ -304,6 +360,10 @@ func pushContent(title, body, deepLink string) map[string]any {
 // logSkip은 발송 생략 사유를 message_log에 기록한다 (PRD-04 5장 — "왜 안 갔는지").
 // 디바이스 단위가 아닌 유저 단위 skip이므로 device_id는 0.
 func (s *Scheduler) logSkip(ctx context.Context, c *claimedState, def *Definition, status string) {
+	s.logSkipChannel(ctx, c, def, status, "push")
+}
+
+func (s *Scheduler) logSkipChannel(ctx context.Context, c *claimedState, def *Definition, status, channel string) {
 	if s.ch == nil {
 		return
 	}
@@ -315,10 +375,10 @@ func (s *Scheduler) logSkip(ctx context.Context, c *claimedState, def *Definitio
 			journey_id, journey_version, node_index, campaign_ref,
 			user_id, device_id, channel, status, failure_class, failure_detail, sent_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, '00000000-0000-0000-0000-000000000000',
-		        'push', ?, '', '', ?)`,
+		        ?, ?, '', '', ?)`,
 		c.tenantID, c.appID, uuidString(), idemKey,
 		c.journeyID, uint32(c.version), uint16(c.currentNode),
-		c.userID, status, s.clk.Now())
+		c.userID, channel, status, s.clk.Now())
 	if err != nil {
 		s.logger.Error("skip 로그 기록 실패", "err", err, "state", c.id, "status", status)
 	}
