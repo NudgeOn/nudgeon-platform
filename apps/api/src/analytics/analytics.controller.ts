@@ -15,10 +15,13 @@ import type { Pool } from "pg";
 import type { JourneyDefinition } from "@onda/journey-model";
 import { CLICKHOUSE, PG } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
+import { PermissionGuard } from "../authz/permission.guard";
+import { RequirePermission } from "../authz/require-permission.decorator";
 
 /** 분석 리포팅 (PRD-07). 저니 리포트·대시보드·사용량. */
 @Controller("v1/apps/:appId")
-@UseGuards(SessionGuard)
+@UseGuards(SessionGuard, PermissionGuard)
+@RequirePermission("analytics:read") // 중앙 인가(R-07)
 export class AnalyticsController {
   constructor(
     @Inject(PG) private readonly pg: Pool,

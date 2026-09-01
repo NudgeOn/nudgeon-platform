@@ -13,10 +13,13 @@ import type { ClickHouseClient } from "@clickhouse/client";
 import type { Pool } from "pg";
 import { CLICKHOUSE, PG } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
+import { PermissionGuard } from "../authz/permission.guard";
+import { RequirePermission } from "../authz/require-permission.decorator";
 
 /** 유저 검색 · 프로필 상세 (PRD-05 3.2). "왜 안 갔나" 2클릭의 데이터 소스 (U-7). */
 @Controller("v1/apps/:appId/users")
-@UseGuards(SessionGuard)
+@UseGuards(SessionGuard, PermissionGuard)
+@RequirePermission("users:read") // 중앙 인가(R-07) — 전 역할이 보유(READ_ALL)하나 명시 강제
 export class UsersController {
   constructor(
     @Inject(PG) private readonly pg: Pool,

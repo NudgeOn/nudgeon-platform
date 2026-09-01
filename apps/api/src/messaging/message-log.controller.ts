@@ -13,10 +13,13 @@ import type { ClickHouseClient } from "@clickhouse/client";
 import type { Pool } from "pg";
 import { CLICKHOUSE, PG } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
+import { PermissionGuard } from "../authz/permission.guard";
+import { RequirePermission } from "../authz/require-permission.decorator";
 
 /** 메시지 로그 조회 (PRD-05 3.5). 필터: 상태·실패분류·저니. */
 @Controller("v1/apps/:appId/message-log")
-@UseGuards(SessionGuard)
+@UseGuards(SessionGuard, PermissionGuard)
+@RequirePermission("analytics:read") // 중앙 인가(R-07)
 export class MessageLogController {
   constructor(
     @Inject(PG) private readonly pg: Pool,
