@@ -1,6 +1,12 @@
 # Onda
 
 <p align="center">
+  <a href="https://github.com/marvinkim-photo/onda/actions/workflows/ci.yml"><img src="https://github.com/marvinkim-photo/onda/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-black.svg" alt="License: MIT" /></a>
+  <img src="https://img.shields.io/badge/status-alpha-orange.svg" alt="status: alpha" />
+</p>
+
+<p align="center">
   <img src="docs-public/assets/onda-logo-pigeon.png" alt="Onda — 메시지를 전달하는 전서구 로고 시안" width="440" />
 </p>
 

@@ -10,16 +10,16 @@ jobs:
     name: CLAUDE.md 절대 규칙 (기계 강제)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: ./scripts/lint-rules.sh
 
   ts:
     name: TypeScript (lint · typecheck · test · build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -33,7 +33,7 @@ jobs:
     name: Go (vet · test · build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           # go.work·go.mod의 go 지시자(1.25)와 일치시켜야 한다 (1.23이면 go.work 로드 실패)
@@ -51,7 +51,7 @@ jobs:
     name: Compose config 검증
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # compose 파일은 app 프로파일의 ${ONDA_MASTER_KEY:?} 보간을 전체 파일에서 수행하므로
       # 미설정 시 config 검증도 실패한다. 문법 검증용 placeholder 주입 (기동 아님).
       - run: docker compose -f deploy/compose.yaml --profile full --profile app config -q
