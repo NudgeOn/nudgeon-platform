@@ -6,7 +6,7 @@ logos, or other source-identifying brand elements except for reasonable and
 customary use to describe the origin of the licensed work and reproduce NOTICE.
 
 For this policy, the "NudgeOn marks" include the NudgeOn name and wordmark, the
-messenger-pigeon logo, and confusingly similar names, logos, or visual brand
+N monogram and wordmark, and confusingly similar names, logos, or visual brand
 treatments. Registration is not claimed by this document.
 
 ## Uses that normally do not require separate permission
@@ -35,7 +35,7 @@ and adopt a distinct product name and visual identity before public distribution
 
 ## Brand asset copyright
 
-`docs-public/assets/nudgeon-logo-pigeon.png` and other materials explicitly marked
+`docs-public/assets/nudgeon-logo.png` and other materials explicitly marked
 as NudgeOn logo or brand assets are excluded from the repository's Apache-2.0
 license grant. Their copyright and trademark use are reserved except for the
 limited descriptive and attribution uses above or separate written permission.

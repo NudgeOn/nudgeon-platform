@@ -1,21 +1,26 @@
-# NudgeOn 로고 시안
+# NudgeOn 브랜드 자산
 
-- 파일: `nudgeon-logo-pigeon.png`
-- 방향: 메시지를 전달하는 전서구, 날개 안의 파도 곡선, NudgeOn 워드마크.
-- 용도: 저장소 README의 초기 브랜드 시안. 흰 배경의 PNG 원본이며 SVG가 아닙니다.
-- 생성: 2026-08-30, Codex 내장 `image_gen` 도구. CLI/API 키 경로는 사용하지 않았습니다.
-- 상표·유사 로고 검토 및 최종 브랜드 확정은 별도입니다.
-- 라이선스: 이 PNG 로고 시안과 NudgeOn 브랜드 요소는 저장소의 Apache-2.0 허여 대상이 아닙니다. 사용 조건은 [`TRADEMARKS.md`](../../TRADEMARKS.md)와 [`docs-public/LICENSING.md`](../LICENSING.md)를 따릅니다. `architecture.svg` 등 별도 제외 표시가 없는 프로젝트 문서 자산은 Apache-2.0 범위에 포함됩니다.
+- 파일
+  - `nudgeon-logo.svg` — 가로형 로고 락업(N 마크 + NudgeOn 워드마크). 원본입니다.
+  - `nudgeon-logo.png` — 락업의 1600px 래스터 내보내기. README·문서용.
+  - `nudgeon-mark.svg` — N 마크 단독. 아바타·파비콘용 정사각(512×512).
+- 방향: 하나로 이어진 N 형태. 오른쪽 기둥이 살짝 높고 앞으로 나와 있어 다른 상징을 더하지 않고 "작은 밀어주기(nudge)"를 표현합니다.
+- 색상
+  - 마크·워드마크: `#0B2438`
+  - 배경: `#FFFFFF`
+- 조직 프로필([`NudgeOn/.github`](https://github.com/NudgeOn/.github))의 `profile/assets/`와 동일한 원본을 씁니다. 한쪽만 바꾸지 말고 두 저장소를 함께 갱신하세요.
+- 라이선스: NudgeOn 이름·워드마크·로고는 저장소의 Apache-2.0 허여 대상이 아닙니다. 사용 조건은 [`TRADEMARKS.md`](../../TRADEMARKS.md)와 [`docs-public/LICENSING.md`](../LICENSING.md)를 따릅니다. `architecture.svg` 등 별도 제외 표시가 없는 프로젝트 문서 자산은 Apache-2.0 범위에 포함됩니다.
 
-## 생성 프롬프트
+## 다시 내보내는 방법
 
-```text
-Use case: logo-brand.
-Asset type: primary brand logo for NudgeOn, an open source customer engagement and message delivery platform.
-Primary request: Design an original minimalist messenger pigeon logo to communicate sending and delivering messages. Create ONE single horizontal logo lockup, NOT a presentation sheet.
-Symbol: a compact elegant pigeon in forward flight, abstract and geometric, with a clear small head and short beak, one broad uplifted wing and smooth flowing tail. Use a small number of bold rounded flat shapes and deliberate negative space. Subtly let the wing or negative space echo a flowing wave for the name NudgeOn. It must read as a pigeon carrying communication, not a seagull, not an eagle, not a paper airplane, and not a social media Twitter bird. No olive branch, no envelope needed, no detailed feathers, no eye needed. Distinctive balanced silhouette legible at favicon size.
-Text (verbatim): "NudgeOn" (capital O lowercase nda), and NO other text. Wordmark to the right, bold approachable geometric sans-serif, deep navy. Bird at left, ocean blue/teal flat solid fill.
-Composition: horizontal 3:1 landscape, icon and wordmark centered and balanced, modest padding, logo fills the usable canvas.
-Background must be solid opaque pure white #FFFFFF across the ENTIRE image, including all corners and empty space. Absolutely NO black background, NO dark background, NO transparency, NO glow, NO halo, NO gradients, NO shadows, NO 3D, NO blur, NO lighting effects. This is flat vector-like graphic design with clean solid fills and crisp edges on white.
-Avoid: stock clipart, mockups, decorative extra graphics, slogan, watermark, brand imitation.
+락업 SVG의 워드마크는 텍스트 요소입니다. 렌더러에 따라 대체 글꼴로 표시될 수 있으므로 **배포용은 PNG를 쓰고**, PNG는 아래로 다시 만듭니다.
+
+```bash
+rsvg-convert -w 1600 nudgeon-logo.svg -o nudgeon-logo.png   # 락업
+rsvg-convert -w 1024 -h 1024 nudgeon-mark.svg -o avatar.png  # 조직 아바타
 ```
+
+## 이력
+
+- 2026-08-30 — 초기 시안은 생성형 이미지 도구로 만든 전서구 락업이었습니다.
+- 2026-09-02 — 제품명이 Onda에서 NudgeOn으로 바뀌면서(국내 상표 선등록 회피) 심볼을 N 모노그램으로 교체하고 전서구 자산을 제거했습니다.

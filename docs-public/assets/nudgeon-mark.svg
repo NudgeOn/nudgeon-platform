@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">NudgeOn N mark</title>
+  <desc id="desc">A minimal single-color N with its right stem nudged forward.</desc>
+  <rect width="512" height="512" fill="#FFFFFF" />
+  <path d="M104 416V128H176L344 328V96H416V384H344L176 192V416Z" fill="#0B2438" />
+</svg>

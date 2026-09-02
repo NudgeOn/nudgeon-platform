@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 970 320" role="img" aria-labelledby="title desc">
+  <title id="title">NudgeOn</title>
+  <desc id="desc">NudgeOn wordmark with a minimal single-color N.</desc>
+  <rect width="970" height="320" fill="#FFFFFF" />
+  <g transform="translate(36 0) scale(.6)">
+    <path d="M104 416V128H176L344 328V96H416V384H344L176 192V416Z" fill="#0B2438" />
+  </g>
+  <text x="335" y="213" fill="#0B2438" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="128" font-weight="720" letter-spacing="-5">NudgeOn</text>
+</svg>

@@ -32,7 +32,7 @@ Apache-2.0은 저작권 사용 허가와 명시적 특허 허여를 제공하지
 
 다음 항목은 저장소에 포함되어 있어도 Apache-2.0 허여 대상이 아닙니다.
 
-- `docs-public/assets/nudgeon-logo-pigeon.png`
+- `docs-public/assets/nudgeon-logo.png`
 - NudgeOn 이름, 워드마크, 로고와 기타 출처를 식별하는 브랜드 요소
 - 별도 라이선스 또는 저작권 고지가 붙은 자료
 - 제3자 코드, 바이너리, 컨테이너 이미지, 글꼴 및 기타 의존성

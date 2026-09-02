@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <img src="docs-public/assets/nudgeon-logo-pigeon.png" alt="NudgeOn — 메시지를 전달하는 전서구 로고" width="440" />
+  <img src="docs-public/assets/nudgeon-logo.png" alt="NudgeOn" width="440" />
 </p>
 
 <p align="center">
@@ -216,6 +216,6 @@ node tests/isolation/run.mjs                                                  # 
 
 ## 라이선스
 
-별도 표시가 없는 NudgeOn 플랫폼의 소스 코드와 문서는 [Apache License 2.0](LICENSE)으로 제공됩니다. NudgeOn 이름·워드마크·로고와 `docs-public/assets/nudgeon-logo-pigeon.png`는 Apache-2.0 허여 대상이 아닙니다.
+별도 표시가 없는 NudgeOn 플랫폼의 소스 코드와 문서는 [Apache License 2.0](LICENSE)으로 제공됩니다. NudgeOn 이름·워드마크·로고와 `docs-public/assets/nudgeon-logo.png`는 Apache-2.0 허여 대상이 아닙니다.
 
 범위와 재배포 안내는 [라이선싱 가이드](docs-public/LICENSING.md), 브랜드 사용 조건은 [상표 정책](TRADEMARKS.md), 제3자 구성요소 경계는 [제3자 고지](THIRD_PARTY_NOTICES.md)를 확인하세요.

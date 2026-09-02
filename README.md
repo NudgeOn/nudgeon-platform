@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <img src="docs-public/assets/nudgeon-logo-pigeon.png" alt="NudgeOn — messenger pigeon logo" width="440" />
+  <img src="docs-public/assets/nudgeon-logo.png" alt="NudgeOn" width="440" />
 </p>
 
 <p align="center">
@@ -229,6 +229,6 @@ node tests/isolation/run.mjs                                                 # t
 
 ## License
 
-Unless otherwise marked, the NudgeOn platform source and documentation are provided under the [Apache License 2.0](LICENSE). The NudgeOn name, wordmark, and logo — including `docs-public/assets/nudgeon-logo-pigeon.png` — are not covered by the Apache-2.0 grant.
+Unless otherwise marked, the NudgeOn platform source and documentation are provided under the [Apache License 2.0](LICENSE). The NudgeOn name, wordmark, and logo — including `docs-public/assets/nudgeon-logo.png` — are not covered by the Apache-2.0 grant.
 
 For scope and redistribution guidance see the [licensing guide](docs-public/LICENSING.md), for brand usage see the [trademark policy](TRADEMARKS.md), and for third-party component boundaries see the [third-party notices](THIRD_PARTY_NOTICES.md).
