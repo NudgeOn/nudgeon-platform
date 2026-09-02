@@ -1,4 +1,4 @@
-module github.com/ondahq/onda/apps/worker
+module github.com/nudgeon/nudgeon-platform/apps/worker
 
 go 1.25.0
 
@@ -8,7 +8,7 @@ require (
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/ondahq/onda/packages/libqueue-go v0.0.0
+	github.com/nudgeon/nudgeon-platform/packages/libqueue-go v0.0.0
 	github.com/prometheus/client_golang v1.24.1
 	github.com/redis/go-redis/v9 v9.7.3
 	golang.org/x/oauth2 v0.36.0
@@ -45,4 +45,4 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
-replace github.com/ondahq/onda/packages/libqueue-go => ../../packages/libqueue-go
+replace github.com/nudgeon/nudgeon-platform/packages/libqueue-go => ../../packages/libqueue-go

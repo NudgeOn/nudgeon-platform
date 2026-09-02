@@ -1,5 +1,5 @@
 {
-  "name": "@onda/queue-schemas",
+  "name": "@nudgeon/queue-schemas",
   "version": "0.1.0",
   "private": true,
   "description": "큐 메시지 JSON Schema — TS·Go 공통 단일 출처 (ADR-6)",

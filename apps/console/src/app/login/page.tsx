@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
-import { ApiError } from "@onda/api-client";
+import { ApiError } from "@nudgeon/api-client";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +49,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Onda 콘솔</CardTitle>
+          <CardTitle>NudgeOn 콘솔</CardTitle>
           <CardDescription>
             {needTotp ? "인증 앱의 6자리 코드를 입력하세요" : "계정으로 로그인하세요"}
           </CardDescription>

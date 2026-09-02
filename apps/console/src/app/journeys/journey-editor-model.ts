@@ -1,4 +1,4 @@
-import type { JourneyDefinition, JourneyGraphDefinition, JourneyNode } from "@onda/journey-model";
+import type { JourneyDefinition, JourneyGraphDefinition, JourneyNode } from "@nudgeon/journey-model";
 import type { JourneyIconName } from "./journey-ui";
 
 export const NODE_TOOLS: { type: JourneyNode["type"]; label: string; description: string; icon: JourneyIconName }[] = [

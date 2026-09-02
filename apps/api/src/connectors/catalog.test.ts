@@ -10,7 +10,7 @@ const manifest = (over: Record<string, unknown> = {}) => JSON.stringify({
   name: "카카오 알림톡 (NHN Cloud)",
   version: "0.1.0",
   channel: "kakao_alimtalk",
-  vendor: { name: "Onda" },
+  vendor: { name: "NudgeOn" },
   license: "Apache-2.0",
   runtime: { type: "in_process_go" },
   target_types: ["phone"],
@@ -21,7 +21,7 @@ const manifest = (over: Record<string, unknown> = {}) => JSON.stringify({
 });
 
 async function dirWith(files: Record<string, string>) {
-  const dir = await mkdtemp(join(tmpdir(), "onda-catalog-"));
+  const dir = await mkdtemp(join(tmpdir(), "nudgeon-catalog-"));
   for (const [name, body] of Object.entries(files)) await writeFile(join(dir, name), body);
   return dir;
 }
@@ -85,6 +85,6 @@ describe("loadCatalog", () => {
   });
 
   it("디렉터리가 없으면 빈 목록 — 커넥터를 안 쓰는 배포가 깨지면 안 된다", async () => {
-    expect(await loadCatalog("/nonexistent/onda/connectors")).toEqual([]);
+    expect(await loadCatalog("/nonexistent/nudgeon/connectors")).toEqual([]);
   });
 });

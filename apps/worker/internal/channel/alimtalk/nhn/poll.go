@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
 )
 
 // ParseCallback — NHN은 발송 결과 웹훅을 발행하지 않는다.

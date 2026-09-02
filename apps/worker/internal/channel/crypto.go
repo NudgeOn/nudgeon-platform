@@ -14,12 +14,12 @@ import (
 // nonce(12B) || ciphertext || GCM tag(16B). DEK 래핑도 동일 레이아웃.
 const nonceLen = 12
 
-// LoadMasterKey는 ONDA_MASTER_KEY(base64 32B) 또는 KMS_MASTER_KEY_FILE에서 마스터키를 읽는다.
+// LoadMasterKey는 NUDGEON_MASTER_KEY(base64 32B) 또는 KMS_MASTER_KEY_FILE에서 마스터키를 읽는다.
 func LoadMasterKey() ([]byte, error) {
-	if inline := os.Getenv("ONDA_MASTER_KEY"); inline != "" {
+	if inline := os.Getenv("NUDGEON_MASTER_KEY"); inline != "" {
 		key, err := base64.StdEncoding.DecodeString(inline)
 		if err != nil || len(key) != 32 {
-			return nil, errors.New("ONDA_MASTER_KEY는 base64 32바이트여야 합니다")
+			return nil, errors.New("NUDGEON_MASTER_KEY는 base64 32바이트여야 합니다")
 		}
 		return key, nil
 	}
@@ -34,7 +34,7 @@ func LoadMasterKey() ([]byte, error) {
 		}
 		return key, nil
 	}
-	return nil, errors.New("마스터키 미설정 — ONDA_MASTER_KEY 또는 KMS_MASTER_KEY_FILE 필요")
+	return nil, errors.New("마스터키 미설정 — NUDGEON_MASTER_KEY 또는 KMS_MASTER_KEY_FILE 필요")
 }
 
 func openSealed(key, sealed []byte) ([]byte, error) {

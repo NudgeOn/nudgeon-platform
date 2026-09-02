@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk/conformance"
-	"github.com/ondahq/onda/apps/worker/internal/clock"
-	"github.com/ondahq/onda/apps/worker/internal/connector"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk/conformance"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/connector"
 )
 
 // 실 NHN 계정이 없으므로 모든 테스트는 httptest 서버를 문다.
@@ -100,7 +100,7 @@ func TestSendRequestShape(t *testing.T) {
 	req := sendReq(base, SuffixDelivered)
 	req.Buttons = []alimtalk.Button{
 		{Type: "WL", Name: "주문 상세", LinkMo: "https://m.example.com/o", LinkPC: "https://example.com/o"},
-		{Type: "AL", Name: "앱에서 보기", LinkIOS: "ondaapp://o", LinkAndroid: "ondaapp://o"},
+		{Type: "AL", Name: "앱에서 보기", LinkIOS: "nudgeonapp://o", LinkAndroid: "nudgeonapp://o"},
 	}
 	req.Fallback = &alimtalk.Fallback{Type: "LMS", Title: "주문 안내", Text: "주문이 접수되었습니다.", SenderNo: "0212345678"}
 	// NHN은 templateParameter로 직접 렌더한다. 완성 본문이 실려도 요청에 나가면 안 된다.
@@ -162,7 +162,7 @@ func TestSendRequestShape(t *testing.T) {
 	}
 	b1, _ := btns[1].(map[string]any)
 	// 우리 LinkIOS/LinkAndroid는 NHN에서 schemeIos/schemeAndroid다. 이름이 달라 놓치기 쉽다.
-	if b1["schemeIos"] != "ondaapp://o" || b1["schemeAndroid"] != "ondaapp://o" {
+	if b1["schemeIos"] != "nudgeonapp://o" || b1["schemeAndroid"] != "nudgeonapp://o" {
 		t.Fatalf("AL 버튼의 schemeIos/schemeAndroid 매핑: %v", b1)
 	}
 	if _, has := b1["linkIos"]; has {

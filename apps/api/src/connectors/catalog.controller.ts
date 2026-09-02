@@ -9,7 +9,7 @@ import { SessionGuard } from "../auth/session.guard";
  * 콘솔의 "알림톡 설정 → 벤더 선택 → 설정 입력" 흐름이 이 응답만으로 그려진다.
  * 벤더마다 크리덴셜 필드가 다르므로 폼을 손으로 짤 수 없고, manifest의 JSON Schema로 렌더한다.
  *
- * 단일 출처는 매니페스트 디렉터리다(`ONDA_CONNECTOR_MANIFESTS`, 기본 `/etc/onda/connectors`).
+ * 단일 출처는 매니페스트 디렉터리다(`NUDGEON_CONNECTOR_MANIFESTS`, 기본 `/etc/nudgeon/connectors`).
  * 워커도 같은 디렉터리를 읽어 레지스트리를 만든다 — 목록과 실제 발송 가능 여부가 갈리지 않게 하려면
  * 두 프로세스에 같은 디렉터리를 마운트해야 한다.
  *
@@ -17,7 +17,7 @@ import { SessionGuard } from "../auth/session.guard";
  * 포함돼 있어야 하고, 없으면 워커가 기동에서 실패한다(조용히 실패하지 않는다).
  */
 
-const MANIFEST_DIR = process.env.ONDA_CONNECTOR_MANIFESTS ?? "/etc/onda/connectors";
+const MANIFEST_DIR = process.env.NUDGEON_CONNECTOR_MANIFESTS ?? "/etc/nudgeon/connectors";
 
 /** 카탈로그로 내보내는 필드. 비밀도 아니고 운영 정보도 아니지만, 필요한 것만 고른다. */
 export interface CatalogEntry {

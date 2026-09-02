@@ -8,4 +8,4 @@ package main
 //
 // 목(mock) 커넥터는 여기 없다 — 운영 이미지에 딸려 들어가면 안 되므로
 // 빌드 태그가 걸린 connectors_mock.go에만 있다.
-import _ "github.com/ondahq/onda/apps/worker/internal/channel/alimtalk/nhn"
+import _ "github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk/nhn"

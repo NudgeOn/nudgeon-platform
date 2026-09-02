@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
 // Old ingest stream entries may predate the durable API. Adopt each exactly once

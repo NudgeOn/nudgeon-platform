@@ -8,15 +8,15 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/uuid"
-	"github.com/ondahq/onda/apps/worker/internal/segment"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/segment"
 )
 
 // The product acceptance graph uses one shared thank-you node and two exclusive
 // reminder variants. Real CH history decides the branch; fake time drives waits.
 func TestRuntimePurchaseFollowupThreeCustomerPaths(t *testing.T) {
-	chURL := os.Getenv("ONDA_JOURNEY_TEST_CLICKHOUSE_URL")
+	chURL := os.Getenv("NUDGEON_JOURNEY_TEST_CLICKHOUSE_URL")
 	if chURL == "" {
-		t.Skip("set ONDA_JOURNEY_TEST_CLICKHOUSE_URL")
+		t.Skip("set NUDGEON_JOURNEY_TEST_CLICKHOUSE_URL")
 	}
 	def := testGraph([]Node{
 		{ID: "recent-purchase", Type: "branch", Condition: &segment.DSL{Version: 1, Operator: "AND", Groups: []segment.Group{{Operator: "AND", Conditions: []segment.Condition{

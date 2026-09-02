@@ -1,4 +1,4 @@
-// onda-loadgen — 수집 부하 러너 (DEV-sub-01 D-7, PT-1).
+// nudgeon-loadgen — 수집 부하 러너 (DEV-sub-01 D-7, PT-1).
 // track 엔드포인트에 지속 부하를 걸고 처리량·지연(p50/p99)·유실을 측정한다.
 // 로컬 하네스 검증용 소규모부터 실환경 부하까지 --rate/--dur로 조정.
 //

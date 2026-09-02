@@ -5,5 +5,10 @@
 apps/worker/bin
 docs
 .git
+.nudgeon
+.env
+.env.*
+**/.env
+**/.env.*
 *.log
 scratchpad

@@ -16,8 +16,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/ondahq/onda/apps/worker/internal/clock"
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -34,9 +34,9 @@ type runtimeFixture struct {
 // CI without an explicitly supplied integration database skips these tests.
 func newRuntimeFixture(t *testing.T, def Definition) *runtimeFixture {
 	t.Helper()
-	dsn := os.Getenv("ONDA_JOURNEY_TEST_DATABASE_URL")
+	dsn := os.Getenv("NUDGEON_JOURNEY_TEST_DATABASE_URL")
 	if dsn == "" {
-		t.Skip("set ONDA_JOURNEY_TEST_DATABASE_URL for PostgreSQL runtime tests")
+		t.Skip("set NUDGEON_JOURNEY_TEST_DATABASE_URL for PostgreSQL runtime tests")
 	}
 	ctx := context.Background()
 	admin, err := pgxpool.New(ctx, dsn)

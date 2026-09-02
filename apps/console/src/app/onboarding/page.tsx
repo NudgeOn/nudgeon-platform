@@ -214,7 +214,7 @@ function TestPushStep({ appId, onQueued }: { appId: string; onQueued: () => void
     mutationFn: () =>
       api.apps.testPush(appId, {
         external_id: externalId,
-        title: "Onda 테스트",
+        title: "NudgeOn 테스트",
         body: "축하합니다 — 발송 파이프라인이 연결되었습니다!",
       }),
     onSuccess: onQueued,

@@ -13,10 +13,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
-	"github.com/ondahq/onda/apps/worker/internal/clock"
-	"github.com/ondahq/onda/apps/worker/internal/connector"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/connector"
 )
 
 // Outcome — 하네스가 벤더를 몰아가야 하는 결과. Env.Target이 이걸 수신번호로 번역한다.

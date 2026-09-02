@@ -27,7 +27,7 @@ async function bootstrap() {
   app.enableShutdownHooks();
   await app.listen(cfg.port);
   // eslint-disable-next-line no-console
-  console.log(`onda-api listening on :${cfg.port} (mode=${cfg.mode})`);
+  console.log(`nudgeon-api listening on :${cfg.port} (mode=${cfg.mode})`);
 }
 
 void bootstrap();

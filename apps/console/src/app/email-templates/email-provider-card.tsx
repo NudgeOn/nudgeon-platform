@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { ApiError, EMAIL_PROVIDER_LABELS, EMAIL_PROVIDERS, type EmailProvider } from "@onda/api-client";
+import { ApiError, EMAIL_PROVIDER_LABELS, EMAIL_PROVIDERS, type EmailProvider } from "@nudgeon/api-client";
 import { api } from "@/lib/api";
 import { RESEND_LINKS, RESEND_WEBHOOK_EVENTS, isEmailProvider, resendWebhookUrl } from "./email-provider-links";
 import { Button } from "@/components/ui/button";
@@ -180,7 +180,7 @@ export function EmailProviderCard({ appId, onSaved }: { appId: string | undefine
             ? <ExternalLink href={RESEND_LINKS.domains}>도메인 인증하러 가기</ExternalLink> : undefined}>
           <Input type="email" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} placeholder="noreply@yourdomain.com" />
         </Field>
-        <Field label="발신 이름"><Input value={fromName} onChange={(e) => setFromName(e.target.value)} placeholder="Onda" /></Field>
+        <Field label="발신 이름"><Input value={fromName} onChange={(e) => setFromName(e.target.value)} placeholder="NudgeOn" /></Field>
         <Button className="mt-1" disabled={save.isPending || !canSave} onClick={() => save.mutate()}>
           {save.isPending ? "등록 중…" : "발송기 등록/교체"}
         </Button>

@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
 )
 
 // APNs HTTP/2 클라이언트 (PRD-04 4.2). 크리덴셜 = p8 + Key ID + Team ID + Bundle ID.
@@ -112,29 +112,29 @@ func signES256(key *ecdsa.PrivateKey, keyID, teamID string, now time.Time) (stri
 }
 
 // send는 APNs 단건 전송. 반환: apns-id.
-// apnsPayload는 공통 계약(R-01)의 APNs payload를 만든다 — iOS는 userInfo["onda"]["message_id"]를 읽는다.
+// apnsPayload는 공통 계약(R-01)의 APNs payload를 만든다 — iOS는 userInfo["nudgeon"]["message_id"]를 읽는다.
 // aps.mutable-content=1로 NSE 실행(도달 수신·리치 콘텐츠). 사용자 커스텀 data는 최상위(userInfo) 유지.
 func apnsPayload(content *PushContent) map[string]any {
-	onda := map[string]any{"message_id": content.MessageID}
+	nudgeon := map[string]any{"message_id": content.MessageID}
 	if content.DeepLink != "" {
-		onda["deep_link"] = content.DeepLink
+		nudgeon["deep_link"] = content.DeepLink
 	}
 	if content.ImageURL != "" {
-		onda["image_url"] = content.ImageURL
+		nudgeon["image_url"] = content.ImageURL
 	}
 	if len(content.Data) > 0 {
-		// iOS PushPayload.parse는 onda["data"]를 중첩 딕셔너리로 읽는다 (공통 계약 R-01).
+		// iOS PushPayload.parse는 nudgeon["data"]를 중첩 딕셔너리로 읽는다 (공통 계약 R-01).
 		d := make(map[string]any, len(content.Data))
 		for k, v := range content.Data {
 			d[k] = v
 		}
-		onda["data"] = d
+		nudgeon["data"] = d
 	}
 	if content.Silent {
 		// 무음(백그라운드) 푸시: alert 없이 content-available만 → 사용자 미노출. 삭제 감지 ping.
 		return map[string]any{
 			"aps":  map[string]any{"content-available": 1},
-			"onda": onda,
+			"nudgeon": nudgeon,
 		}
 	}
 	return map[string]any{
@@ -142,7 +142,7 @@ func apnsPayload(content *PushContent) map[string]any {
 			"alert":           map[string]string{"title": content.Title, "body": content.Body},
 			"mutable-content": 1,
 		},
-		"onda": onda,
+		"nudgeon": nudgeon,
 	}
 }
 

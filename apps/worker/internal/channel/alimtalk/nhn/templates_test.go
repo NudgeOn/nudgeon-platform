@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
 )
 
 func TestListTemplatesMapping(t *testing.T) {
@@ -54,7 +54,7 @@ func TestListTemplatesMapping(t *testing.T) {
 		t.Fatalf("WL 버튼: %+v", approved.Buttons[0])
 	}
 	al := approved.Buttons[1]
-	if al.Type != "AL" || al.LinkIOS != "ondaapp://orders" || al.LinkAndroid != "ondaapp://orders" {
+	if al.Type != "AL" || al.LinkIOS != "nudgeonapp://orders" || al.LinkAndroid != "nudgeonapp://orders" {
 		t.Fatalf("AL 버튼의 schemeIos/schemeAndroid 역매핑: %+v", al)
 	}
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://onda.dev/schemas/queue/event.normalized.json",
+  "$id": "https://nudgeon.dev/schemas/queue/event.normalized.json",
   "title": "NormalizedEventPayload",
   "description": "Stable PG receipt after ClickHouse projection. Receipt fields are additive for pre-upgrade stream compatibility; v2 waits require the durable receipt.",
   "type": "object",

@@ -1,14 +1,18 @@
-# Onda 출시까지 남은 작업
+# NudgeOn 출시까지 남은 작업
 
-**2026-08-31 오후 로컬 작업 트리 재점검.** 플랫폼 HEAD `28bc113` 이후 미커밋 변경과 네 SDK 소스를 대조했다. 코드·단위 검증·저장소 통합·실기기 검증을 구분하며, 현재는 **Push MVP 알파 / 고객 발송·공개 운영 게이트 미통과**다. 아래 완료 조건을 확인하지 않고 실제 고객 발송, 전체 채널 지원, 네 SDK 배포 완료로 안내하지 않는다.
+**2026-09-02 로컬 작업 트리 재점검.** 플랫폼 HEAD `28bc113` 이후 미커밋 변경과 네 SDK 소스를 대조했다. 코드·단위 검증·저장소 통합·실기기 검증을 구분하며, 현재는 **Push MVP 알파 / 고객 발송·공개 운영 게이트 미통과**다. 아래 완료 조건을 확인하지 않고 실제 고객 발송, 전체 채널 지원, 네 SDK 배포 완료로 안내하지 않는다.
 
-최근 **메시지 ID 생성/전달, 채널 리스/재시도, PG 이벤트 receipt/outbox, 그래프 v2 저니, TOTP·감사·조직 보안, 콘솔 API URL 빌드 설정**은 코드가 추가됐다. 이 기능들을 미구현으로 세지 않되, 아래 계약·복구·검증 잔여를 닫아야 한다.
+최근 **메시지 ID 생성/전달, 채널 리스/재시도, PG 이벤트 receipt/outbox, 그래프 v2 저니, TOTP·감사·조직 보안, 콘솔 API URL 빌드 설정**과 **Slice A Safe Boot Preview**가 코드에 추가됐다. Safe Boot는 `./nudgeon up` CLI, 자동 로컬 시크릿, dev seed 없는 전용 Compose, loopback gateway, setup-status shell과 API·worker readiness까지다. 최초 Owner 위자드·Test Inbox·versioned release image·clean-host 출시 증거는 포함하지 않는다.
+
+> **허용하는 공개 표현:** “Open Source의 소유권과 투명성은 그대로, `./nudgeon up` 한 명령으로 Safe Boot Preview 시작.”
+>
+> **아직 금지하는 표현:** “설치 완료”, “WordPress급 설치”, “production-ready”, “한 명령으로 Owner 생성과 첫 발송 완료.”
 
 ## 1. 실제 고객 발송·관리자 공개 전에 완료할 항목
 
 | ID | 항목 / 상태 | 남은 작업 | 완료 조건 |
 |---|---|---|---|
-| P0-01 | message_id / **부분 구현·wire 불일치** | worker는 literal `data["onda.message_id"]`, iOS/NSE는 nested `onda.message_id`, Android는 plain `message_id`를 읽음. 실제 provider payload/SDK 계약 통일, 저니 deep_link·NSE 유효 식별자 연결 | provider fixture를 두 코어와 RN/Flutter에서 동일하게 해석. 실수신/열기/로그의 ID 일치, 재시도 ID 보존. ID 없는 구형 큐 입력도 안정 처리 |
+| P0-01 | message_id / **부분 구현·wire 불일치** | worker는 literal `data["nudgeon.message_id"]`, iOS/NSE는 nested `nudgeon.message_id`, Android는 plain `message_id`를 읽음. 실제 provider payload/SDK 계약 통일, 저니 deep_link·NSE 유효 식별자 연결 | provider fixture를 두 코어와 RN/Flutter에서 동일하게 해석. 실수신/열기/로그의 ID 일치, 재시도 ID 보존. ID 없는 구형 큐 입력도 안정 처리 |
 | P0-02 | 채널 유실·재시도·DLQ / **부분 구현** | 20초 리스·최대5회 시도 존재. 처리 중/완료/결과 불명 구분, Redis 오류, sent commit 후 로그 실패 복구, 지수 백오프·Retry-After·실제 DLQ 재처리 미완료 | 선점/전송/로그/ACK 경계 종료·429/5xx·응답 불명에서 조용한 유실 없음. 원래 결과 보존·복구 및 중복 가능성 추적. `*_exhausted` 로그만으로 DLQ 완료 처리하지 않음 |
 | P0-03 | SDK 동의·로그아웃·토큰 소유권 / **부분 구현** | local reset/opt-in을 서버 구독·이전 계정 연결 해제와 동기화. identify/reset 직후 track 순서·오프라인 재시도 및 전송 직전 상태 재확인 | 거부·로그아웃·A→B 로그인·재시작 후 이전 사용자 대상 푸시가 새 계정 기기에 도착하지 않음. local external_id 삭제 테스트만으로 닫지 않음 |
 | P0-04 | 수집→저니 복구 / **구현·통합 검증 대기** | track receipt+outbox, CH projection·normalized outbox, 미처리 재발행 존재. 최신 PG/CH/Redis 장애·다중 소비자·backlog/trim 및 published outbox 대사 필요 | 접수한 이벤트의 저장·순서·트리거 중복 억제·진입/발송 큐 복구 확인. track 외 endpoint와 raw replay 범위를 구분 |
@@ -25,7 +29,7 @@ P0-01/03/08은 플랫폼과 SDK를 함께 수정해야 한다. P0-02에서는 �
 | ID | 현재 상태 | 남은 완료 조건 |
 |---|---|---|
 | P1-01 콘솔 API 주소 | **구현·새 이미지 검증 대기** — Docker ARG/ENV + Compose build.args 존재 | 비기본 호스트/포트 새 빌드에서 실제 브라우저 요청·세션/CORS 확인. runtime env 변경만으로 번들이 바뀌지는 않음 |
-| P1-02 설치·관리형 DB | **부분 검증** — full/app config 통과, 과거 신규 스택 기동 이력·upgrade fixture 존재 | 새 서버 안내 그대로 15분 설치/최초 관리자, 실제 외부 DB TLS·인증·재연결·migration 경합, v1→v2 업그레이드·지원되는 롤백 |
+| P1-02 설치·관리형 DB | **Slice A Preview 구현·출시 검증 미완료** — `./nudgeon up` CLI, 자동 시크릿, dev seed 없는 Safe Boot Compose, loopback gateway, setup-status shell, API·worker readiness 존재. 현재 source build이며 [전체 P0 위자드 계약](DOCKER-SETUP-WIZARD-PRD.md)의 B–F는 미구현 | versioned image bundle과 clean Linux/arm64 재현, 안전한 claim→Owner→Sandbox 설치, secret redaction·재시작·migration 실패 복구, 실제 외부 DB TLS·인증·재연결·migration 경합, v1→v2 업그레이드·지원되는 롤백 |
 | P1-03 SDK 빌드·배포 | **부분 구현** | Android plugin/Gradle 수정, 코어 podspec/Maven 의존·RN build/pack·Flutter publish_to 정책, 실행 가능한 앱4종·네 플랫폼 신규 설치/시작/실수신 |
 | P1-04 CI·콘솔 회귀 | **부분 검증** — 이번 전체 typecheck·규칙 검사·콘솔 모델 테스트 통과, tenant scan 추가 | 실제 PR CI, 저장소 통합/SDK/브라우저 잡과 필수 skip 차단, 목표 커버리지·flaky 계측, tenant scan의 실제 WHERE/동적SQL/신규테이블 검출 보완·device key 규칙 강제. lint placeholder 교체 |
 | P1-05 팀·감사 | **부분 구현** — 감사 기록/조회·조직 보안 API 및 개인2FA UI 존재 | 초대/역할/탈퇴·최소1 Owner·세션 정책, 감사 누락/실패 복구, 팀/감사/조직 보안 UI·권한 메뉴. 2FA 안전성은 P0-09 |
@@ -64,6 +68,6 @@ P0-01/03/08은 플랫폼과 SDK를 함께 수정해야 한다. P0-02에서는 �
 - [TS 세그먼트](../packages/segment-dsl/src/index.ts), [Go 세그먼트](../apps/worker/internal/segment/compiler.go), [TOTP](../apps/api/src/auth/totp.service.ts), [로그인 UI](../apps/console/src/app/login/page.tsx)
 - [콘솔 Dockerfile](../apps/console/Dockerfile), [Compose](../deploy/compose.yaml), [CI](../.github/workflows/ci.yml), [배포 안내](DEPLOY.md)
 
-SDK 근거는 형제 저장소 `onda-ios-sdk`의 PushPayload/OndaCore/PushManager/OndaDelivery와 `onda-android-sdk`의 PushPayload/OndaCore/PushManager, RN/Flutter 브리지에 있다.
+SDK 근거는 형제 저장소 `nudgeon-ios-sdk`의 PushPayload/NudgeOnCore/PushManager/NudgeOnDelivery와 `nudgeon-android-sdk`의 PushPayload/NudgeOnCore/PushManager, RN/Flutter 브리지에 있다.
 
 이번에 typecheck·규칙·Compose config·TS/Go 단위 일부와 iOS payload parser를 직접 실행했다. API receipt/Go 저장소 통합에는 skip이 있으며, 최신 이미지 full-stack·실기기·실공급자·관리형 DB·부하/복원은 이번 실행하지 않았다. 단위 수·문서의 구현률·과거 다른 이미지의 성공을 출시 승인으로 쓰지 않는다. 항목 종료 시 검사 커밋/diff·환경·명령·원본 로그·pass/fail/skip·제외 범위를 함께 기록한다.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ApiError } from "@onda/api-client";
+import { ApiError } from "@nudgeon/api-client";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { api } from "@/lib/api";

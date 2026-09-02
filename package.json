@@ -1,8 +1,8 @@
 {
-  "name": "onda",
+  "name": "nudgeon",
   "private": true,
   "version": "0.1.0",
-  "description": "Onda — 한국 시장 네이티브 오픈소스 고객 인게이지먼트 플랫폼",
+  "description": "NudgeOn — 한국 시장 네이티브 오픈소스 고객 인게이지먼트 플랫폼",
   "license": "Apache-2.0",
   "packageManager": "pnpm@11.1.3",
   "engines": {

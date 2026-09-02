@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import type { AlimtalkContent, MessageNode } from "@onda/journey-model";
+import type { AlimtalkContent, MessageNode } from "@nudgeon/journey-model";
 import { api } from "@/lib/api";
 import { useAppId } from "../use-app-id";
 import {

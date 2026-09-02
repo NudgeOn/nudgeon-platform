@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://onda.dev/schemas/segment-dsl.json",
+  "$id": "https://nudgeon.dev/schemas/segment-dsl.json",
   "title": "SegmentDSL",
   "description": "세그먼트 조건 트리 (PRD-02 2.1). AND/OR 2단계 중첩. version 필드로 하위 호환 관리. 컴파일러·골든 스위트는 S3 (DEV-sub-02).",
   "type": "object",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMAIL_PROVIDERS } from "@onda/api-client";
+import { EMAIL_PROVIDERS } from "@nudgeon/api-client";
 import { RESEND_LINKS, RESEND_WEBHOOK_EVENTS, isEmailProvider, resendWebhookUrl } from "./email-provider-links";
 
 describe("resendWebhookUrl", () => {

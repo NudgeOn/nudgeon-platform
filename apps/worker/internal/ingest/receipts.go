@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
 // receipt is the authoritative first accepted event, not the stream payload.

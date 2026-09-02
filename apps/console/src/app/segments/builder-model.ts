@@ -1,4 +1,4 @@
-import type { SegmentDSL, Condition } from "@onda/segment-dsl";
+import type { SegmentDSL, Condition } from "@nudgeon/segment-dsl";
 
 /**
  * 빌더 UI 상태 ↔ DSL 무손실 왕복 (U-3).

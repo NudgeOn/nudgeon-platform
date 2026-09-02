@@ -1,4 +1,4 @@
-import { outputPorts, type JourneyGraphDefinition, type JourneyNode } from "@onda/journey-model";
+import { outputPorts, type JourneyGraphDefinition, type JourneyNode } from "@nudgeon/journey-model";
 import { newJourneyId, NODE_TOOLS } from "./journey-editor-model";
 
 export type GraphDefinition = JourneyGraphDefinition;

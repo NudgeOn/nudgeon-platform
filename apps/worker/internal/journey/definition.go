@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ondahq/onda/apps/worker/internal/segment"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/segment"
 )
 
 // Definition — packages/journey-model과 동형 구조 (불변 버전 스냅샷의 파싱 대상).

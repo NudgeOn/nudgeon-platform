@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Onda 콘솔",
-  description: "Onda — 고객 인게이지먼트 플랫폼 어드민 콘솔",
+  title: "NudgeOn 콘솔",
+  description: "NudgeOn — 고객 인게이지먼트 플랫폼 어드민 콘솔",
 };
 
 // TODO(S8): next-intl en/ko 스위칭 (U-12). S1은 ko 고정.

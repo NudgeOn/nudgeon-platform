@@ -1,4 +1,4 @@
-# Onda 커넥터 계약 v0 — `send.message.v1` · `connector.manifest.v0` · `message.lifecycle.v1`
+# NudgeOn 커넥터 계약 v0 — `send.message.v1` · `connector.manifest.v0` · `message.lifecycle.v1`
 
 상태: **초안 고정(2026-09-02)**. 이 문서와 `packages/queue-schemas/schemas/*.schema.json`이 단일 출처이며, 스키마 파일이 문서보다 우선한다.
 목적: 새 채널(알림톡·SMS·브랜드메시지·LINE·웹훅·인앱…)을 **엔진 수정 없이** 붙이고, 채널 간 성과·원가를 **같은 기준**으로 비교하며, 나중에 외부 개발자가 커넥터를 공급할 수 있게 하는 세 계약을 고정한다.
@@ -36,7 +36,7 @@ SDK($push_delivered/$opened) ──▶ ingestion ──▶ stream:message.lifecy
 
 ## 3. `connector.manifest.v0` 핵심 규칙
 
-- 파일명 `onda.connector.json`. `id`는 전역 유일(`kakao_alimtalk_nhn`, `sms_nhn`, `push_fcm` …).
+- 파일명 `nudgeon.connector.json`. `id`는 전역 유일(`kakao_alimtalk_nhn`, `sms_nhn`, `push_fcm` …).
 - `runtime.type`: v0는 `in_process_go`(코어·Certified)와 `remote_http`(외부 커넥터, HMAC 서명 필수) 두 가지. remote 규약은 고정 경로 `POST {endpoint}/validate`, `POST {endpoint}/send`, `POST {endpoint}/callback/parse`.
 - `lifecycle.reports`에 **실제로 보고 가능한 상태만** 적는다. 리포트는 여기 없는 상태를 '미지원'으로 표시해 0과 구분한다(알림톡은 `opened`가 없고 `clicked`만 있음).
 - `compliance`는 정책 엔진의 입력이다: `requires_template_approval`, `ad_label`, `unsubscribe`, `quiet_hours_default`, `pii_in_transit`.
@@ -65,8 +65,8 @@ P0~P1 구현 순서: (1) 채널 워커가 `stream:send.message`를 구독하고 
 ## 6. 호환성·버전 규칙
 
 - 스키마는 `$id`에 버전을 박는다. **하위 호환 추가는 같은 버전에서 필드 추가**, 파괴 변경은 `send.message.v2`처럼 새 파일·새 envelope type.
-- envelope `type`에 `send.message`, `message.lifecycle`을 추가했고, 스트림 키 `stream:send.message`, `stream:message.lifecycle`과 컨슈머 그룹 `cg:channel.message`, `cg:lifecycle`을 TS(`@onda/queue-schemas`)·Go(`libqueue-go`) 양쪽에 동일하게 등록했다.
-- 검증: `pnpm --filter @onda/queue-schemas test` (ajv 2020-12, 예시 검증 + 불변식 테스트).
+- envelope `type`에 `send.message`, `message.lifecycle`을 추가했고, 스트림 키 `stream:send.message`, `stream:message.lifecycle`과 컨슈머 그룹 `cg:channel.message`, `cg:lifecycle`을 TS(`@nudgeon/queue-schemas`)·Go(`libqueue-go`) 양쪽에 동일하게 등록했다.
+- 검증: `pnpm --filter @nudgeon/queue-schemas test` (ajv 2020-12, 예시 검증 + 불변식 테스트).
 
 ## 7. 열린 질문 (P1 전 결정)
 

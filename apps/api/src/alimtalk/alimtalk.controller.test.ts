@@ -2,8 +2,8 @@ import "reflect-metadata";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { Pool } from "pg";
-import type { QueueProducer } from "@onda/libqueue";
-import { STREAMS } from "@onda/queue-schemas";
+import type { QueueProducer } from "@nudgeon/libqueue";
+import { STREAMS } from "@nudgeon/queue-schemas";
 import type { AuditService } from "../audit/audit.service";
 import type { SessionRequest } from "../auth/session.guard";
 import { ChannelConnectorsController } from "./connectors.controller";
@@ -110,7 +110,7 @@ describe("ChannelConnectorsController", () => {
 });
 
 describe("AlimtalkSendersController", () => {
-  const sender = { id: randomUUID(), sender_key: "sk-1", channel_name: "@onda", status: "active", is_default: true };
+  const sender = { id: randomUUID(), sender_key: "sk-1", channel_name: "@nudgeon", status: "active", is_default: true };
 
   it("목록은 tenant_id + app_id로 스코프한다", async () => {
     const { pg, calls } = fakePg([appsHandler, [/FROM alimtalk_senders/, () => ({ rows: [sender] })]]);

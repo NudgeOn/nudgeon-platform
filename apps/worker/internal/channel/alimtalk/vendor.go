@@ -20,8 +20,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/connector"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/connector"
 )
 
 // ChannelID — send.message.v1 · message.lifecycle.v1의 channel 값.
@@ -83,7 +83,7 @@ type Credential struct {
 
 // SendRequest — 벤더 중립 발송 요청. NHN 스펙이 기준이다.
 type SendRequest struct {
-	// MessageID — Onda 안정 발송 ID(UUID). 재시도·재전달에도 불변이다.
+	// MessageID — NudgeOn 안정 발송 ID(UUID). 재시도·재전달에도 불변이다.
 	//
 	// **멱등의 기준은 MessageID다.** 벤더는 공급자 멱등 헤더(NHN X-NC-API-IDEMPOTENCY-KEY 등)에
 	// 이 값을 싣고, 같은 MessageID로 두 번 발송되면 같은 Receipt.ProviderMessageID를 돌려줘야 한다
@@ -157,7 +157,7 @@ type Receipt struct {
 	// ProviderMessageID — 공급자 식별자. 복합키(NHN requestId+recipientSeq)는 벤더가
 	// 한 문자열로 인코딩하고 PollResults에서 역해석한다.
 	ProviderMessageID string
-	// MessageID — 이 접수에 대응하는 Onda message_id. 폴링 결과를 되돌릴 때 쓴다.
+	// MessageID — 이 접수에 대응하는 NudgeOn message_id. 폴링 결과를 되돌릴 때 쓴다.
 	MessageID string
 	// AcceptedAt — 공급자가 접수한 시각.
 	AcceptedAt time.Time

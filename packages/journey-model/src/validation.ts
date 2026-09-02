@@ -1,4 +1,4 @@
-import type { SegmentDSL } from "@onda/segment-dsl";
+import type { SegmentDSL } from "@nudgeon/segment-dsl";
 import { EMAIL_PROVIDERS, messageChannel, outputPorts, type JourneyDefinition, type JourneyNode, type ValidationIssue } from "./index";
 
 const ATTRIBUTE_OPS = new Set([

@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
 // lifecycle.go — message.lifecycle.v1 발행.

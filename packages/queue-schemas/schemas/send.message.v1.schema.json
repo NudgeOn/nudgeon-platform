@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://onda.dev/schemas/queue/send.message.v1.json",
+  "$id": "https://nudgeon.dev/schemas/queue/send.message.v1.json",
   "title": "SendMessageV1Payload",
   "description": "send.message 스트림 payload v1 — 채널 중립 발송 계약. 모든 채널(push·email·alimtalk·sms·brand_message·webhook·in_app…)이 이 하나의 형태로 커넥터에 전달된다. 기존 send.push / send.email은 v1 호환을 위해 유지하며, 신규 채널은 send.message.v1만 구현한다. idempotency_key는 (journey_id, version, user_id, node_index, device_id 또는 endpoint_id) — CLAUDE.md 규칙 6.",
   "type": "object",

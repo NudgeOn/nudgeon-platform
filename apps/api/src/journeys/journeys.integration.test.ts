@@ -3,15 +3,15 @@ import { randomUUID } from "node:crypto";
 import { createClient, type ClickHouseClient } from "@clickhouse/client";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { QueueProducer } from "@onda/libqueue";
-import { toGraphDefinition, type JourneyDefinition, type JourneyGraphDefinition } from "@onda/journey-model";
+import type { QueueProducer } from "@nudgeon/libqueue";
+import { toGraphDefinition, type JourneyDefinition, type JourneyGraphDefinition } from "@nudgeon/journey-model";
 import type { AppConfig } from "../config";
 import type { SessionRequest } from "../auth/session.guard";
 import { AnalyticsController } from "../analytics/analytics.controller";
 import { JourneysController } from "./journeys.controller";
 
-const databaseUrl = process.env.ONDA_JOURNEY_TEST_DATABASE_URL;
-const clickhouseUrl = process.env.ONDA_JOURNEY_TEST_CLICKHOUSE_URL;
+const databaseUrl = process.env.NUDGEON_JOURNEY_TEST_DATABASE_URL;
+const clickhouseUrl = process.env.NUDGEON_JOURNEY_TEST_CLICKHOUSE_URL;
 let pg: Pool;
 let ch: ClickHouseClient;
 let api: JourneysController;
@@ -20,7 +20,7 @@ const tenantId = randomUUID(), appId = randomUUID(), memberId = randomUUID();
 const req = { member: { tenantId, memberId, role: "owner", name: "QA", email: "journey-qa@example.test", totpEnabled: false, requires2fa: false } } as SessionRequest;
 const legacy: JourneyDefinition = {
   entry: { type: "trigger", trigger_event: "qa_start" },
-  nodes: [{ type: "message", push: { title: "test", body: "synthetic only", deep_link: "onda://qa" } }],
+  nodes: [{ type: "message", push: { title: "test", body: "synthetic only", deep_link: "nudgeon://qa" } }],
   exit: {}, settings: { category: "transactional", reentry: "always" },
 };
 const config = { journeyGraphV2Enabled: true } as AppConfig;
@@ -41,7 +41,7 @@ describe.skipIf(!databaseUrl || !clickhouseUrl)("journey management / actual Pos
     for (const url of [databaseUrl!, clickhouseUrl!]) if (!["127.0.0.1", "localhost", "[::1]"].includes(new URL(url).hostname)) throw new Error("Journey tests require an explicit loopback database");
     pg = new Pool({ connectionString: databaseUrl, max: 12 });
     const url = new URL(clickhouseUrl!);
-    ch = createClient({ url: url.origin, username: decodeURIComponent(url.username), password: decodeURIComponent(url.password), database: url.pathname.slice(1) || "onda", clickhouse_settings: { async_insert: 0, wait_for_async_insert: 1 } });
+    ch = createClient({ url: url.origin, username: decodeURIComponent(url.username), password: decodeURIComponent(url.password), database: url.pathname.slice(1) || "nudgeon", clickhouse_settings: { async_insert: 0, wait_for_async_insert: 1 } });
     api = new JourneysController(pg, ch, {} as QueueProducer, config);
     analytics = new AnalyticsController(pg, ch);
     await pg.query("INSERT INTO tenants (id,name) VALUES ($1,'journey-api-test')", [tenantId]);

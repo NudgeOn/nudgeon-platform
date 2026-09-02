@@ -52,7 +52,7 @@ export default function DashboardPage() {
     <main className="mx-auto max-w-4xl p-8">
       <header className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Onda 콘솔</h1>
+          <h1 className="text-2xl font-bold">NudgeOn 콘솔</h1>
           <p className="text-sm text-muted-foreground">
             {me.data.name} ({me.data.email}) · {me.data.role}
           </p>

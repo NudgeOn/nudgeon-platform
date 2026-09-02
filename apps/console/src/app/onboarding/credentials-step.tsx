@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { EMAIL_PROVIDER_LABELS, type CredentialKind, type CredentialSummary } from "@onda/api-client";
+import { EMAIL_PROVIDER_LABELS, type CredentialKind, type CredentialSummary } from "@nudgeon/api-client";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

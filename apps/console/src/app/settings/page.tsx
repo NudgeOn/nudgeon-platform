@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import type { AppSettings } from "@onda/api-client";
+import type { AppSettings } from "@nudgeon/api-client";
 import { useAppId } from "../use-app-id";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";

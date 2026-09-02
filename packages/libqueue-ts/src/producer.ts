@@ -8,7 +8,7 @@ import {
   type Envelope,
   type MessageType,
   type StreamKey,
-} from "@onda/queue-schemas";
+} from "@nudgeon/queue-schemas";
 
 /**
  * Redis Streams 접근의 유일한 경로 (ADR-1, CLAUDE.md 규칙 2).

@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from "pg";
-import { STREAMS, type IngestBatchPayload } from "@onda/queue-schemas";
+import { STREAMS, type IngestBatchPayload } from "@nudgeon/queue-schemas";
 import type { ResolvedApiKey } from "../auth/api-key.service";
 import type { TrackBody } from "./schemas";
 

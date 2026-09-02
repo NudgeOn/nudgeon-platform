@@ -10,7 +10,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
 )
 
 // defaultInterval — 정기 세그먼트 평가 주기. 통계(last_count) 신선도와 CH 부하의 절충.

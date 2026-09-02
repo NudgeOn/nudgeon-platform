@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ondahq/onda/apps/worker/internal/connector"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/connector"
 )
 
 // Payload — send.message.v1의 Go 투영. 워커가 실제로 쓰는 필드만 담고,

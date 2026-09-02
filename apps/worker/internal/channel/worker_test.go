@@ -11,8 +11,8 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/ondahq/onda/apps/worker/internal/clock"
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
 // mockPlugin — Send 오류를 제어하고 마지막 요청·호출 수를 포착하는 최소 플러그인.
@@ -70,7 +70,7 @@ func testMsg() *libqueue.Message {
 	}
 }
 
-// message_id 계약: payload의 message_id가 (1) message_log 행에, (2) 푸시 data(onda.message_id)에
+// message_id 계약: payload의 message_id가 (1) message_log 행에, (2) 푸시 data(nudgeon.message_id)에
 // 동일하게 흐른다 — 발송↔SDK 도달/오픈 연결 (재검증 F).
 func TestHandleOneMessageIDContract(t *testing.T) {
 	w, _, _ := newTestWorker(t, nil)
@@ -85,7 +85,7 @@ func TestHandleOneMessageIDContract(t *testing.T) {
 	if row[2] != "mid-1" {
 		t.Errorf("message_log message_id: mid-1 기대, got %v", row[2])
 	}
-	// (2) 렌더에 message_id 전달 — FCM data["message_id"]/APNs onda.message_id로 방출됨(공통 계약 R-01)
+	// (2) 렌더에 message_id 전달 — FCM data["message_id"]/APNs nudgeon.message_id로 방출됨(공통 계약 R-01)
 	if mp.lastReq == nil || mp.lastReq.Content.Push == nil ||
 		mp.lastReq.Content.Push.MessageID != "mid-1" {
 		t.Errorf("푸시 MessageID: mid-1 기대, got %v", mp.lastReq)
@@ -192,47 +192,47 @@ func TestHandleOneSentThenReemitSent(t *testing.T) {
 	}
 }
 
-// 공통 발송 계약(R-01): FCM 평면 data(Android 파서) / APNs 중첩 onda(iOS NSE) 정확 방출.
+// 공통 발송 계약(R-01): FCM 평면 data(Android 파서) / APNs 중첩 nudgeon(iOS NSE) 정확 방출.
 func TestPushContractPayloads(t *testing.T) {
 	c := &PushContent{
-		Title: "T", Body: "B", DeepLink: "onda://p/1", ImageURL: "https://x/i.png",
+		Title: "T", Body: "B", DeepLink: "nudgeon://p/1", ImageURL: "https://x/i.png",
 		MessageID: "mid-9", Data: map[string]string{"k": "v"},
 	}
 
 	// --- FCM (Android): data-only 평면 키 ---
 	fd := fcmData(c)
 	if fd["message_id"] != "mid-9" || fd["title"] != "T" || fd["body"] != "B" ||
-		fd["deep_link"] != "onda://p/1" || fd["image_url"] != "https://x/i.png" {
+		fd["deep_link"] != "nudgeon://p/1" || fd["image_url"] != "https://x/i.png" {
 		t.Errorf("FCM data 평면 키 불일치: %v", fd)
 	}
 	if fd["data"] != `{"k":"v"}` {
 		t.Errorf("FCM data[\"data\"] JSON 문자열 기대: %q", fd["data"])
 	}
-	if _, bad := fd["onda.message_id"]; bad {
-		t.Error("FCM에 잘못된 onda.message_id 키가 남음")
+	if _, bad := fd["nudgeon.message_id"]; bad {
+		t.Error("FCM에 잘못된 nudgeon.message_id 키가 남음")
 	}
 
-	// --- APNs (iOS): 중첩 onda ---
+	// --- APNs (iOS): 중첩 nudgeon ---
 	ap := apnsPayload(c)
-	onda, ok := ap["onda"].(map[string]any)
-	if !ok || onda["message_id"] != "mid-9" || onda["deep_link"] != "onda://p/1" ||
-		onda["image_url"] != "https://x/i.png" {
-		t.Errorf("APNs onda 중첩 불일치: %v", ap["onda"])
+	nudgeon, ok := ap["nudgeon"].(map[string]any)
+	if !ok || nudgeon["message_id"] != "mid-9" || nudgeon["deep_link"] != "nudgeon://p/1" ||
+		nudgeon["image_url"] != "https://x/i.png" {
+		t.Errorf("APNs nudgeon 중첩 불일치: %v", ap["nudgeon"])
 	}
 	aps, _ := ap["aps"].(map[string]any)
 	if aps["mutable-content"] != 1 {
 		t.Errorf("APNs mutable-content=1 기대: %v", aps["mutable-content"])
 	}
-	// 커스텀 data는 onda["data"] 중첩 (iOS PushPayload.parse가 읽는 위치), 최상위 아님
-	od, _ := onda["data"].(map[string]any)
+	// 커스텀 data는 nudgeon["data"] 중첩 (iOS PushPayload.parse가 읽는 위치), 최상위 아님
+	od, _ := nudgeon["data"].(map[string]any)
 	if od["k"] != "v" {
-		t.Errorf("APNs onda[\"data\"] 중첩 기대: %v", onda["data"])
+		t.Errorf("APNs nudgeon[\"data\"] 중첩 기대: %v", nudgeon["data"])
 	}
 	if _, top := ap["k"]; top {
-		t.Error("APNs 최상위에 커스텀 data가 남음 (onda.data로 중첩되어야 함)")
+		t.Error("APNs 최상위에 커스텀 data가 남음 (nudgeon.data로 중첩되어야 함)")
 	}
-	if _, bad := ap["onda.message_id"]; bad {
-		t.Error("APNs 최상위에 평면 onda.message_id 키가 남음")
+	if _, bad := ap["nudgeon.message_id"]; bad {
+		t.Error("APNs 최상위에 평면 nudgeon.message_id 키가 남음")
 	}
 }
 

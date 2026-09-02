@@ -1,4 +1,4 @@
-import type { MessageNode } from "@onda/journey-model";
+import type { MessageNode } from "@nudgeon/journey-model";
 
 /**
  * 저니 알림톡 노드의 순수 모델 — 치환자 추출·매핑 검사·미리보기 렌더, 그리고 채널 전환 불변식.

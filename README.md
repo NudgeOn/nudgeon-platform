@@ -1,17 +1,17 @@
-# Onda
+# NudgeOn
 
 <p align="center">
-  <a href="https://github.com/ondahq/onda-platform/actions/workflows/ci.yml"><img src="https://github.com/ondahq/onda-platform/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/nudgeon/nudgeon-platform/actions/workflows/ci.yml"><img src="https://github.com/nudgeon/nudgeon-platform/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache-2.0" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange.svg" alt="status: alpha" />
 </p>
 
 <p align="center">
-  <img src="docs-public/assets/onda-logo-pigeon.png" alt="Onda — 메시지를 전달하는 전서구 로고 시안" width="440" />
+  <img src="docs-public/assets/nudgeon-logo-pigeon.png" alt="NudgeOn — 메시지를 전달하는 전서구 로고 시안" width="440" />
 </p>
 
-**Open-source customer engagement.**
-고객의 행동을 모으고, 대상을 고르고, 푸시 여정으로 연결합니다. 직접 설치할 수 있으며 관리형 SaaS는 준비 중입니다.
+**Open source. Easy to start — Safe Boot Preview.**
+소스와 데이터를 직접 소유하고 검토할 수 있는 Open Source의 투명성은 그대로, 시작은 `./nudgeon up` 한 명령으로 단순하게 만들고 있습니다. 현재 Preview는 로컬 시크릿 생성, 안전한 런타임 기동, 설치 상태 화면까지 제공하며 최초 Owner 위자드와 Test Inbox는 다음 단계로 개발 중입니다. 관리형 SaaS도 준비 중입니다.
 
 > ⚠️ 개발 중인 Push 중심 MVP입니다. 핵심 경로의 코드가 있으나 발송 복구·SDK 계약 연결·운영 검증이 남아 있습니다. 최근 수정 항목도 통합 검증이 필요합니다. API·스키마는 예고 없이 변경됩니다.
 
@@ -19,7 +19,7 @@
 
 고객 앱의 이벤트를 수집하고, 고객 조건과 저니에 따라 푸시를 발송합니다. 아래 그림은 **현재 코드의 구성과 연결**을 기준으로 하며, 운영 완료를 의미하지 않습니다.
 
-![Onda 전체 아키텍처 — SDK, API, 큐, 워커, 저장소, Push 채널](docs-public/assets/architecture.svg)
+![NudgeOn 전체 아키텍처 — SDK, API, 큐, 워커, 저장소, Push 채널](docs-public/assets/architecture.svg)
 
 <details>
 <summary>상세 아키텍처와 데이터 흐름 (Mermaid)</summary>
@@ -141,7 +141,7 @@ API 연동 방법과 전체 엔드포인트는 [API 가이드](docs-public/API.m
 - **공개·운영 준비:** 콘솔 API 주소 빌드 설정, SDK 패키지·실기기 검증, CI, 백업·부하·격리, 영문 문서와 관리형 서비스 운영.
 - **기능 확장:** 디바이스 상세 필터, 세그먼트 정기 평가, 도달·오픈 리포트. 추가 채널과 분기 저니는 이후 계획입니다.
 
-홍보 웹페이지는 상위 작업 공간의 `onda-webpage`에서 별도로 관리합니다. 영문·국문 페이지를 제공하며, 현재 Cloud 가입·결제는 열지 않습니다.
+홍보 웹페이지는 상위 작업 공간의 `nudgeon-webpage`에서 별도로 관리합니다. 영문·국문 페이지를 제공하며, 현재 Cloud 가입·결제는 열지 않습니다.
 
 ## 구조
 
@@ -167,26 +167,29 @@ deploy/            Docker Compose
 ```bash
 # 데이터 서비스만 (앱은 로컬 실행)
 docker compose -f deploy/compose.yaml --profile full up -d
-export ONDA_MASTER_KEY=$(openssl rand -base64 32)
+export NUDGEON_MASTER_KEY=$(openssl rand -base64 32)
 go run ./apps/worker/cmd/migrate db        # 스키마 적용 (멱등)
 pnpm install && pnpm build
-pnpm --filter @onda/api dev                # 관리·Ingestion API :8080
+pnpm --filter @nudgeon/api dev                # 관리·Ingestion API :8080
 go run ./apps/worker/cmd/worker --role=all # 워커 (전 역할)
-pnpm --filter @onda/console dev            # 콘솔 :3000
+pnpm --filter @nudgeon/console dev            # 콘솔 :3000
 ```
 
-## 셀프호스팅 (원-커맨드)
+## 셀프호스팅 — Safe Boot Preview
 
 ```bash
-# Compose 전용 예제 사용 — 컨테이너 내부 주소(postgres/redis/clickhouse) 기준.
-# 루트 .env.example은 호스트 로컬 실행용(localhost)이라 컨테이너에 주입하면 안 됩니다.
-cp deploy/.env.example deploy/.env
-echo "ONDA_MASTER_KEY=$(openssl rand -base64 32)" >> deploy/.env
-docker compose -f deploy/compose.yaml --env-file deploy/.env --profile full --profile app up -d
-# → 콘솔 :3000 · API :8080 · 워커 metrics :9090
+# Docker Engine/Compose v2를 시작한 뒤 저장소 루트에서 실행합니다.
+./nudgeon up
+
+# 컨테이너와 redacted 설치 상태를 다시 확인합니다.
+./nudgeon status
 ```
 
-자세한 배포·관리형 DB·백업·업그레이드는 [docs-public/DEPLOY.md](docs-public/DEPLOY.md).
+Safe Boot는 별도 `.env` 작성 없이 로컬 시크릿을 생성하고, 개발 seed를 넣지 않은 스택을 기동하며, 브라우저의 `http://localhost:8080/setup`에서 PostgreSQL·Redis·ClickHouse·API·worker·console 준비 상태를 보여줍니다. DB와 내부 서비스는 호스트에 직접 공개하지 않고 gateway 하나만 `127.0.0.1`에 바인딩합니다. 8080 포트를 이미 사용 중이면 `NUDGEON_PORT=18080 ./nudgeon up`처럼 바꿀 수 있습니다.
+
+현재 Preview는 저장소 소스를 로컬에서 빌드하는 **Slice A**입니다. 설치 소유권 claim, 최초 Owner 생성, Test Inbox, versioned release image와 clean-host 출시 증거는 아직 포함하지 않으므로 setup 화면의 Owner 버튼도 비활성화되어 있습니다. 원격 공개 설치나 production-ready 경로로 안내하지 마세요.
+
+명령·수동 개발 Compose·관리형 DB·백업·업그레이드는 [배포 가이드](docs-public/DEPLOY.md), 전체 위자드 목표와 구현 경계는 [P0 Docker Setup Wizard PRD](docs-public/DOCKER-SETUP-WIZARD-PRD.md), 출시 증거는 [출시 체크리스트](docs-public/RELEASE-CHECKLIST.md)에서 확인할 수 있습니다.
 
 ## 운영 도구
 
@@ -198,6 +201,6 @@ node tests/isolation/run.mjs                                                  # 
 
 ## 라이선스
 
-별도 표시가 없는 Onda 플랫폼의 소스 코드와 문서는 [Apache License 2.0](LICENSE)으로 제공됩니다. Onda 이름·워드마크·로고와 `docs-public/assets/onda-logo-pigeon.png`는 Apache-2.0 허여 대상이 아닙니다.
+별도 표시가 없는 NudgeOn 플랫폼의 소스 코드와 문서는 [Apache License 2.0](LICENSE)으로 제공됩니다. NudgeOn 이름·워드마크·로고와 `docs-public/assets/nudgeon-logo-pigeon.png`는 Apache-2.0 허여 대상이 아닙니다.
 
 범위와 재배포 안내는 [라이선싱 가이드](docs-public/LICENSING.md), 브랜드 사용 조건은 [상표 정책](TRADEMARKS.md), 제3자 구성요소 경계는 [제3자 고지](THIRD_PARTY_NOTICES.md)를 확인하세요.

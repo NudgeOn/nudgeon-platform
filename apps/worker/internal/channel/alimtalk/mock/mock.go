@@ -35,10 +35,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
-	"github.com/ondahq/onda/apps/worker/internal/clock"
-	"github.com/ondahq/onda/apps/worker/internal/connector"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/connector"
 )
 
 // ConnectorID — 레지스트리 키. manifest.json의 id와 같아야 한다.

@@ -1,5 +1,5 @@
-import type { JourneyValidation, OndaClient } from "@onda/api-client";
-import type { JourneyDefinition } from "@onda/journey-model";
+import type { JourneyValidation, NudgeOnClient } from "@nudgeon/api-client";
+import type { JourneyDefinition } from "@nudgeon/journey-model";
 
 export interface JourneyDraftInput {
   name: string;
@@ -11,7 +11,7 @@ export interface JourneyDraftSession {
   validate(input: JourneyDraftInput): Promise<{ id: string } & JourneyValidation>;
 }
 
-type JourneyDraftClient = Pick<OndaClient["journeys"], "create" | "update" | "validate">;
+type JourneyDraftClient = Pick<NudgeOnClient["journeys"], "create" | "update" | "validate">;
 
 /** Keep one draft ID and serialize saves with their associated validation. */
 export function createJourneyDraftSession(

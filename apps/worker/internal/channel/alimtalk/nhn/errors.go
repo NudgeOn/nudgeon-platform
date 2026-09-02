@@ -3,7 +3,7 @@ package nhn
 import (
 	"strings"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
 )
 
 // 공급자 결과를 재시도 정책으로 옮기는 곳.

@@ -17,17 +17,17 @@ import (
 )
 
 // These tests are opt-in and never use DATABASE_URL or any default service port.
-// ONDA_MIGRATE_TEST_DATABASE_URL must name a dedicated PostgreSQL test database.
+// NUDGEON_MIGRATE_TEST_DATABASE_URL must name a dedicated PostgreSQL test database.
 // Every test creates a random search_path and removes only that schema afterward.
 func migrationDatabase(t *testing.T) (context.Context, *pgx.Conn, string) {
 	t.Helper()
-	dsn := os.Getenv("ONDA_MIGRATE_TEST_DATABASE_URL")
+	dsn := os.Getenv("NUDGEON_MIGRATE_TEST_DATABASE_URL")
 	if dsn == "" {
-		t.Skip("set ONDA_MIGRATE_TEST_DATABASE_URL to an isolated PostgreSQL test database")
+		t.Skip("set NUDGEON_MIGRATE_TEST_DATABASE_URL to an isolated PostgreSQL test database")
 	}
 	parsed, err := url.Parse(dsn)
 	if err != nil || (parsed.Scheme != "postgres" && parsed.Scheme != "postgresql") {
-		t.Fatal("ONDA_MIGRATE_TEST_DATABASE_URL must be a postgres:// or postgresql:// URL")
+		t.Fatal("NUDGEON_MIGRATE_TEST_DATABASE_URL must be a postgres:// or postgresql:// URL")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	t.Cleanup(cancel)
@@ -35,7 +35,7 @@ func migrationDatabase(t *testing.T) (context.Context, *pgx.Conn, string) {
 	if err != nil {
 		t.Fatalf("connect to explicitly configured test database: %v", err)
 	}
-	schema := "onda_migration_test_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	schema := "nudgeon_migration_test_" + strings.ReplaceAll(uuid.NewString(), "-", "")
 	identifier := pgx.Identifier{schema}.Sanitize()
 	if _, err := admin.Exec(ctx, "CREATE SCHEMA "+identifier); err != nil {
 		admin.Close(ctx)
@@ -69,6 +69,51 @@ func migrationSchemaPaths(t *testing.T) (legacy, current string) {
 	}
 	dir := filepath.Dir(source)
 	return filepath.Join(dir, "testdata", "postgres-v1.sql"), filepath.Join(dir, "..", "..", "..", "..", "db", "postgres", "schema.sql")
+}
+
+func TestPostgresFreshMigrationCreatesBaseSchemaBeforeUpgrades(t *testing.T) {
+	ctx, conn, dsn := migrationDatabase(t)
+	_, current := migrationSchemaPaths(t)
+
+	for pass := 1; pass <= 2; pass++ {
+		if err := migratePostgres(ctx, dsn, current); err != nil {
+			t.Fatalf("fresh migration pass %d: %v", pass, err)
+		}
+	}
+
+	var labels []string
+	rows, err := conn.Query(ctx, `
+		SELECT e.enumlabel
+		FROM pg_type t
+		JOIN pg_enum e ON e.enumtypid = t.oid
+		WHERE t.typname = 'channel_kind'
+		ORDER BY e.enumsortorder`)
+	if err != nil {
+		t.Fatalf("read channel_kind labels: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var label string
+		if err := rows.Scan(&label); err != nil {
+			t.Fatalf("scan channel_kind label: %v", err)
+		}
+		labels = append(labels, label)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate channel_kind labels: %v", err)
+	}
+	for _, want := range []string{"email_smtp", "email_nhn", "email_resend"} {
+		found := false
+		for _, label := range labels {
+			if label == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("channel_kind labels %v do not include %q", labels, want)
+		}
+	}
 }
 
 const legacyJourneyDefinition = `{

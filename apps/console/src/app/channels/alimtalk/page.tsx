@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
-import type { ChannelConnector } from "@onda/api-client";
+import type { ChannelConnector } from "@nudgeon/api-client";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppId } from "../../use-app-id";

@@ -1,32 +1,62 @@
-# Onda 배포 가이드
+# NudgeOn 배포 가이드
 
-> Onda는 하나의 컨테이너 이미지 세트로 자체 서버부터 관리형 클라우드까지 배포합니다 (PRD-08).
-> 배포 대상이 달라도 이미지는 같고, 차이는 오케스트레이션 매니페스트뿐입니다.
+> NudgeOn는 동일한 versioned image 세트를 자체 서버와 관리형 클라우드에 배포하는 구조를 목표로 합니다 (PRD-08).
+> 현재 Safe Boot Preview는 저장소 소스를 로컬에서 빌드하므로 이 release-image 목표를 달성했다는 증거는 아닙니다.
 
-> **2026-08-31 검증 경계:** Compose 설정과 배포 코드는 존재하지만 최신 이미지의 전체 기동, 관리형 DB 실연결, 백업 복원·부하·롤백은 별도 출시 게이트입니다. 아래 운영 절차·사양은 준비 기준을 포함하며 실측 완료를 뜻하지 않습니다. [현재 출시 체크리스트](RELEASE-CHECKLIST.md)를 함께 확인하세요.
+> **2026-09-02 검증 경계:** `./nudgeon up` Safe Boot Preview와 전용 Compose·gateway·설치 상태 화면은 구현되어 있습니다. 다만 현재 경로는 저장소 소스를 로컬에서 빌드하는 Slice A이며, 최초 Owner 위자드·Test Inbox·versioned release image·clean-host 출시 증거는 아직 없습니다. 관리형 DB 실연결, 백업 복원·부하·롤백도 별도 출시 게이트입니다. [현재 출시 체크리스트](RELEASE-CHECKLIST.md)를 함께 확인하세요.
 
-## 1. 빠른 시작 — 셀프호스팅 (Docker Compose)
+## 1. 빠른 시작 — Safe Boot Preview
+
+NudgeOn는 Apache-2.0 Open Source의 소유권·검토 가능성을 유지하면서, 기본 셀프호스팅 시작을 한 명령으로 줄이는 방향입니다. 현재 Safe Boot Preview는 Docker Engine, Compose v2, OpenSSL, cURL이 준비된 로컬 환경에서 다음처럼 실행합니다.
 
 ```bash
-git clone <repo> onda && cd onda
-# Compose 전용 예제 — 컨테이너 내부 서비스명(postgres/redis/clickhouse) 주소.
-# (루트 .env.example은 호스트 로컬 실행용이라 컨테이너에 주입하면 연결 대상이 어긋납니다.)
-cp deploy/.env.example deploy/.env
-# 필수: 마스터키 생성 (크리덴셜 봉투 암호화)
-echo "ONDA_MASTER_KEY=$(openssl rand -base64 32)" >> deploy/.env
+git clone <repo> nudgeon && cd nudgeon
+./nudgeon up
+```
 
-# 번들 DB + 앱 전체 기동 (PG16 · ClickHouse24 · Redis7 + api · console · worker)
+명령은 호스트 전용 `.nudgeon/`에 설치 ID와 시크릿을 원자적으로 만들고, 전용 `deploy/compose.safe.yaml`을 사용해 setup shell과 gateway를 먼저 연 뒤 나머지 서비스를 빌드·기동합니다. 개발 seed는 넣지 않으며 PostgreSQL·ClickHouse·Redis·API·worker·console은 호스트 포트를 열지 않습니다. 기본 진입점은 gateway 하나인 <http://localhost:8080/setup>입니다.
+
+```bash
+./nudgeon status       # 컨테이너와 secret-redacted 준비 상태
+./nudgeon setup-url    # 현재 로컬 setup URL
+./nudgeon doctor       # Docker·Compose·포트·파일 권한·published port 검사
+./nudgeon logs api     # 서비스별 최근 로그
+./nudgeon down         # 데이터와 시크릿을 삭제하지 않고 중지
+```
+
+8080 포트가 사용 중이면 첫 실행 전에 포트를 지정합니다. 선택한 포트는 `.nudgeon/compose.env`에 보존됩니다.
+
+```bash
+NUDGEON_PORT=18080 ./nudgeon up
+```
+
+### Safe Boot Preview의 현재 경계
+
+- 현재 gateway는 `127.0.0.1` 바인딩만 허용합니다. 인터넷이나 원격 사설망에 직접 공개하지 마세요.
+- 현재 이미지는 registry의 versioned release image가 아니라 checkout 소스를 `development` 태그로 로컬 빌드합니다.
+- setup shell은 런타임 readiness와 redacted 진단만 제공합니다. 설치 소유권 claim, 최초 Owner 원자 생성, Bootstrap 영구 잠금은 **Slice B**입니다.
+- NudgeOn Test Inbox와 재개 가능한 activation은 **Slice C·D**입니다. 지금 setup shell에서 Owner 설정 CTA가 비활성화된 것은 정상입니다.
+- Docker Compose config·단위 테스트나 한 환경의 기동만으로 clean Linux/arm64 지원, production readiness, 백업·복구를 입증하지 않습니다.
+
+전체 목표 계약과 Slice별 상태는 [P0 Docker Setup Wizard PRD](DOCKER-SETUP-WIZARD-PRD.md)에 정리되어 있습니다.
+
+### 기존 수동 Compose — 개발·고급 경로
+
+기존 `deploy/compose.yaml`은 개발 또는 명시적인 고급 설정을 위해 남아 있습니다. 이 경로는 `.env`와 마스터키를 수동으로 준비하고 DB·API·console·worker metrics 포트를 호스트에 노출하므로 Safe Boot와 같은 설치 안전성을 제공하지 않습니다.
+
+```bash
+cp deploy/.env.example deploy/.env
+echo "NUDGEON_MASTER_KEY=$(openssl rand -base64 32)" >> deploy/.env
 docker compose -f deploy/compose.yaml --env-file deploy/.env --profile full --profile app up -d
 ```
 
 - 콘솔: http://localhost:3000 · API: http://localhost:8080 · 워커 metrics: http://localhost:9090/metrics
-- **비-localhost 배포(커스텀 도메인)**: `NEXT_PUBLIC_API_URL`은 Next.js가 **빌드 시점에 콘솔 번들에 인라인**한다(런타임 변경 불가). `deploy/.env`에 실제 API 주소를 넣고 반드시 **다시 빌드**하라: `docker compose -f deploy/compose.yaml --env-file deploy/.env --profile full --profile app up -d --build`.
-- `migrator`가 스키마를 먼저 적용(멱등)한 뒤 api·worker가 기동합니다.
-- 목표: `git clone` → `.env` → `up` → **15분 내 콘솔 온보딩** (M-7).
+- **비-localhost 배포(커스텀 도메인)**: 기존 Compose의 `NEXT_PUBLIC_API_URL`은 Next.js가 **빌드 시점에 콘솔 번들에 인라인**한다(런타임 변경 불가). `deploy/.env`에 실제 API 주소를 넣고 반드시 **다시 빌드**합니다.
+- 최초 관리자 API에는 설치 소유권 claim이 없습니다. 외부에 공개된 호스트에서 Bootstrap을 열지 말고 localhost 또는 통제된 사설망에서만 다루세요.
 
 ### 셀프호스팅 단일 테넌트 모드
 
-`.env`에 `MODE=single_tenant`를 설정하면 가입 대신 **초기 관리자 셋업**으로 전환됩니다.
+기존 수동 Compose에서 `.env`에 `MODE=single_tenant`를 설정하면 가입 대신 **초기 관리자 셋업**으로 전환됩니다. 이는 Slice B의 안전한 claim 위자드가 아닙니다.
 - `GET /v1/bootstrap/status` → `needs_setup` 확인
 - `POST /v1/bootstrap/setup` (email·password·name) → 최초 1회 관리자 생성, 이후 잠금
 
@@ -36,30 +66,30 @@ docker compose -f deploy/compose.yaml --env-file deploy/.env --profile full --pr
 
 ```bash
 # deploy/.env (실제 인증 정보는 로컬 환경 파일에만 보관)
-DATABASE_URL=postgres://user:pass@your-rds:5432/onda
+DATABASE_URL=postgres://user:pass@your-rds:5432/nudgeon
 REDIS_URL=redis://your-elasticache:6379
-CLICKHOUSE_URL=http://user:pass@your-ch-cloud:8123/onda
+CLICKHOUSE_URL=http://user:pass@your-ch-cloud:8123/nudgeon
 
 # 앱만 기동 (DB는 외부)
 docker compose -f deploy/compose.yaml --env-file deploy/.env --profile app up -d
 ```
 
 - 검증 대상: RDS/Aurora PostgreSQL 15+, ElastiCache(Redis 7 호환), ClickHouse(자체/Cloud/Altinity). 현재 확정된 호환성 인증 목록은 아닙니다.
-- 스키마 적용: `migrator` 서비스가 자동 실행. 수동은 `docker run onda-worker /onda-migrate /db`.
+- 스키마 적용: `migrator` 서비스가 자동 실행. 수동은 `docker run nudgeon-worker /nudgeon-migrate /db`.
 
 ## 3. 스키마 마이그레이션
 
-- **부트스트랩·재적용**: `onda-migrate`가 `db/postgres/upgrades/*.sql`을 이름순으로 먼저 실행한 뒤
-  `db/postgres/schema.sql` + `db/clickhouse/*.sql`를 멱등 적용합니다. 기존 테이블의 신규 컬럼을
-  먼저 추가하므로 해당 컬럼을 사용하는 인덱스도 업그레이드할 수 있습니다.
+- **새 PostgreSQL DB**: `nudgeon-migrate`가 enum·기본 테이블을 만드는 `db/postgres/schema.sql`을 먼저 적용한 뒤 `db/postgres/upgrades/*.sql`을 이름순으로 재적용합니다.
+- **기존 PostgreSQL DB**: 추가 컬럼을 참조하는 schema index보다 upgrade가 먼저 필요하므로 upgrades → schema 순서를 유지합니다.
+- **ClickHouse**: `db/clickhouse/*.sql`을 이름순으로 적용합니다. 각 경로는 재실행 가능한 DDL을 전제로 하지만, 중단·부분 적용·동시 migrator는 별도 실패 복구 검증이 필요합니다.
 - **프로덕션 준비 기준**: Atlas 선언적 스키마(`db/postgres/atlas.hcl`)와 추가형 upgrade 코드가 있습니다.
   앱 N ↔ 스키마 N-1 호환·혼합 버전·롤링/롤백 안전성은 실제 업그레이드 테스트로 확인해야 합니다.
 
 ## 4. 관찰성
 
-- 구조화 JSON 로그(trace_id 전파). 워커 `:9090/metrics` Prometheus 지표(`onda_<comp>_<metric>`):
-  `onda_ingest_events_processed_total`, `onda_scheduler_sends_published_total`,
-  `onda_channel_sends_total{status}`, `onda_worker_batch_errors_total{role}`.
+- 구조화 JSON 로그(trace_id 전파). 워커 `:9090/metrics` Prometheus 지표(`nudgeon_<comp>_<metric>`):
+  `nudgeon_ingest_events_processed_total`, `nudgeon_scheduler_sends_published_total`,
+  `nudgeon_channel_sends_total{status}`, `nudgeon_worker_batch_errors_total{role}`.
 - 헬스: api `:8080/healthz`·`/readyz`, worker `:9090/healthz`.
 
 ## 5. 백업·복구

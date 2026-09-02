@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://onda.dev/schemas/queue/message.lifecycle.v1.json",
+  "$id": "https://nudgeon.dev/schemas/queue/message.lifecycle.v1.json",
   "title": "MessageLifecycleV1Payload",
   "description": "message.lifecycle 스트림 payload v1 — 채널·공급자 중립 발송 수명주기 이벤트. 커넥터(동기 결과·비동기 콜백)와 SDK($push_delivered/$push_opened 등)가 모두 이 형태로 수렴하며, message_log 롤업과 채널 간 성과 비교의 유일한 기준이다.",
   "type": "object",

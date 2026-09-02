@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
-import { ApiError, type SignupResponse } from "@onda/api-client";
+import { ApiError, type SignupResponse } from "@nudgeon/api-client";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,7 +63,7 @@ export default function SignupPage() {
     <main className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Onda 시작하기</CardTitle>
+          <CardTitle>NudgeOn 시작하기</CardTitle>
           <CardDescription>조직을 만들고 바로 수집을 시작하세요</CardDescription>
         </CardHeader>
         <CardContent>

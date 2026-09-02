@@ -104,8 +104,8 @@ describe("템플릿 상태", () => {
 
 describe("벤더에서 사라진 템플릿", () => {
   it("워커가 쓰는 표식과 같은 문자열을 본다 (templatesync/store.go)", () => {
-    expect(VENDOR_STATUS_MISSING).toBe("ONDA_MISSING_IN_VENDOR");
-    expect(isMissingInVendor("ONDA_MISSING_IN_VENDOR")).toBe(true);
+    expect(VENDOR_STATUS_MISSING).toBe("NUDGEON_MISSING_IN_VENDOR");
+    expect(isMissingInVendor("NUDGEON_MISSING_IN_VENDOR")).toBe(true);
     expect(isMissingInVendor("REJ_02")).toBe(false);
     expect(isMissingInVendor(undefined)).toBe(false);
   });

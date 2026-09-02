@@ -55,7 +55,7 @@ export interface LayerConfig {
 @Injectable()
 export class RateLimitService {
   constructor(@Inject(REDIS) private readonly redis: Redis) {
-    this.redis.defineCommand("ondaTokenBucket", {
+    this.redis.defineCommand("nudgeonTokenBucket", {
       numberOfKeys: 1,
       lua: TOKEN_BUCKET_LUA,
     });
@@ -71,7 +71,7 @@ export class RateLimitService {
     for (const layer of layers) {
       const [allowed, remaining, retryMs] = (await (
         this.redis as Redis & {
-          ondaTokenBucket: (
+          nudgeonTokenBucket: (
             key: string,
             rps: number,
             burst: number,
@@ -79,7 +79,7 @@ export class RateLimitService {
             cost: number,
           ) => Promise<[number, number, number]>;
         }
-      ).ondaTokenBucket(`rl:${layer.key}`, layer.rps, layer.burst, now, 1)) as [
+      ).nudgeonTokenBucket(`rl:${layer.key}`, layer.rps, layer.burst, now, 1)) as [
         number,
         number,
         number,

@@ -19,15 +19,15 @@ import {
 import type { ClickHouseClient } from "@clickhouse/client";
 import type { Pool } from "pg";
 import { z } from "zod";
-import { QueueProducer } from "@onda/libqueue";
-import { STREAMS, type JourneyEntryPayload } from "@onda/queue-schemas";
+import { QueueProducer } from "@nudgeon/libqueue";
+import { STREAMS, type JourneyEntryPayload } from "@nudgeon/queue-schemas";
 import {
   compile,
   toClickHouse,
   type Category,
   type Compiled,
   type SegmentDSL,
-} from "@onda/segment-dsl";
+} from "@nudgeon/segment-dsl";
 import {
   hasErrors,
   validateJourney,
@@ -35,7 +35,7 @@ import {
   validatePublishedABNodes,
   type PublishedABNodes,
   type JourneyDefinition,
-} from "@onda/journey-model";
+} from "@nudgeon/journey-model";
 import { CLICKHOUSE, PG, QUEUE, CONFIG } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
 import type { AppConfig } from "../config";

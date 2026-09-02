@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
-	"github.com/ondahq/onda/apps/worker/internal/clock"
-	"github.com/ondahq/onda/apps/worker/internal/connector"
-	"github.com/ondahq/onda/apps/worker/internal/message"
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/connector"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/message"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
 const (
@@ -379,7 +379,7 @@ func TestSyncResolverErrorIsRetryable(t *testing.T) {
 func TestBuildRowNormalizesStatusAndJSON(t *testing.T) {
 	r, err := BuildRow(alimtalk.Template{
 		Code: "T", Content: "#{a} #{a} #{b}",
-		Buttons: []alimtalk.Button{{Type: "WL", Name: "확인", LinkMo: "https://onda.dev"}},
+		Buttons: []alimtalk.Button{{Type: "WL", Name: "확인", LinkMo: "https://nudgeon.dev"}},
 	})
 	if err != nil {
 		t.Fatalf("변환 실패: %v", err)

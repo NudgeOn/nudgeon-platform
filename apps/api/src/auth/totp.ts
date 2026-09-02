@@ -90,7 +90,7 @@ export function verifyTotp(
   return { ok: false, counter: -1 };
 }
 
-export function otpauthUri(accountLabel: string, secretBase32: string, issuer = "Onda"): string {
+export function otpauthUri(accountLabel: string, secretBase32: string, issuer = "NudgeOn"): string {
   const label = encodeURIComponent(`${issuer}:${accountLabel}`);
   const params = new URLSearchParams({
     secret: secretBase32,

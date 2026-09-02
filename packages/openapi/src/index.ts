@@ -1,5 +1,5 @@
 /**
- * Onda API 클라이언트.
+ * NudgeOn API 클라이언트.
  * TODO(S3): openapi.yaml 코드젠 산출물로 대체한다 (ADR-5). 그 전까지 스펙과
  * 이 파일의 드리프트는 리뷰로 관리하며, 콘솔은 반드시 이 패키지만 사용한다
  * (CLAUDE.md 규칙 4 — 수기 fetch 금지의 단일 예외 지점).
@@ -72,7 +72,7 @@ export interface SignupResponse {
   server_key: string;
 }
 
-export class OndaClient {
+export class NudgeOnClient {
   constructor(private readonly baseUrl: string) {}
 
   private async request<T>(
@@ -373,7 +373,7 @@ export class OndaClient {
       remove: (appId: string, id: string) =>
         this.request<{ ok: true }>("DELETE", `/v1/apps/${appId}/alimtalk/senders/${id}`),
     },
-    /** 승인 템플릿 캐시 — Onda는 편집하지 않고 벤더에서 읽어 캐시만 한다 */
+    /** 승인 템플릿 캐시 — NudgeOn는 편집하지 않고 벤더에서 읽어 캐시만 한다 */
     templates: {
       list: (appId: string, params?: { sender_id?: string }) =>
         this.request<{ templates: AlimtalkTemplate[] }>(

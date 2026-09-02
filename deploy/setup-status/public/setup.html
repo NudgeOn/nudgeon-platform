@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>NudgeOn 설정</title>
+    <link rel="stylesheet" href="/setup.css" />
+    <script type="module" src="/setup.js"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="brand" aria-label="NudgeOn">
+        <span class="mark" aria-hidden="true">O</span>
+        <span>NUDGEON</span>
+      </header>
+
+      <section class="hero" aria-labelledby="setup-title">
+        <p class="eyebrow">SELF-HOSTED SETUP</p>
+        <h1 id="setup-title">NudgeOn를 시작하고 있습니다</h1>
+        <p class="promise">Open Source의 소유권과 투명성은 그대로. 시작은 한 명령으로.</p>
+        <p id="summary" class="summary">필수 서비스를 확인하는 중입니다. 이 화면은 자동으로 갱신됩니다.</p>
+        <div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+        <p id="progress-label" class="progress-label" aria-live="polite">상태 확인 중</p>
+      </section>
+
+      <section aria-labelledby="services-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">SYSTEM CHECK</p>
+            <h2 id="services-title">서비스 준비 상태</h2>
+          </div>
+          <button id="retry" type="button" class="SECNUDGEONRy">다시 확인</button>
+        </div>
+        <ul id="components" class="components" aria-live="polite" aria-busy="true"></ul>
+      </section>
+
+      <section id="troubleshooting" class="troubleshooting" aria-labelledby="troubleshooting-title" hidden>
+        <div class="troubleshooting-heading">
+          <div>
+            <p class="eyebrow">EASY TROUBLESHOOTING</p>
+            <h2 id="troubleshooting-title">쉽게 해결해 볼게요</h2>
+          </div>
+          <span class="safe-badge">안전한 안내</span>
+        </div>
+        <p id="help-summary" class="help-summary"></p>
+        <ol id="help-actions" class="help-actions"></ol>
+
+        <div class="ai-assist">
+          <div>
+            <strong>AI에게 도움받기</strong>
+            <p>현재 상태를 쉬운 질문으로 만들어 드려요. 비밀번호와 API 키는 넣지 않으며 자동으로 전송하지 않습니다.</p>
+          </div>
+          <div class="ai-actions">
+            <button id="copy-ai-prompt" class="primary" type="button">AI에게 물어볼 내용 복사</button>
+            <span id="ai-copy-result" role="status" aria-live="polite"></span>
+          </div>
+        </div>
+        <details class="ai-preview">
+          <summary>AI에 붙여넣을 내용 미리보기</summary>
+          <pre id="ai-prompt-preview" tabindex="0"></pre>
+        </details>
+      </section>
+
+      <section id="next-step" class="next-step" hidden>
+        <div>
+          <p class="eyebrow">SERVER READY</p>
+          <h2>NudgeOn 서버가 준비됐어요</h2>
+          <p>지금은 서버 실행까지 확인했어요. 관리자 계정 만들기와 실제 발송은 다음 단계에서 이어집니다.</p>
+        </div>
+        <span class="next-badge">다음 단계 준비 중</span>
+      </section>
+
+      <footer>
+        <button id="copy-diagnostics" type="button" class="text-button">기술 정보만 복사</button>
+        <span id="copy-result" role="status"></span>
+      </footer>
+    </main>
+  </body>
+</html>

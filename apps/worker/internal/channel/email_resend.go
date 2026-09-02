@@ -107,8 +107,8 @@ func (p *EmailPlugin) sendResend(ctx context.Context, req SendRequest) (SendResu
 	}
 	if e.MessageID != "" {
 		// message_id를 헤더·태그로 실어 웹훅(email.delivered/opened/clicked …)에서 message_lifecycle 조인.
-		payload["headers"] = map[string]string{"X-Onda-Message-Id": e.MessageID}
-		payload["tags"] = []map[string]string{{"name": "onda_message_id", "value": e.MessageID}}
+		payload["headers"] = map[string]string{"X-NudgeOn-Message-Id": e.MessageID}
+		payload["tags"] = []map[string]string{{"name": "nudgeon_message_id", "value": e.MessageID}}
 	}
 	raw, _ := json.Marshal(payload)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base()+"/emails", bytes.NewReader(raw))

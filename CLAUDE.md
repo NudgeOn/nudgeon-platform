@@ -1,4 +1,4 @@
-# Onda 플랫폼 모노레포
+# NudgeOn 플랫폼 모노레포
 
 한국 시장 네이티브 오픈소스(Apache-2.0) 고객 인게이지먼트 플랫폼. "셀프호스팅 가능한 한국형 Braze".
 기획 문서는 `docs/prd/`, `docs/dev/` (git 미추적 — 로컬 참조 전용). 스프린트·Go/No-Go 원장은 `docs/dev/DEV-MAIN-개발기획서.md`.
@@ -33,9 +33,9 @@ docker compose -f deploy/compose.yaml --profile full up -d   # 로컬 dev 환경
 
 ## 네이밍
 
-- 제품명 **Onda** 확정. 패키지: `@onda/*`(npm), `github.com/ondahq/onda/*`(Go), `io.onda`(모바일).
-- **이 repo는 `onda-platform`** (api·console·worker·db). SDK는 형제 repo로 분리:
-  `../onda-ios-sdk`, `../onda-android-sdk`, `../onda-rn-sdk`, `../onda-flutter-sdk`.
-  SDK 인터페이스 명세는 `docs/prd/PRD-01A` (제품명 Onda로 읽음).
-- Prometheus 지표: `onda_<component>_<metric>`.
-- 문서의 `engage-*` 표기는 `onda-*`로 읽는다 (PRD-00 Q1).
+- 제품명 **NudgeOn** 확정. 패키지: `@nudgeon/*`(npm), `github.com/nudgeon/nudgeon-platform/*`(Go), `io.nudgeon`(모바일).
+- **이 repo는 `nudgeon-platform`** (api·console·worker·db). SDK는 형제 repo로 분리:
+  `../nudgeon-ios-sdk`, `../nudgeon-android-sdk`, `../nudgeon-rn-sdk`, `../nudgeon-flutter-sdk`.
+  SDK 인터페이스 명세는 `docs/prd/PRD-01A` (제품명 NudgeOn로 읽음).
+- Prometheus 지표: `nudgeon_<component>_<metric>`.
+- 문서의 `engage-*` 표기는 `nudgeon-*`로 읽는다 (PRD-00 Q1).

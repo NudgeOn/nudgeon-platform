@@ -77,7 +77,7 @@ type PushContent struct {
 	// Silent — 무음(백그라운드) 푸시. 사용자 노출 없이 앱 삭제 감지용 ping.
 	// FCM: data-only + silent=1(SDK가 표시 생략), APNs: content-available:1 + push-type=background(무음).
 	Silent bool `json:"silent,omitempty"`
-	// MessageID — 발송 안정 ID. 워커가 렌더 직전 설정. FCM data["message_id"] / APNs onda.message_id로 방출.
+	// MessageID — 발송 안정 ID. 워커가 렌더 직전 설정. FCM data["message_id"] / APNs nudgeon.message_id로 방출.
 	MessageID string `json:"-"`
 }
 

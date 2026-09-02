@@ -55,7 +55,7 @@ def qhash(sql):
 def scoped_tables(sql):
     hits = set()
     for t in SCOPED:
-        if re.search(r"\b(FROM|JOIN|UPDATE|INTO|TABLE)\s+(onda\.)?" + t + r"\b", sql, re.I):
+        if re.search(r"\b(FROM|JOIN|UPDATE|INTO|TABLE)\s+(nudgeon\.)?" + t + r"\b", sql, re.I):
             hits.add(t)
     return hits
 

@@ -1,4 +1,4 @@
-// Package connector — 커넥터 manifest(onda.connector.json) 로더.
+// Package connector — 커넥터 manifest(nudgeon.connector.json) 로더.
 // 스키마 단일 출처는 packages/queue-schemas/schemas/connector.manifest.v0.schema.json이며,
 // 이 파일의 구조체는 그 스키마의 Go 투영이다. 계약 테스트가 둘의 enum 일치를 강제한다.
 //

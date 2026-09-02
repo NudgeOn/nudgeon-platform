@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { outputPorts, toGraphDefinition, validateJourney } from "@onda/journey-model";
+import { outputPorts, toGraphDefinition, validateJourney } from "@nudgeon/journey-model";
 import { createJourneyNode } from "./journey-editor-model";
 import { canMoveNode, connectRoute, connectionIssue, ENTRY_EDGE_ID, entryEdgeId, graphReadIssue, insertOnEdge,
   moveLinearNode, pathDurationRange, previewRemoval, reachableNodes, renewExperiment, type GraphDefinition } from "./journey-graph";

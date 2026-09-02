@@ -1,6 +1,6 @@
-# Onda API 가이드
+# NudgeOn API 가이드
 
-Onda를 처음 연동하는 개발자와 셀프호스팅 운영자를 위한 문서입니다. 고객 앱과 고객사 서버에서 이벤트·고객·디바이스 정보를 보내는 **Integration API**부터, 콘솔에서 사용하는 **Management API**까지 현재 제공되는 경로를 한곳에 정리했습니다.
+NudgeOn를 처음 연동하는 개발자와 셀프호스팅 운영자를 위한 문서입니다. 고객 앱과 고객사 서버에서 이벤트·고객·디바이스 정보를 보내는 **Integration API**부터, 콘솔에서 사용하는 **Management API**까지 현재 제공되는 경로를 한곳에 정리했습니다.
 
 > **Alpha · 2026-09-01 코드 기준**<br>
 > 이 문서는 현재 저장소의 API 컨트롤러와 스키마를 대조해 작성했습니다. API와 스키마는 아직 예고 없이 변경될 수 있으며, 실제 고객 발송에 필요한 복구·SDK·운영 검증은 진행 중입니다. 먼저 개발·스테이징 환경에서 연동하고, 운영 전에는 [출시 체크리스트](RELEASE-CHECKLIST.md)를 확인하세요.
@@ -20,7 +20,7 @@ Onda를 처음 연동하는 개발자와 셀프호스팅 운영자를 위한 문
 
 처음 연동한다면 다음 다섯 단계만 먼저 완료하세요.
 
-1. Onda API를 실행하고 `/readyz` 결과를 확인합니다.
+1. NudgeOn API를 실행하고 `/readyz` 결과를 확인합니다.
 2. 가입 또는 최초 셋업 응답에서 `app_id`, SDK Key, Server Key를 보관합니다.
 3. 고유한 `insert_id`로 첫 이벤트를 전송합니다.
 4. 앱에서 고객 식별과 푸시 토큰을 등록합니다.
@@ -30,12 +30,12 @@ Onda를 처음 연동하는 개발자와 셀프호스팅 운영자를 위한 문
 
 | 이름 | 누가 정하나요? | 용도 | 예시 |
 | --- | --- | --- | --- |
-| `app_id` | Onda | Onda 안에서 앱을 구분 | 가입·셋업 응답의 UUID |
+| `app_id` | NudgeOn | NudgeOn 안에서 앱을 구분 | 가입·셋업 응답의 UUID |
 | `external_id` | 고객사 | 로그인 고객을 구분하는 변경되지 않는 ID | 회원 번호 `customer-123` |
 | `anon_id` | 고객 앱 | 로그인 전 익명 고객을 구분 | 앱이 생성한 UUID |
 | `device_id` | 고객 앱 | 앱 설치 단위 디바이스를 구분 | 설치 시 생성해 보관한 UUID |
 | `insert_id` | 이벤트 발신자 | 이벤트 중복 처리를 막음 | 이벤트마다 새 UUID |
-| `request_id` | Onda | 접수 결과와 서버 로그를 연결 | API 응답의 UUID |
+| `request_id` | NudgeOn | 접수 결과와 서버 로그를 연결 | API 응답의 UUID |
 
 `external_id`에는 이메일이나 전화번호처럼 바뀌거나 민감한 값보다 서비스 내부 회원 ID를 권장합니다. 같은 이벤트를 재시도할 때는 새 `insert_id`를 만들지 말고 최초 값을 그대로 사용하세요.
 
@@ -43,7 +43,7 @@ Onda를 처음 연동하는 개발자와 셀프호스팅 운영자를 위한 문
 
 ### 준비물
 
-- 실행 중인 Onda API 주소
+- 실행 중인 NudgeOn API 주소
 - 가입 또는 최초 셋업에서 받은 `app_id`
 - 고객 앱용 SDK Key (`pk_...`)
 - 고객사 백엔드용 Server Key (`sk_...`)
@@ -56,7 +56,7 @@ Onda를 처음 연동하는 개발자와 셀프호스팅 운영자를 위한 문
 | --- | --- | --- |
 | iOS·Android·React Native·Flutter 앱 | SDK Key | 이벤트, identify, 푸시 토큰 등록 |
 | 고객사 백엔드·서버 배치 | Server Key | 이벤트, identify, 고객 속성 일괄 갱신·삭제 |
-| Onda 콘솔·관리 도구 | 로그인 세션 | 앱·키·세그먼트·저니·조직 관리 |
+| NudgeOn 콘솔·관리 도구 | 로그인 세션 | 앱·키·세그먼트·저니·조직 관리 |
 
 Server Key를 모바일 앱이나 브라우저 번들에 넣으면 안 됩니다.
 
@@ -65,10 +65,10 @@ Server Key를 모바일 앱이나 브라우저 번들에 넣으면 안 됩니다
 셀프호스팅 기본 API 주소는 `http://localhost:8080`입니다. 다른 환경에서는 배포한 API의 HTTPS 주소로 바꾸세요.
 
 ```bash
-export ONDA_API_URL="http://localhost:8080"
-export ONDA_APP_ID="REPLACE_WITH_APP_ID"
-export ONDA_SDK_KEY="pk_REPLACE_ME"
-export ONDA_SERVER_KEY="sk_REPLACE_ME"
+export NUDGEON_API_URL="http://localhost:8080"
+export NUDGEON_APP_ID="REPLACE_WITH_APP_ID"
+export NUDGEON_SDK_KEY="pk_REPLACE_ME"
+export NUDGEON_SERVER_KEY="sk_REPLACE_ME"
 ```
 
 모든 JSON 요청은 다음 헤더를 사용합니다.
@@ -83,7 +83,7 @@ API 키는 `X-Api-Key: <api-key>`로도 보낼 수 있습니다. 브라우저 UR
 ### 1. 서버 상태 확인
 
 ```bash
-curl -sS "$ONDA_API_URL/healthz"
+curl -sS "$NUDGEON_API_URL/healthz"
 ```
 
 ```json
@@ -95,7 +95,7 @@ curl -sS "$ONDA_API_URL/healthz"
 `/healthz`는 API 프로세스가 살아 있는지만 확인합니다. 실제 연동을 시작하기 전에는 PostgreSQL과 Redis 연결까지 확인하는 `/readyz`도 호출하세요.
 
 ```bash
-curl -sS "$ONDA_API_URL/readyz"
+curl -sS "$NUDGEON_API_URL/readyz"
 ```
 
 ```json
@@ -113,8 +113,8 @@ curl -sS "$ONDA_API_URL/readyz"
 아래 예시는 로그인한 고객이 상품을 본 이벤트 한 건을 보냅니다. `insert_id`는 이벤트마다 새 UUID를 생성하고, 같은 이벤트를 재시도할 때는 동일한 값을 유지해야 합니다. `anon_id` 또는 `external_id` 중 하나는 반드시 포함해야 합니다.
 
 ```bash
-curl -sS -X POST "$ONDA_API_URL/v1/track" \
-  -H "Authorization: Bearer $ONDA_SDK_KEY" \
+curl -sS -X POST "$NUDGEON_API_URL/v1/track" \
+  -H "Authorization: Bearer $NUDGEON_SDK_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "batch": [
@@ -156,7 +156,7 @@ curl -sS -X POST "$ONDA_API_URL/v1/track" \
 
 ```bash
 curl -sS -b cookies.txt \
-  "$ONDA_API_URL/v1/apps/$ONDA_APP_ID/ingest-status"
+  "$NUDGEON_API_URL/v1/apps/$NUDGEON_APP_ID/ingest-status"
 ```
 
 ### 3. 고객 식별과 속성 갱신
@@ -164,8 +164,8 @@ curl -sS -b cookies.txt \
 SDK Key 또는 Server Key로 익명 고객을 로그인 고객과 연결하고 속성을 갱신합니다. 일반적으로 로그인 성공 직후 한 번 호출하고, 계정이 바뀌면 새 `external_id`로 다시 호출합니다. 속성 값이 `null`이면 해당 속성을 해제합니다.
 
 ```bash
-curl -sS -X POST "$ONDA_API_URL/v1/identify" \
-  -H "Authorization: Bearer $ONDA_SDK_KEY" \
+curl -sS -X POST "$NUDGEON_API_URL/v1/identify" \
+  -H "Authorization: Bearer $NUDGEON_SDK_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "external_id": "customer-123",
@@ -188,8 +188,8 @@ curl -sS -X POST "$ONDA_API_URL/v1/identify" \
 서버에서 여러 고객의 속성을 한 번에 갱신할 때는 Server Key를 사용합니다.
 
 ```bash
-curl -sS -X POST "$ONDA_API_URL/v1/users/attributes" \
-  -H "Authorization: Bearer $ONDA_SERVER_KEY" \
+curl -sS -X POST "$NUDGEON_API_URL/v1/users/attributes" \
+  -H "Authorization: Bearer $NUDGEON_SERVER_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "updates": [
@@ -216,8 +216,8 @@ curl -sS -X POST "$ONDA_API_URL/v1/users/attributes" \
 푸시 토큰 등록은 SDK Key만 허용합니다. 앱이 APNs 또는 FCM에서 새 토큰을 받았을 때, 권한이나 로그인 고객이 바뀌었을 때 다시 호출하세요. `anon_id` 또는 `external_id` 중 하나를 반드시 포함해야 합니다.
 
 ```bash
-curl -sS -X POST "$ONDA_API_URL/v1/devices/token" \
-  -H "Authorization: Bearer $ONDA_SDK_KEY" \
+curl -sS -X POST "$NUDGEON_API_URL/v1/devices/token" \
+  -H "Authorization: Bearer $NUDGEON_SDK_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "device": {
@@ -234,9 +234,9 @@ curl -sS -X POST "$ONDA_API_URL/v1/devices/token" \
   }'
 ```
 
-`push_token`은 Onda API Key가 아니라 APNs 또는 FCM이 앱에 발급한 토큰입니다. `device_id`는 같은 앱 설치에서 안정적으로 유지하고, 앱 삭제 후 재설치처럼 새로운 설치라면 새 UUID를 사용하세요.
+`push_token`은 NudgeOn API Key가 아니라 APNs 또는 FCM이 앱에 발급한 토큰입니다. `device_id`는 같은 앱 설치에서 안정적으로 유지하고, 앱 삭제 후 재설치처럼 새로운 설치라면 새 UUID를 사용하세요.
 
-`os_permission`의 표준값은 `granted`, `denied`, `undetermined`입니다. iOS 원시값 `authorized`, `provisional`, `ephemeral`, `notDetermined`도 서버에서 표준값으로 정규화합니다. 토큰 등록 성공은 Onda가 정보를 접수했다는 뜻이며 실제 푸시 수신 성공을 뜻하지 않습니다.
+`os_permission`의 표준값은 `granted`, `denied`, `undetermined`입니다. iOS 원시값 `authorized`, `provisional`, `ephemeral`, `notDetermined`도 서버에서 표준값으로 정규화합니다. 토큰 등록 성공은 NudgeOn가 정보를 접수했다는 뜻이며 실제 푸시 수신 성공을 뜻하지 않습니다.
 
 ### 5. 첫 테스트 푸시 보내기
 
@@ -251,11 +251,11 @@ curl -sS -X POST "$ONDA_API_URL/v1/devices/token" \
 
 ```bash
 curl -sS -b cookies.txt -X POST \
-  "$ONDA_API_URL/v1/apps/$ONDA_APP_ID/test-push" \
+  "$NUDGEON_API_URL/v1/apps/$NUDGEON_APP_ID/test-push" \
   -H "Content-Type: application/json" \
   -d '{
     "external_id": "customer-123",
-    "title": "Onda 연동 테스트",
+    "title": "NudgeOn 연동 테스트",
     "body": "첫 번째 푸시가 도착했습니다."
   }'
 ```
@@ -276,7 +276,7 @@ curl -sS -b cookies.txt -X POST \
 | 없음 | 상태 확인, 가입, 로그인, 최초 셀프호스팅 설정 | 인증 헤더 없음 |
 | SDK Key (`pk_`) | 고객 앱의 이벤트·식별·푸시 토큰 등록 | `Authorization: Bearer ...` 또는 `X-Api-Key` |
 | Server Key (`sk_`) | 신뢰할 수 있는 고객사 서버의 이벤트·식별·속성 갱신·고객 삭제 | `Authorization: Bearer ...` 또는 `X-Api-Key` |
-| 세션 쿠키 | 콘솔과 관리 API | `onda_session` HttpOnly 쿠키 |
+| 세션 쿠키 | 콘솔과 관리 API | `nudgeon_session` HttpOnly 쿠키 |
 
 SDK Key는 앱 바이너리에 포함될 수 있는 수집용 키입니다. Server Key는 고객사 백엔드에서만 보관해야 하며 모바일·웹 클라이언트에 포함하면 안 됩니다.
 
@@ -314,8 +314,8 @@ API Key에는 `full`과 `ingest_only` 스코프가 있습니다. 현재 개인�
 
 ```bash
 curl -sS -X DELETE \
-  "$ONDA_API_URL/v1/users/customer-123" \
-  -H "Authorization: Bearer $ONDA_SERVER_KEY"
+  "$NUDGEON_API_URL/v1/users/customer-123" \
+  -H "Authorization: Bearer $NUDGEON_SERVER_KEY"
 ```
 
 ```json
@@ -359,10 +359,10 @@ Integration API에는 테넌트, API Key, SDK 디바이스의 계층별 token bu
 
 ### 멀티테넌트 모드 가입
 
-직접 배포한 `MODE=multi_tenant` 환경에서는 가입 시 테넌트, Owner, 기본 앱, SDK Key, Server Key를 함께 생성하고 `onda_session` 쿠키를 발급합니다. 이 API가 존재한다는 것이 Onda 관리형 Cloud의 공개 가입이 열렸다는 뜻은 아닙니다.
+직접 배포한 `MODE=multi_tenant` 환경에서는 가입 시 테넌트, Owner, 기본 앱, SDK Key, Server Key를 함께 생성하고 `nudgeon_session` 쿠키를 발급합니다. 이 API가 존재한다는 것이 NudgeOn 관리형 Cloud의 공개 가입이 열렸다는 뜻은 아닙니다.
 
 ```bash
-curl -sS -c cookies.txt -X POST "$ONDA_API_URL/v1/auth/signup" \
+curl -sS -c cookies.txt -X POST "$NUDGEON_API_URL/v1/auth/signup" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "owner@example.com",
@@ -387,8 +387,10 @@ curl -sS -c cookies.txt -X POST "$ONDA_API_URL/v1/auth/signup" \
 
 `MODE=single_tenant`에서는 콘솔이 먼저 설정 상태를 확인합니다.
 
+> **현재 알파 보안 경계:** 아래 Bootstrap mutation은 아직 일회용 설치 소유권 claim을 요구하지 않는다. 최초 Owner를 만들기 전에는 API를 인터넷에 공개하지 않는다. 안전한 claim과 중단 복구를 포함한 목표 계약은 [P0 Docker Setup Wizard PRD](DOCKER-SETUP-WIZARD-PRD.md)에 있으며 현재 API 동작으로 간주하지 않는다.
+
 ```bash
-curl -sS "$ONDA_API_URL/v1/bootstrap/status"
+curl -sS "$NUDGEON_API_URL/v1/bootstrap/status"
 ```
 
 `needs_setup: true`이면 최초 한 번만 `POST /v1/bootstrap/setup`을 호출합니다. 요청 필드는 `email`, `password`, `name`이며 응답은 가입 응답과 동일합니다. 설정을 마치면 이 경로는 `409`로 잠깁니다. 자세한 설치 절차는 [배포 가이드](DEPLOY.md)를 참고하세요.
@@ -396,19 +398,19 @@ curl -sS "$ONDA_API_URL/v1/bootstrap/status"
 ### 로그인과 관리 API 호출
 
 ```bash
-curl -sS -c cookies.txt -X POST "$ONDA_API_URL/v1/auth/login" \
+curl -sS -c cookies.txt -X POST "$NUDGEON_API_URL/v1/auth/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "owner@example.com",
     "password": "REPLACE_WITH_YOUR_PASSWORD"
   }'
 
-curl -sS -b cookies.txt "$ONDA_API_URL/v1/auth/me"
+curl -sS -b cookies.txt "$NUDGEON_API_URL/v1/auth/me"
 ```
 
 2FA가 활성화된 계정은 첫 로그인 응답으로 `{"totp_required":true}`를 받을 수 있습니다. 같은 로그인 요청에 `totp`을 추가해 다시 호출하세요. 조직에서 2FA를 강제했지만 아직 등록하지 않은 계정은 `{"enrollment_required":true}`와 제한된 세션을 받으며, 등록 완료 전에는 `/v1/auth/totp/*` 외 관리 API가 `403`을 반환합니다.
 
-프로덕션의 `onda_session` 쿠키는 HttpOnly, Secure, SameSite=Lax로 설정됩니다. 브라우저에서 다른 origin의 API를 호출할 때는 허용된 CORS origin과 credentials 설정이 필요합니다.
+프로덕션의 `nudgeon_session` 쿠키는 HttpOnly, Secure, SameSite=Lax로 설정됩니다. 브라우저에서 다른 origin의 API를 호출할 때는 허용된 CORS origin과 credentials 설정이 필요합니다.
 
 ## Management API 전체 목록
 
@@ -467,7 +469,7 @@ Resend(API) credential 등록 본문:
   "kind": "email_resend",
   "api_key": "re_xxxxxxxx",
   "from_email": "noreply@yourdomain.com",
-  "from_name": "Onda",
+  "from_name": "NudgeOn",
   "webhook_secret": "whsec_xxxxxxxx"
 }
 ```
@@ -480,7 +482,7 @@ Resend(API) credential 등록 본문:
 Resend 대시보드에 `{API_URL}/v1/webhooks/resend/{appId}`를 엔드포인트로 등록하고 `email.sent`, `email.delivered`, `email.opened`, `email.clicked`, `email.bounced`, `email.complained`, `email.failed` 이벤트를 켜세요.
 
 - **인증**: 세션·API 키가 아니라 Svix 서명입니다. `svix-id`, `svix-timestamp`, `svix-signature` 헤더와 요청 본문 원문으로 HMAC-SHA256을 검증하며, 타임스탬프가 현재 시각과 300초 이상 차이 나면 거부합니다. 서명 실패·credential 없음·`webhook_secret` 미등록은 `401`입니다.
-- **message_id 해석**: 발송 시 실은 태그 `onda_message_id`(객체·배열 형식 모두 허용)를 우선 사용하고, 없으면 `message_log.provider_message_id`(Resend email id)로 역조회합니다. 해석 실패는 `200 {"accepted": false, "reason": "message_id_unresolved"}`로 응답합니다 (4xx면 Resend가 무한 재시도).
+- **message_id 해석**: 발송 시 실은 태그 `nudgeon_message_id`(객체·배열 형식 모두 허용)를 우선 사용하고, 없으면 `message_log.provider_message_id`(Resend email id)로 역조회합니다. 해석 실패는 `200 {"accepted": false, "reason": "message_id_unresolved"}`로 응답합니다 (4xx면 Resend가 무한 재시도).
 - **이벤트 매핑**: `email.sent→sent`, `email.delivered→delivered`, `email.opened→opened`, `email.clicked→clicked`(`click_ref`=링크), `email.bounced→bounced`(`failure_class=invalid_target`), `email.complained→unsubscribed`(`failure_detail=complained`), `email.failed→failed`(`failure_class=permanent_content`). `email.delivery_delayed` 등 그 외 타입은 `200 {"accepted": false, "ignored": "<type>"}`.
 - **멱등성**: Resend가 재시도해 같은 이벤트가 여러 번 도착해도 ClickHouse `message_lifecycle`(ReplacingMergeTree)이 `(message_id, status, occurred_at)` 기준으로 중복을 제거합니다.
 - 반영된 수명주기는 `GET /v1/apps/{appId}/journeys/{id}/delivery`의 `delivered`/`opened`/`clicked`/`bounced`에 SDK 이벤트와 합산(중복 제거)되어 나타납니다.
@@ -491,7 +493,7 @@ Resend 대시보드에 `{API_URL}/v1/webhooks/resend/{appId}`를 엔드포인트
 {
   "external_id": "customer-123",
   "title": "테스트 알림",
-  "body": "Onda 연결을 확인합니다."
+  "body": "NudgeOn 연결을 확인합니다."
 }
 ```
 

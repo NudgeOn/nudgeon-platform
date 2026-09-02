@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://onda.dev/schemas/queue/send.email.json",
+  "$id": "https://nudgeon.dev/schemas/queue/send.email.json",
   "title": "SendEmailPayload",
   "description": "send.email 스트림 payload. content.email은 {{ }} 개인화 치환 완료된 최종 본문. email = 수신 주소. 테스트 발송은 test: 접두 키.",
   "type": "object",

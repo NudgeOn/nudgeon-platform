@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
 )
 
 // PushPlugin — FCM(android) + APNs(ios) 통합 Push 채널 (MVP 유일 실채널).
@@ -40,7 +40,7 @@ func (p *PushPlugin) ValidateCredentials(ctx context.Context, creds Credentials)
 		if err := json.Unmarshal(creds.JSON, &c); err != nil {
 			return NewSendError(FailureCredentialAuth, "FCM 크리덴셜 JSON 파싱 실패: %v", err)
 		}
-		_, err := p.fcm.send(ctx, c.ServiceAccount, "onda-credential-validation", &PushContent{Title: "t", Body: "b"}, true)
+		_, err := p.fcm.send(ctx, c.ServiceAccount, "nudgeon-credential-validation", &PushContent{Title: "t", Body: "b"}, true)
 		return err
 
 	case "push_apns":

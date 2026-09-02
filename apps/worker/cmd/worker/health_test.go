@@ -58,7 +58,7 @@ func TestHealthHandlerReadyWhenStoresAndComponentsAreReady(t *testing.T) {
 }
 
 func TestHealthHandlerReadinessFailureIsRedacted(t *testing.T) {
-	const secret = "postgres://onda:do-not-leak@database.internal/onda"
+	const secret = "postgres://nudgeon:do-not-leak@database.internal/nudgeon"
 	probe := newReadinessProbe(map[string]readinessCheck{
 		"postgres": func(context.Context) error { return errors.New(secret) },
 	}, []string{"consumer_ingest"})

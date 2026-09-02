@@ -1,6 +1,6 @@
 # Resend로 이메일 보내기
 
-Onda는 Resend를 **두 가지 방식**으로 지원합니다. 둘 다 콘솔의 `이메일 템플릿 > 이메일 발송기` 또는 온보딩 2단계에서 등록합니다.
+NudgeOn는 Resend를 **두 가지 방식**으로 지원합니다. 둘 다 콘솔의 `이메일 템플릿 > 이메일 발송기` 또는 온보딩 2단계에서 등록합니다.
 
 | | Resend (SMTP) | Resend (API) |
 |---|---|---|
@@ -19,8 +19,8 @@ Onda는 Resend를 **두 가지 방식**으로 지원합니다. 둘 다 콘솔의
 
 ## 1. 준비 — Resend 쪽에서 먼저 할 일
 
-1. **발신 도메인 인증**: [resend.com/domains](https://resend.com/domains)에서 도메인을 추가하고 DNS 레코드를 등록해 상태가 `verified`가 되게 합니다. Onda는 크리덴셜 검증 때 이 상태를 확인하므로, 인증 전에는 등록이 실패합니다.
-2. **API 키 발급**: [resend.com/api-keys](https://resend.com/api-keys)에서 발급합니다. 발송만 할 것이면 `Sending access`로 충분하지만, **Onda의 도메인 검증에는 도메인 조회 권한이 필요**하므로 `Full access` 키를 권장합니다.
+1. **발신 도메인 인증**: [resend.com/domains](https://resend.com/domains)에서 도메인을 추가하고 DNS 레코드를 등록해 상태가 `verified`가 되게 합니다. NudgeOn는 크리덴셜 검증 때 이 상태를 확인하므로, 인증 전에는 등록이 실패합니다.
+2. **API 키 발급**: [resend.com/api-keys](https://resend.com/api-keys)에서 발급합니다. 발송만 할 것이면 `Sending access`로 충분하지만, **NudgeOn의 도메인 검증에는 도메인 조회 권한이 필요**하므로 `Full access` 키를 권장합니다.
 
 ## 2. Resend (SMTP) — 가장 빠른 길
 
@@ -51,7 +51,7 @@ password: <Resend API Key>
 | `발신 도메인이 Resend에 등록되지 않음` | 발신 이메일의 도메인을 Resend에 추가 |
 | `Resend 인증 실패(403) restricted_api_key` | 키 권한 부족. Full access 키로 교체 |
 
-> Resend는 잘못된 API 키에 401이 아니라 **HTTP 400 + `"API key is invalid"`** 를 반환합니다. Onda는 4xx 응답 메시지가 키·권한을 가리키면 인증 실패로 분류해 크리덴셜을 `error`로 표시합니다.
+> Resend는 잘못된 API 키에 401이 아니라 **HTTP 400 + `"API key is invalid"`** 를 반환합니다. NudgeOn는 4xx 응답 메시지가 키·권한을 가리키면 인증 실패로 분류해 크리덴셜을 `error`로 표시합니다.
 
 ### 3.2 웹훅 등록 — 이게 있어야 도달·오픈이 채워집니다
 
@@ -68,7 +68,7 @@ email.sent  email.delivered  email.opened  email.clicked
 email.bounced  email.complained  email.failed
 ```
 
-등록하면 Resend가 **Signing secret**(`whsec_…`)을 발급합니다. 이 값을 콘솔의 `웹훅 서명 비밀`에 넣고 다시 저장하세요. Onda는 Svix 서명 규약으로 모든 요청을 검증하며, 서명이 없거나 타임스탬프가 5분을 벗어나면 401로 거절합니다.
+등록하면 Resend가 **Signing secret**(`whsec_…`)을 발급합니다. 이 값을 콘솔의 `웹훅 서명 비밀`에 넣고 다시 저장하세요. NudgeOn는 Svix 서명 규약으로 모든 요청을 검증하며, 서명이 없거나 타임스탬프가 5분을 벗어나면 401로 거절합니다.
 
 ### 3.3 결과 확인
 
@@ -107,15 +107,15 @@ Resend 웹훅 ──▶ POST /v1/webhooks/resend/{appId} (Svix 서명 검증)
              ──▶ ClickHouse message_lifecycle ──▶ 도달·반응 리포트
 ```
 
-- 발송 시 `Idempotency-Key`에 Onda의 `message_id`를 실어 중복 발송을 막습니다.
-- 같은 값을 `onda_message_id` 태그와 `X-Onda-Message-Id` 헤더로도 보내, 웹훅이 어느 발송의 결과인지 조인합니다. 태그가 없으면 Resend의 `email_id`를 `message_log.provider_message_id`와 대조합니다.
+- 발송 시 `Idempotency-Key`에 NudgeOn의 `message_id`를 실어 중복 발송을 막습니다.
+- 같은 값을 `nudgeon_message_id` 태그와 `X-NudgeOn-Message-Id` 헤더로도 보내, 웹훅이 어느 발송의 결과인지 조인합니다. 태그가 없으면 Resend의 `email_id`를 `message_log.provider_message_id`와 대조합니다.
 - 계약 정의는 [커넥터 계약 문서](CONNECTOR-CONTRACT.md)와 `packages/queue-schemas/schemas/message.lifecycle.v1.schema.json`에 있습니다.
 
 ## 6. 오류 분류
 
 발송 실패는 아래 기준으로 나뉘고, 재시도 여부가 달라집니다.
 
-| Resend 응답 | Onda 분류 | 동작 |
+| Resend 응답 | NudgeOn 분류 | 동작 |
 |---|---|---|
 | 401 / 403, 또는 4xx 중 키·권한 관련 메시지 | `credential_auth` | 크리덴셜 `error` 전환 |
 | 429 | `rate_limited` | `Retry-After` 만큼 대기 후 재시도 |

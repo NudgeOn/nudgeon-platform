@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://onda.dev/schemas/connector/manifest.v0.json",
+  "$id": "https://nudgeon.dev/schemas/connector/manifest.v0.json",
   "title": "ConnectorManifestV0",
-  "description": "커넥터 manifest v0 — 채널 커넥터가 자신을 선언하는 파일(onda.connector.json). 엔진은 이 선언만 보고 설치·크리덴셜 폼·capability 검증·정책 렌더·수명주기 매핑을 결정한다. v0는 in-process Go 커넥터와 remote HTTP 커넥터를 지원하며, 서명·SBOM·샌드박스·정산 필드는 Registry 단계(v1)에서 추가된다.",
+  "description": "커넥터 manifest v0 — 채널 커넥터가 자신을 선언하는 파일(nudgeon.connector.json). 엔진은 이 선언만 보고 설치·크리덴셜 폼·capability 검증·정책 렌더·수명주기 매핑을 결정한다. v0는 in-process Go 커넥터와 remote HTTP 커넥터를 지원하며, 서명·SBOM·샌드박스·정산 필드는 Registry 단계(v1)에서 추가된다.",
   "type": "object",
   "required": ["manifest_version", "id", "name", "version", "channel", "vendor", "license", "runtime", "target_types", "capabilities", "credentials", "lifecycle"],
   "properties": {
@@ -96,7 +96,7 @@
         },
         "callback": {
           "type": "object",
-          "description": "공급자 → Onda 콜백 수신 규약(async_receipt=true 시 필수)",
+          "description": "공급자 → NudgeOn 콜백 수신 규약(async_receipt=true 시 필수)",
           "required": ["path"],
           "properties": {
             "path": { "type": "string", "description": "/v1/connectors/{id}/callback 하위 경로" },

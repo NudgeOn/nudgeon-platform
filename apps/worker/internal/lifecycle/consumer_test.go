@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/clock"
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
 const (

@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
 )
 
 // NHN 발송 요청 형식(URL·헤더·본문)과 성공 응답 파싱을 httptest로 검증한다(실 NHN 없이).
@@ -27,7 +27,7 @@ func TestNHNSendRequestShape(t *testing.T) {
 
 	cred, _ := json.Marshal(nhnCred{
 		AppKey: "APPKEY1", SecretKey: "SECRET1",
-		FromEmail: "from@onda.io", FromName: "Onda", BaseURL: srv.URL,
+		FromEmail: "from@nudgeon.io", FromName: "NudgeOn", BaseURL: srv.URL,
 	})
 	p := NewEmailPlugin(clock.Real{})
 	res, err := p.Send(context.Background(), SendRequest{
@@ -50,7 +50,7 @@ func TestNHNSendRequestShape(t *testing.T) {
 	if gotCT != "application/json;charset=UTF-8" {
 		t.Errorf("content-type=%q", gotCT)
 	}
-	if gotBody["senderAddress"] != "from@onda.io" || gotBody["title"] != "안녕 {{name}}" {
+	if gotBody["senderAddress"] != "from@nudgeon.io" || gotBody["title"] != "안녕 {{name}}" {
 		t.Errorf("body mismatch: %v", gotBody)
 	}
 	rl, ok := gotBody["receiverList"].([]any)
@@ -70,7 +70,7 @@ func TestNHNAuthFailure(t *testing.T) {
 		_, _ = w.Write([]byte(`unauthorized`))
 	}))
 	defer srv.Close()
-	cred, _ := json.Marshal(nhnCred{AppKey: "A", SecretKey: "bad", FromEmail: "f@onda.io", BaseURL: srv.URL})
+	cred, _ := json.Marshal(nhnCred{AppKey: "A", SecretKey: "bad", FromEmail: "f@nudgeon.io", BaseURL: srv.URL})
 	p := NewEmailPlugin(clock.Real{})
 	_, err := p.Send(context.Background(), SendRequest{
 		Target:      Target{Token: "to@example.com"},

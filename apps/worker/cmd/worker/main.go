@@ -1,4 +1,4 @@
-// onda-worker — Go 단일 바이너리 + --role 플래그 (PRD-08 2장).
+// nudgeon-worker — Go 단일 바이너리 + --role 플래그 (PRD-08 2장).
 // roles: ingest-consumer | scheduler | trigger-matcher | segment | channel | all
 package main
 
@@ -18,19 +18,19 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
-	"github.com/ondahq/onda/apps/worker/internal/clock"
-	"github.com/ondahq/onda/apps/worker/internal/config"
-	"github.com/ondahq/onda/apps/worker/internal/connector"
-	"github.com/ondahq/onda/apps/worker/internal/ingest"
-	"github.com/ondahq/onda/apps/worker/internal/journey"
-	"github.com/ondahq/onda/apps/worker/internal/lifecycle"
-	"github.com/ondahq/onda/apps/worker/internal/message"
-	"github.com/ondahq/onda/apps/worker/internal/segment"
-	"github.com/ondahq/onda/apps/worker/internal/templatesync"
-	"github.com/ondahq/onda/apps/worker/internal/trigger"
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/config"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/connector"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/ingest"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/journey"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/lifecycle"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/message"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/segment"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/templatesync"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/trigger"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
 var validRoles = map[string]bool{
@@ -155,7 +155,7 @@ func run(role string, logger *slog.Logger) error {
 			if role == "channel" {
 				logger.Error("channel 역할은 마스터키 필수 — readiness 차단", "err", err)
 			} else {
-				logger.Warn("마스터키 미설정 — channel 역할 비활성 (ONDA_MASTER_KEY 설정 필요)", "err", err)
+				logger.Warn("마스터키 미설정 — channel 역할 비활성 (NUDGEON_MASTER_KEY 설정 필요)", "err", err)
 			}
 		} else {
 			// 커넥터 매니페스트 로드 — 여기에 놓인 *.json이 곧 "켜진 커넥터" 목록이다.
@@ -287,17 +287,17 @@ func run(role string, logger *slog.Logger) error {
 		g.Go(func() error { return runner.RunMaintenance(gctx) })
 	}
 
-	logger.Info("onda-worker 기동", "roles", roleList(role))
+	logger.Info("nudgeon-worker 기동", "roles", roleList(role))
 	return g.Wait()
 }
 
 // connectorManifestDir — 커넥터 매니페스트 위치. 컨테이너 이미지 바깥에서 볼륨으로 얹는
 // 경로가 기본값이다(커넥터 설치가 재빌드를 요구하면 안 된다).
 func connectorManifestDir() string {
-	if dir := os.Getenv("ONDA_CONNECTOR_MANIFESTS"); dir != "" {
+	if dir := os.Getenv("NUDGEON_CONNECTOR_MANIFESTS"); dir != "" {
 		return dir
 	}
-	return "/etc/onda/connectors"
+	return "/etc/nudgeon/connectors"
 }
 
 func roleList(role string) string {

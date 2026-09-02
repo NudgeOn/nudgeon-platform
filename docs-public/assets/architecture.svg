@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1220" height="825" viewBox="0 0 1220 825" role="img" font-family="Arial, Helvetica, sans-serif" fill="#15201e" aria-labelledby="title desc">
-<title id="title">Onda system architecture</title><desc id="desc">SDKs and customer servers connect to NestJS APIs, Redis Streams and Go workers. PostgreSQL stores identities, journeys and Outbox. ClickHouse stores events and logs. FCM and APNs send push notifications. Retry, message identity, consent sync and delivery reporting remain incomplete.</desc>
+<title id="title">NudgeOn system architecture</title><desc id="desc">SDKs and customer servers connect to NestJS APIs, Redis Streams and Go workers. PostgreSQL stores identities, journeys and Outbox. ClickHouse stores events and logs. FCM and APNs send push notifications. Retry, message identity, consent sync and delivery reporting remain incomplete.</desc>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10" fill="none" stroke="#466368" stroke-width="1.5"/></marker></defs>
 <rect width="1220" height="825" rx="16" fill="#f5f4ef"/>
 
-<text x="40" y="42" font-size="17" font-weight="600" letter-spacing="1.5">ONDA / SYSTEM ARCHITECTURE</text>
+<text x="40" y="42" font-size="17" font-weight="600" letter-spacing="1.5">NUDGEON / SYSTEM ARCHITECTURE</text>
 <text x="40" y="66" font-size="13" fill="#69766c">Push MVP · solid lines show code connections, not release approval</text>
 <rect x="265" y="95" width="190" height="58" rx="10" fill="#ffffff" stroke="#cbd3c8"/>
 <text x="282" y="120" font-size="18" font-weight="600">Console · Next.js</text>

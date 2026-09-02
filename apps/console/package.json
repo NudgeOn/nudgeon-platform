@@ -1,8 +1,8 @@
 {
-  "name": "@onda/console",
+  "name": "@nudgeon/console",
   "version": "0.1.0",
   "private": true,
-  "description": "Onda 어드민 콘솔 (Next.js 15)",
+  "description": "NudgeOn 어드민 콘솔 (Next.js 15)",
   "license": "Apache-2.0",
   "scripts": {
     "dev": "next dev --turbopack -p 3000",
@@ -14,9 +14,9 @@
   },
   "dependencies": {
     "@dagrejs/dagre": "3.1.1",
-    "@onda/api-client": "workspace:*",
-    "@onda/journey-model": "workspace:*",
-    "@onda/segment-dsl": "workspace:*",
+    "@nudgeon/api-client": "workspace:*",
+    "@nudgeon/journey-model": "workspace:*",
+    "@nudgeon/segment-dsl": "workspace:*",
     "@tanstack/react-query": "^5.66.0",
     "@xyflow/react": "^12.11.5",
     "clsx": "^2.1.0",

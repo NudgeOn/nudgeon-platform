@@ -48,12 +48,69 @@ jobs:
       - run: go test ./apps/worker/... ./packages/libqueue-go/...
 
   compose:
-    name: Compose config 검증
+    name: Compose · Safe Boot 검증
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # compose 파일은 app 프로파일의 ${ONDA_MASTER_KEY:?} 보간을 전체 파일에서 수행하므로
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      # compose 파일은 app 프로파일의 ${NUDGEON_MASTER_KEY:?} 보간을 전체 파일에서 수행하므로
       # 미설정 시 config 검증도 실패한다. 문법 검증용 placeholder 주입 (기동 아님).
-      - run: docker compose -f deploy/compose.yaml --profile full --profile app config -q
+      - name: 기존 Compose config 검증
+        run: docker compose -f deploy/compose.yaml --profile full --profile app config -q
         env:
-          ONDA_MASTER_KEY: ci-config-validation-placeholder
+          NUDGEON_MASTER_KEY: ci-config-validation-placeholder
+      - name: Safe Boot CLI · 상태 서버 검증
+        run: |
+          sh -n ./nudgeon
+          node --test deploy/setup-status/server.test.mjs
+      - name: Safe Boot CI 상태 생성
+        run: |
+          install -d -m 700 .nudgeon/secrets
+          printf '%s\n' 'ci-postgres-password' > .nudgeon/secrets/postgres_password
+          printf '%s\n' 'ci-clickhouse-password' > .nudgeon/secrets/clickhouse_password
+          printf '%s\n' 'ci-redis-password' > .nudgeon/secrets/redis_password
+          printf '%s\n' 'Y2ktb25kYS1tYXN0ZXIta2V5LXBsYWNlaG9sZGVyMDE=' > .nudgeon/secrets/nudgeon_master_key
+          printf '%s\n' 'postgres://nudgeon:ci-postgres-password@postgres:5432/nudgeon' > .nudgeon/secrets/database_url
+          printf '%s\n' 'http://nudgeon:ci-clickhouse-password@clickhouse:8123/nudgeon' > .nudgeon/secrets/clickhouse_url
+          printf '%s\n' 'redis://:ci-redis-password@redis:6379' > .nudgeon/secrets/redis_url
+          printf '%s\n' 'ci-setup-token' > .nudgeon/secrets/setup_token
+          printf '%s\n' 'appendonly yes' 'requirepass ci-redis-password' > .nudgeon/secrets/redis.conf
+          chmod 644 .nudgeon/secrets/postgres_password \
+            .nudgeon/secrets/clickhouse_password \
+            .nudgeon/secrets/redis_password \
+            .nudgeon/secrets/nudgeon_master_key \
+            .nudgeon/secrets/database_url \
+            .nudgeon/secrets/clickhouse_url \
+            .nudgeon/secrets/redis_url \
+            .nudgeon/secrets/redis.conf
+          chmod 600 .nudgeon/secrets/setup_token
+          printf '%s\n' 'ci-safe-boot' > .nudgeon/installation_id
+          {
+            printf 'NUDGEON_STATE_DIR=%s/.nudgeon\n' "$GITHUB_WORKSPACE"
+            printf '%s\n' \
+              'NUDGEON_INSTALLATION_ID=ci-safe-boot' \
+              'NUDGEON_VERSION=ci' \
+              'NUDGEON_BIND_ADDRESS=127.0.0.1' \
+              'NUDGEON_PORT=18080' \
+              'NUDGEON_PUBLIC_ORIGIN=http://localhost:18080'
+          } > .nudgeon/compose.env
+          chmod 600 .nudgeon/installation_id .nudgeon/compose.env
+      - name: Safe Boot Compose config · 노출 경계 검증
+        run: |
+          rendered="$(mktemp)"
+          docker compose \
+            -f deploy/compose.safe.yaml \
+            --env-file .nudgeon/compose.env \
+            config --format json > "$rendered"
+          jq -e '
+            [.services | to_entries[] | select((.value.ports // []) | length > 0) | .key] as $published
+            | ($published | length == 1)
+              and ($published[0] == "gateway")
+              and (.services.gateway.ports | length == 1)
+              and (.services.gateway.ports | all(.host_ip == "127.0.0.1"))
+              and ([.services | to_entries[] | select(.value.network_mode == "host")] | length == 0)
+          ' "$rendered"
+          ! grep -Fq 'seed.dev.sql' deploy/compose.safe.yaml
+          ! grep -Fq 'seed.dev.sql' "$rendered"

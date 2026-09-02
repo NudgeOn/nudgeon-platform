@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/ondahq/onda/apps/worker/internal/connector"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/connector"
 )
 
 // ErrUnsupported — 벤더가 지원하지 않는 경로. 폴링 전용 벤더의 ParseCallback,

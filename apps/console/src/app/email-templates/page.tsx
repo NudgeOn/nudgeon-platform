@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ApiError, EMAIL_PROVIDER_LABELS, type EmailProvider, type EmailTemplate, type EmailTemplateSummary } from "@onda/api-client";
+import { ApiError, EMAIL_PROVIDER_LABELS, type EmailProvider, type EmailTemplate, type EmailTemplateSummary } from "@nudgeon/api-client";
 import { useAppId } from "../use-app-id";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -102,7 +102,7 @@ function TemplateEditor({
 
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
-  const [html, setHtml] = useState("<h1>안녕하세요 {{name}}님</h1>\n<p>Onda에 오신 것을 환영합니다.</p>");
+  const [html, setHtml] = useState("<h1>안녕하세요 {{name}}님</h1>\n<p>NudgeOn에 오신 것을 환영합니다.</p>");
   const [varsText, setVarsText] = useState("name=홍길동");
   const [toEmail, setToEmail] = useState("");
   const [provider, setProvider] = useState<"" | EmailProvider>("");

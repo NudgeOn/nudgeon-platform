@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { messageChannel, type MessageNode } from "@onda/journey-model";
+import { messageChannel, type MessageNode } from "@nudgeon/journey-model";
 import {
   extractVariables,
   isProfileReference,

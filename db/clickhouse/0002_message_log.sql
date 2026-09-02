@@ -1,8 +1,8 @@
--- Onda — 발송 로그 (PRD-04 5장). append-only, "왜 안 갔는지"까지 status로 기록.
+-- NudgeOn — 발송 로그 (PRD-04 5장). append-only, "왜 안 갔는지"까지 status로 기록.
 -- delivered/opened는 SDK 시스템 이벤트($push_delivered/$push_opened)를
 -- ingest 경로로 수신 후 message_id 조인 롤업 (S6, IT-8).
 
-CREATE TABLE IF NOT EXISTS onda.message_log
+CREATE TABLE IF NOT EXISTS nudgeon.message_log
 (
     tenant_id       UUID,
     app_id          UUID,

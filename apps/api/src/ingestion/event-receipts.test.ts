@@ -3,13 +3,13 @@ import { randomUUID } from "node:crypto";
 import { Pool, type PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ClickHouseClient } from "@clickhouse/client";
-import type { QueueProducer } from "@onda/libqueue";
+import type { QueueProducer } from "@nudgeon/libqueue";
 import type { ResolvedApiKey } from "../auth/api-key.service";
 import { persistTrackReceipts } from "./event-receipts";
 import { IngestionService } from "./ingestion.service";
 import type { TrackBody } from "./schemas";
 
-const databaseUrl = process.env.ONDA_RECEIPT_TEST_DATABASE_URL;
+const databaseUrl = process.env.NUDGEON_RECEIPT_TEST_DATABASE_URL;
 const runPG = databaseUrl != null;
 const tenants: string[] = [];
 let pg: Pool;

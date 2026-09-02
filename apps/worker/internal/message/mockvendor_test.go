@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk/mock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk/mock"
 )
 
 // mockvendor_test.go — 진짜 목 벤더를 태우는 결합 테스트.

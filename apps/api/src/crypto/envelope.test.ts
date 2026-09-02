@@ -30,8 +30,8 @@ describe("봉투 암호화", () => {
   });
 
   it("loadMasterKey는 32바이트가 아니면 거부", () => {
-    expect(() => loadMasterKey({ ONDA_MASTER_KEY: Buffer.from("short").toString("base64") })).toThrow();
+    expect(() => loadMasterKey({ NUDGEON_MASTER_KEY: Buffer.from("short").toString("base64") })).toThrow();
     const good = randomBytes(32).toString("base64");
-    expect(loadMasterKey({ ONDA_MASTER_KEY: good })).toHaveLength(32);
+    expect(loadMasterKey({ NUDGEON_MASTER_KEY: good })).toHaveLength(32);
   });
 });

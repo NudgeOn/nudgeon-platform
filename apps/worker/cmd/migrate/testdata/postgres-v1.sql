@@ -1,6 +1,6 @@
 -- Frozen pre-graph fixture from 28bc11329a8e84f4e1334d4e8409426faba5db75.
 -- Keep the original shape so tests cannot accidentally bootstrap v2 as v1.
--- Onda — PostgreSQL 선언적 스키마 (Atlas 단일 출처)
+-- NudgeOn — PostgreSQL 선언적 스키마 (Atlas 단일 출처)
 -- 원칙: PG = 현재 상태(current state)만. append-only 수집 기록은 ClickHouse (PRD-01 5.2).
 -- 격리: 모든 테넌트 데이터 테이블은 tenant_id 컬럼 + 애플리케이션 레벨 강제 (PRD-06 4장).
 

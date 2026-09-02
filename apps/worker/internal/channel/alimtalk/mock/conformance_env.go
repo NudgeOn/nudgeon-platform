@@ -3,8 +3,8 @@ package mock
 import (
 	"encoding/json"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk/conformance"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk/conformance"
 )
 
 // ValidCredentialJSON — 계약 테스트·E2E가 쓰는 유효 크리덴셜.

@@ -1,6 +1,6 @@
-# Contributing to Onda
+# Contributing to NudgeOn
 
-Thanks for helping improve Onda. This repository accepts code, documentation,
+Thanks for helping improve NudgeOn. This repository accepts code, documentation,
 tests, and other project materials under the rules below.
 
 ## Inbound license
@@ -10,7 +10,7 @@ contribution intentionally submitted for inclusion in this repository is
 licensed under the Apache License 2.0, without additional terms or conditions.
 This follows Section 5 of the repository's [Apache License 2.0](LICENSE).
 
-Contributors retain copyright in their contributions. Onda does not currently
+Contributors retain copyright in their contributions. NudgeOn does not currently
 require a copyright assignment or a separate Contributor License Agreement.
 
 Do not submit code, media, data, or other material unless you have the right to

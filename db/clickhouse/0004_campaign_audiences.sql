@@ -1,9 +1,9 @@
--- Onda — 발송/진입 대상 스냅샷 (PRD-02 4.2 v0.2).
+-- NudgeOn — 발송/진입 대상 스냅샷 (PRD-02 4.2 v0.2).
 -- audience_ref 하나가 "그 시점에 세그먼트 조건을 만족한 user_id 집합"이다.
 -- push_reachable 필터는 적용하지 않는다 — 진입 원칙(PRD-03 3.1)과 정합.
 -- 스케줄러가 audience_ref 커서로 journey_states를 벌크 생성한다 (IT-2).
 
-CREATE TABLE IF NOT EXISTS onda.campaign_audiences
+CREATE TABLE IF NOT EXISTS nudgeon.campaign_audiences
 (
     audience_ref UUID,
     tenant_id    UUID,

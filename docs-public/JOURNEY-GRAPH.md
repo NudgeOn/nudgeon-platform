@@ -79,9 +79,9 @@ A/B 경로별 실행 수와 고유 고객 수를 구분합니다. 재진입은 �
 단위 테스트는 외부 저장소 없이 실행할 수 있습니다.
 
 ```bash
-pnpm --filter @onda/journey-model test
-pnpm --filter @onda/console test
-pnpm --filter @onda/api test
+pnpm --filter @nudgeon/journey-model test
+pnpm --filter @nudgeon/console test
+pnpm --filter @nudgeon/api test
 go test ./apps/worker/... ./packages/libqueue-go/...
 ./scripts/lint-rules.sh
 ```
@@ -92,15 +92,15 @@ ClickHouse는 테스트용 고유 테넌트 데이터가 남을 수 있으므로
 
 | 환경 변수 | 사용처 |
 | --- | --- |
-| `ONDA_JOURNEY_TEST_DATABASE_URL` | API·워커 저니 PostgreSQL 테스트 |
-| `ONDA_JOURNEY_TEST_CLICKHOUSE_URL` | API는 HTTP URL, Go는 ClickHouse 드라이버 DSN |
-| `ONDA_JOURNEY_TEST_REDIS_URL` | 실제 워커 E2E 전용 Redis DB |
-| `ONDA_RECEIPT_TEST_DATABASE_URL` | API·ingest 수집/삭제 회귀 |
-| `ONDA_RECEIPT_TEST_CLICKHOUSE_DSN` | Go ingest의 실제 ClickHouse 반영 |
-| `ONDA_MIGRATE_TEST_DATABASE_URL` | 기존 v1 스키마와 데이터의 반복 업그레이드 |
+| `NUDGEON_JOURNEY_TEST_DATABASE_URL` | API·워커 저니 PostgreSQL 테스트 |
+| `NUDGEON_JOURNEY_TEST_CLICKHOUSE_URL` | API는 HTTP URL, Go는 ClickHouse 드라이버 DSN |
+| `NUDGEON_JOURNEY_TEST_REDIS_URL` | 실제 워커 E2E 전용 Redis DB |
+| `NUDGEON_RECEIPT_TEST_DATABASE_URL` | API·ingest 수집/삭제 회귀 |
+| `NUDGEON_RECEIPT_TEST_CLICKHOUSE_DSN` | Go ingest의 실제 ClickHouse 반영 |
+| `NUDGEON_MIGRATE_TEST_DATABASE_URL` | 기존 v1 스키마와 데이터의 반복 업그레이드 |
 
 ```bash
-pnpm --filter @onda/api exec vitest run src/journeys/journeys.integration.test.ts src/ingestion/event-receipts.test.ts
+pnpm --filter @nudgeon/api exec vitest run src/journeys/journeys.integration.test.ts src/ingestion/event-receipts.test.ts
 go test -race ./apps/worker/internal/journey ./apps/worker/internal/trigger ./apps/worker/internal/ingest
 go test ./apps/worker/cmd/migrate
 ```

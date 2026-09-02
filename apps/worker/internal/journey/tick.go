@@ -10,7 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/ondahq/onda/apps/worker/internal/policy"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/policy"
 )
 
 // RunTick은 상태머신 틱 루프다. next_wake_at 도래한 상태를 클레임해 노드를 실행한다.

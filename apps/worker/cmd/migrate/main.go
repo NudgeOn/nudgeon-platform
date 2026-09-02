@@ -1,10 +1,10 @@
-// onda-migrate — 스키마 부트스트랩 (PRD-08 4장, DEV-sub-08).
+// nudgeon-migrate — 스키마 부트스트랩 (PRD-08 4장, DEV-sub-08).
 // db/postgres/schema.sql + db/clickhouse/*.sql를 순서대로 적용한다.
 // "already exists" 류 오류는 무시해 멱등하게 만든다(관리형 DB·재실행 경로).
 // 프로덕션 정식 마이그레이션은 Atlas(선언적, ADR-4)이며, 본 도구는 셀프호스팅
 // 부트스트랩과 관리형 DB 초기 스키마 적용용이다.
 //
-//	onda-migrate  (DATABASE_URL·CLICKHOUSE_URL 환경변수 사용)
+//	nudgeon-migrate  (DATABASE_URL·CLICKHOUSE_URL 환경변수 사용)
 package main
 
 import (
@@ -21,7 +21,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/ondahq/onda/apps/worker/internal/config"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/config"
 )
 
 func main() {
@@ -66,6 +66,24 @@ func ignorableClickHouseErr(err error) bool {
 	return err != nil && strings.Contains(strings.ToLower(err.Error()), "already exists")
 }
 
+type postgresMigrationPhase uint8
+
+const (
+	postgresSchemaPhase postgresMigrationPhase = iota
+	postgresUpgradePhase
+)
+
+// postgresMigrationPhases keeps existing installations on the historical
+// upgrade-before-schema path because schema indexes can reference additive
+// columns. A fresh database needs the opposite order: schema.sql creates the
+// enum types that the idempotent channel upgrades extend.
+func postgresMigrationPhases(hasBaseSchema bool) []postgresMigrationPhase {
+	if hasBaseSchema {
+		return []postgresMigrationPhase{postgresUpgradePhase, postgresSchemaPhase}
+	}
+	return []postgresMigrationPhase{postgresSchemaPhase, postgresUpgradePhase}
+}
+
 func migratePostgres(ctx context.Context, url, schemaPath string) error {
 	raw, err := os.ReadFile(schemaPath)
 	if err != nil {
@@ -77,34 +95,44 @@ func migratePostgres(ctx context.Context, url, schemaPath string) error {
 	}
 	defer conn.Close(ctx)
 
-	applied, skipped := 0, 0
-	// Additive upgrades must precede schema indexes referencing newly added columns.
-	// Atlas users receive the same changes from the declarative schema diff.
+	var hasBaseSchema bool
+	if err := conn.QueryRow(ctx, `SELECT to_regclass('public.tenants') IS NOT NULL`).Scan(&hasBaseSchema); err != nil {
+		return fmt.Errorf("PG base schema check: %w", err)
+	}
+
 	upgrades, err := filepath.Glob(filepath.Join(filepath.Dir(schemaPath), "upgrades", "*.sql"))
 	if err != nil {
 		return err
 	}
 	sort.Strings(upgrades)
-	for _, path := range upgrades {
-		upgrade, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		for _, stmt := range splitSQL(string(upgrade)) {
-			if _, err := conn.Exec(ctx, stmt); err != nil {
-				return fmt.Errorf("PG upgrade %s: %w", filepath.Base(path), err)
+
+	applied, skipped := 0, 0
+	for _, phase := range postgresMigrationPhases(hasBaseSchema) {
+		switch phase {
+		case postgresUpgradePhase:
+			for _, path := range upgrades {
+				upgrade, err := os.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				for _, stmt := range splitSQL(string(upgrade)) {
+					if _, err := conn.Exec(ctx, stmt); err != nil {
+						return fmt.Errorf("PG upgrade %s: %w", filepath.Base(path), err)
+					}
+				}
+			}
+		case postgresSchemaPhase:
+			for _, stmt := range splitSQL(string(raw)) {
+				if _, err := conn.Exec(ctx, stmt); err != nil {
+					if ignorableErr(err) {
+						skipped++
+						continue
+					}
+					return fmt.Errorf("문 실행 실패:\n%s\n오류: %w", truncate(stmt), err)
+				}
+				applied++
 			}
 		}
-	}
-	for _, stmt := range splitSQL(string(raw)) {
-		if _, err := conn.Exec(ctx, stmt); err != nil {
-			if ignorableErr(err) {
-				skipped++
-				continue
-			}
-			return fmt.Errorf("문 실행 실패:\n%s\n오류: %w", truncate(stmt), err)
-		}
-		applied++
 	}
 	fmt.Printf("PostgreSQL: %d개 문 적용, %d개 스킵(기존)\n", applied, skipped)
 	return nil

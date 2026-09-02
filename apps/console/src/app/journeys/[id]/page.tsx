@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ApiError } from "@onda/api-client";
+import { ApiError } from "@nudgeon/api-client";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import type { JourneyDefinition } from "@onda/journey-model";
+import type { JourneyDefinition } from "@nudgeon/journey-model";
 import { api } from "@/lib/api";
 import { JourneyAppGate } from "../JourneyAppGate";
 import { JourneyEditor } from "../JourneyEditor";

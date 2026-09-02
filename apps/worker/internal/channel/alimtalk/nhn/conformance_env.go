@@ -3,8 +3,8 @@ package nhn
 import (
 	"encoding/json"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk/conformance"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk/conformance"
 )
 
 // 계약 테스트 하네스 재료.
@@ -17,7 +17,7 @@ const (
 	ConfAppKey       = "conf-appkey"
 	ConfSecretKey    = "conf-secret-key"
 	ConfSenderKey    = "conf-sender-key"
-	ConfTemplateCode = "ONDA_ORDER_01"
+	ConfTemplateCode = "NUDGEON_ORDER_01"
 )
 
 // 수신번호 끝 4자리 조종 코드. mock 벤더의 조종표와 같은 자리값을 쓴다.

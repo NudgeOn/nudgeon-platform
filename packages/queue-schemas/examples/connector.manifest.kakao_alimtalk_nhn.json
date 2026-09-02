@@ -5,10 +5,10 @@
   "description": "NHN Cloud Notification(KakaoTalk Bizmessage) API를 통한 알림톡 발송. 사전 승인 템플릿 + 변수 치환, 비동기 결과 콜백, SMS 폴백 지원.",
   "version": "0.1.0",
   "channel": "kakao_alimtalk",
-  "vendor": { "name": "Onda", "url": "https://github.com/ondahq/onda-platform", "support": "https://github.com/ondahq/onda-platform/issues" },
+  "vendor": { "name": "NudgeOn", "url": "https://github.com/nudgeon/nudgeon-platform", "support": "https://github.com/nudgeon/nudgeon-platform/issues" },
   "license": "Apache-2.0",
   "tier": "core",
-  "runtime": { "type": "in_process_go", "go_package": "github.com/ondahq/onda/apps/worker/internal/channel/alimtalk", "timeout_ms": 5000 },
+  "runtime": { "type": "in_process_go", "go_package": "github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk", "timeout_ms": 5000 },
   "target_types": ["phone"],
   "capabilities": {
     "content": ["template", "buttons"],

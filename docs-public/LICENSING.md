@@ -1,7 +1,7 @@
-# Onda 라이선싱 가이드
+# NudgeOn 라이선싱 가이드
 
-Onda 플랫폼의 기본 라이선스는 [Apache License 2.0](../LICENSE)입니다.
-저작권 표기는 `Copyright 2026 Onda (ondahq) and contributors`이며, 이
+NudgeOn 플랫폼의 기본 라이선스는 [Apache License 2.0](../LICENSE)입니다.
+저작권 표기는 `Copyright 2026 NudgeOn (nudgeon) and contributors`이며, 이
 표기는 법인 설립이나 별도 법적 주체를 주장하지 않습니다.
 
 이 문서는 저장소의 라이선스 범위를 설명하는 운영 가이드입니다. 충돌이
@@ -10,14 +10,14 @@ Onda 플랫폼의 기본 라이선스는 [Apache License 2.0](../LICENSE)입니�
 
 ## 이전 MIT 배포판
 
-Apache-2.0 전환 전에 MIT 라이선스와 함께 실제로 공개·배포된 Onda 사본의
+Apache-2.0 전환 전에 MIT 라이선스와 함께 실제로 공개·배포된 NudgeOn 사본의
 기존 허여는 취소되거나 소급 변경되지 않습니다. Apache-2.0은 전환 이후
 Apache-2.0 LICENSE와 함께 제공되는 배포에 적용됩니다. 특정 사본에는 그
 사본에 동봉된 라이선스가 적용되므로 함께 보관된 LICENSE를 확인하세요.
 
 ## Apache-2.0 적용 범위
 
-별도 표시가 없는 다음 Onda 제작물은 Apache-2.0으로 제공됩니다.
+별도 표시가 없는 다음 NudgeOn 제작물은 Apache-2.0으로 제공됩니다.
 
 - API, 콘솔, 워커, 공용 패키지, 데이터베이스 마이그레이션, 배포 설정 등
   플랫폼 소스 코드
@@ -26,25 +26,25 @@ Apache-2.0 LICENSE와 함께 제공되는 배포에 적용됩니다. 특정 사�
   문서 자산
 
 Apache-2.0은 저작권 사용 허가와 명시적 특허 허여를 제공하지만, Section
-6에 따라 Onda의 상표 사용권을 일반적으로 허여하지 않습니다.
+6에 따라 NudgeOn의 상표 사용권을 일반적으로 허여하지 않습니다.
 
 ## Apache-2.0 적용 제외
 
 다음 항목은 저장소에 포함되어 있어도 Apache-2.0 허여 대상이 아닙니다.
 
-- `docs-public/assets/onda-logo-pigeon.png`
-- Onda 이름, 워드마크, 로고와 기타 출처를 식별하는 브랜드 요소
+- `docs-public/assets/nudgeon-logo-pigeon.png`
+- NudgeOn 이름, 워드마크, 로고와 기타 출처를 식별하는 브랜드 요소
 - 별도 라이선스 또는 저작권 고지가 붙은 자료
 - 제3자 코드, 바이너리, 컨테이너 이미지, 글꼴 및 기타 의존성
 
-로고 PNG와 명시된 Onda 브랜드 자산의 저작권은 유보됩니다. 허용되는
+로고 PNG와 명시된 NudgeOn 브랜드 자산의 저작권은 유보됩니다. 허용되는
 설명·출처 표시와 별도 허가가 필요한 사용은 [TRADEMARKS.md](../TRADEMARKS.md)를
 따릅니다. Apache-2.0으로 제공되는 코드나 문서를 사용할 권리는 이 브랜드
 제외 조항의 영향을 받지 않습니다.
 
 ## 제3자 구성요소
 
-Apache-2.0은 Onda가 소유하지 않은 제3자 구성요소를 재라이선스하지
+Apache-2.0은 NudgeOn가 소유하지 않은 제3자 구성요소를 재라이선스하지
 않습니다. 각 구성요소의 라이선스와 고지 의무가 독립적으로 적용됩니다.
 현재 확인된 주요 경계와 릴리스 점검 기준은
 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)에 기록합니다. 해당 문서는
@@ -63,7 +63,7 @@ Apache-2.0은 Onda가 소유하지 않은 제3자 구성요소를 재라이선�
    귀속 고지를 유지합니다.
 4. 실제 포함된 제3자 구성요소의 라이선스 전문, 고지, 소스 제공 또는 기타
    의무를 산출물 형태에 맞게 충족합니다.
-5. Onda 로고와 브랜드 자산은 제거하거나 TRADEMARKS.md에 맞는 별도 허가를
+5. NudgeOn 로고와 브랜드 자산은 제거하거나 TRADEMARKS.md에 맞는 별도 허가를
    확보합니다.
 6. 릴리스 산출물별 SPDX 또는 CycloneDX SBOM과 라이선스 보고서를 보관합니다.
 

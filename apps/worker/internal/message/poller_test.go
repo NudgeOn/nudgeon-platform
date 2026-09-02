@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
 )
 
 func TestGroupReceipts(t *testing.T) {

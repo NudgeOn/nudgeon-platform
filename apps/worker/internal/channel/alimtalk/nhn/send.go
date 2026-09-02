@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
 )
 
 // receiptSep — 복합 식별자의 구분자. requestId는 NHN이 발급하는 UUID형이라 콜론이 없다.

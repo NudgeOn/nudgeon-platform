@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
 )
 
 func resendCredJSON(t *testing.T, base string) []byte {
 	t.Helper()
 	raw, err := json.Marshal(resendCred{
-		APIKey: "re_test_123", FromEmail: "hello@onda.io", FromName: "Onda", BaseURL: base,
+		APIKey: "re_test_123", FromEmail: "hello@nudgeon.io", FromName: "NudgeOn", BaseURL: base,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -70,7 +70,7 @@ func TestResendSendRequestShape(t *testing.T) {
 	if gotCT != "application/json" {
 		t.Errorf("content-type=%q", gotCT)
 	}
-	if gotBody["from"] != "Onda <hello@onda.io>" || gotBody["subject"] != "안녕 {{name}}" || gotBody["html"] != "<b>hi</b>" {
+	if gotBody["from"] != "NudgeOn <hello@nudgeon.io>" || gotBody["subject"] != "안녕 {{name}}" || gotBody["html"] != "<b>hi</b>" {
 		t.Errorf("body mismatch: %v", gotBody)
 	}
 	to, _ := gotBody["to"].([]any)
@@ -78,7 +78,7 @@ func TestResendSendRequestShape(t *testing.T) {
 		t.Errorf("to=%v", gotBody["to"])
 	}
 	hdrs, _ := gotBody["headers"].(map[string]any)
-	if hdrs["X-Onda-Message-Id"] != "mid-42" {
+	if hdrs["X-NudgeOn-Message-Id"] != "mid-42" {
 		t.Errorf("headers=%v", gotBody["headers"])
 	}
 	tags, _ := gotBody["tags"].([]any)
@@ -86,7 +86,7 @@ func TestResendSendRequestShape(t *testing.T) {
 		t.Fatalf("tags=%v", gotBody["tags"])
 	}
 	tag0 := tags[0].(map[string]any)
-	if tag0["name"] != "onda_message_id" || tag0["value"] != "mid-42" {
+	if tag0["name"] != "nudgeon_message_id" || tag0["value"] != "mid-42" {
 		t.Errorf("tag=%v", tag0)
 	}
 }
@@ -195,9 +195,9 @@ func TestResendValidateDomains(t *testing.T) {
 		wantOK bool
 		want   FailureClass
 	}{
-		{"verified", 200, `{"data":[{"id":"d1","name":"onda.io","status":"verified"},{"id":"d2","name":"x.io","status":"pending"}]}`, true, FailureNone},
-		{"verified case-insensitive", 200, `{"data":[{"name":"ONDA.io","status":"verified"}]}`, true, FailureNone},
-		{"unverified", 200, `{"data":[{"name":"onda.io","status":"pending"}]}`, false, FailureCredentialAuth},
+		{"verified", 200, `{"data":[{"id":"d1","name":"nudgeon.io","status":"verified"},{"id":"d2","name":"x.io","status":"pending"}]}`, true, FailureNone},
+		{"verified case-insensitive", 200, `{"data":[{"name":"NUDGEON.io","status":"verified"}]}`, true, FailureNone},
+		{"unverified", 200, `{"data":[{"name":"nudgeon.io","status":"pending"}]}`, false, FailureCredentialAuth},
 		{"missing", 200, `{"data":[{"name":"other.io","status":"verified"}]}`, false, FailureCredentialAuth},
 		{"401", 401, `{"statusCode":401,"name":"missing_api_key","message":"Missing API key"}`, false, FailureCredentialAuth},
 		{"500", 500, `oops`, false, FailureRetryable},
@@ -270,7 +270,7 @@ func TestValidateResendInvalidAPIKey(t *testing.T) {
 	p := NewEmailPlugin(clock.Real{})
 	err := p.ValidateCredentials(context.Background(), Credentials{
 		Kind: "email_resend",
-		JSON: []byte(`{"api_key":"re_bad","from_email":"noreply@onda.dev","base_url":"` + srv.URL + `"}`),
+		JSON: []byte(`{"api_key":"re_bad","from_email":"noreply@nudgeon.dev","base_url":"` + srv.URL + `"}`),
 	})
 	if err == nil {
 		t.Fatal("잘못된 키인데 검증 통과")

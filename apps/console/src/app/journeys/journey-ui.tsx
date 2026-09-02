@@ -46,8 +46,8 @@ export function JourneyTopbar({ actions, current }: { actions?: ReactNode; curre
   return (
     <header className="j-topbar">
       <nav className="j-breadcrumbs" aria-label="현재 위치">
-        <Link href="/" className="j-brand" aria-label="Onda 대시보드">
-          <JourneyIcon name="wave" size={30} /><span>Onda</span>
+        <Link href="/" className="j-brand" aria-label="NudgeOn 대시보드">
+          <JourneyIcon name="wave" size={30} /><span>NudgeOn</span>
         </Link>
         <span className="j-breadcrumb-divider" />
         {current ? <Link href="/journeys">캠페인 · 저니</Link> : <span>캠페인 · 저니</span>}

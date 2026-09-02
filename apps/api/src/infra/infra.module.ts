@@ -2,7 +2,7 @@ import { Global, Module, type OnApplicationShutdown } from "@nestjs/common";
 import { createClient, type ClickHouseClient } from "@clickhouse/client";
 import Redis from "ioredis";
 import { Pool } from "pg";
-import { QueueProducer } from "@onda/libqueue";
+import { QueueProducer } from "@nudgeon/libqueue";
 import { loadConfig, type AppConfig } from "../config";
 
 export const CONFIG = "CONFIG";

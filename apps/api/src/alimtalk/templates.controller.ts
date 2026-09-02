@@ -14,8 +14,8 @@ import {
 } from "@nestjs/common";
 import type { Pool } from "pg";
 import { z } from "zod";
-import { QueueProducer } from "@onda/libqueue";
-import { STREAMS, type AlimtalkTemplateSyncPayload } from "@onda/queue-schemas";
+import { QueueProducer } from "@nudgeon/libqueue";
+import { STREAMS, type AlimtalkTemplateSyncPayload } from "@nudgeon/queue-schemas";
 import { PG, QUEUE } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
 import { PermissionGuard } from "../authz/permission.guard";
@@ -46,7 +46,7 @@ interface SenderRow {
 /**
  * 알림톡 승인 템플릿 캐시 조회 + 동기화.
  *
- * 템플릿의 단일 출처는 카카오 승인 원본이므로 Onda는 편집하지 않고 벤더에서 읽어 캐시만 한다.
+ * 템플릿의 단일 출처는 카카오 승인 원본이므로 NudgeOn는 편집하지 않고 벤더에서 읽어 캐시만 한다.
  * 따라서 생성·수정 엔드포인트가 없다.
  */
 @Controller("v1/apps/:appId/alimtalk/templates")

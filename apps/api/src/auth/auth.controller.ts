@@ -19,7 +19,7 @@ import { SessionService } from "./session.service";
 import { TotpService } from "./totp.service";
 import { permissionsForRole } from "../authz/permissions";
 
-const COOKIE = "onda_session";
+const COOKIE = "nudgeon_session";
 
 const signupSchema = z.object({
   email: z.string().email(),

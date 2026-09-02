@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://onda.dev/schemas/queue/ingest.batch.json",
+  "$id": "https://nudgeon.dev/schemas/queue/ingest.batch.json",
   "title": "IngestBatchPayload",
   "description": "ingest 스트림 payload — API가 검증·정규화한 수집 배치 (DEV-sub-01). raw 원본은 ClickHouse raw_ingestions에 별도 보존.",
   "type": "object",

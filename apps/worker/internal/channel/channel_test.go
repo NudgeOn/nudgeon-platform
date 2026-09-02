@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
 )
 
 // --- 봉투 복호화: TS(apps/api/src/crypto/envelope.ts)와 레이아웃 호환 검증 ---
@@ -106,7 +106,7 @@ func TestAPNSJWTCache(t *testing.T) {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	der, _ := x509.MarshalPKCS8PrivateKey(key)
 	p8 := string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}))
-	cred := &apnsCredential{P8: p8, KeyID: "K", TeamID: "T", BundleID: "io.onda.demo"}
+	cred := &apnsCredential{P8: p8, KeyID: "K", TeamID: "T", BundleID: "io.nudgeon.demo"}
 
 	clk := &clock.Fake{Current: time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC)}
 	client := newAPNSClient(&http.Client{}, clk)

@@ -42,7 +42,7 @@ describe("exclusive journey DAG", () => {
   it("preserves all legacy settings, assets and ordering without mutating the source", () => {
     const legacy: JourneyDefinition = {
       entry: { type: "blast", segment_id: "old-segment" },
-      nodes: [{ type: "message", push: { title: "t", body: "b", deep_link: "onda://offer", image_url: "https://example.test/img.png" } }, { type: "delay", duration_seconds: 12 }],
+      nodes: [{ type: "message", push: { title: "t", body: "b", deep_link: "nudgeon://offer", image_url: "https://example.test/img.png" } }, { type: "delay", duration_seconds: 12 }],
       settings: { category: "marketing", reentry: { after_days: 3 } }, exit: { conversion_event: "purchase" },
     };
     const before = JSON.stringify(legacy); const converted = toGraphDefinition(legacy);

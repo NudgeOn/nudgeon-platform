@@ -1,4 +1,4 @@
-# Onda — 로컬 개발/셀프호스팅 Compose (PRD-08 3.1)
+# NudgeOn — 로컬 개발/셀프호스팅 Compose (PRD-08 3.1)
 #
 #   docker compose -f deploy/compose.yaml --profile full up -d   # 번들 DB (PG+CH+Redis)
 #   docker compose -f deploy/compose.yaml --profile app up -d    # 앱만 (외부/관리형 DB URL 연결) — S2에서 이미지 추가
@@ -6,16 +6,16 @@
 # dev 환경: full 프로파일의 데이터 서비스만 띄우고 api/console/worker는 로컬 실행.
 # 첫 기동 시 PG는 schema.sql + seed.dev.sql, CH는 순번 SQL이 자동 적용된다 (빈 볼륨 한정).
 
-name: onda
+name: nudgeon
 
 services:
   postgres:
     image: postgres:16
     profiles: [full]
     environment:
-      POSTGRES_USER: onda
-      POSTGRES_PASSWORD: onda
-      POSTGRES_DB: onda
+      POSTGRES_USER: nudgeon
+      POSTGRES_PASSWORD: nudgeon
+      POSTGRES_DB: nudgeon
     ports:
       - "5433:5432" # 호스트 5432는 로컬 Postgres와 충돌 잦음 — dev는 5433 사용
     volumes:
@@ -24,7 +24,7 @@ services:
       - ../db/postgres/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ../db/postgres/seed.dev.sql:/docker-entrypoint-initdb.d/02_seed_dev.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U onda -d onda"]
+      test: ["CMD-SHELL", "pg_isready -U nudgeon -d nudgeon"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -33,9 +33,9 @@ services:
     image: clickhouse/clickhouse-server:24.8
     profiles: [full]
     environment:
-      CLICKHOUSE_DB: onda
-      CLICKHOUSE_USER: onda
-      CLICKHOUSE_PASSWORD: onda
+      CLICKHOUSE_DB: nudgeon
+      CLICKHOUSE_USER: nudgeon
+      CLICKHOUSE_PASSWORD: nudgeon
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
     ports:
       - "8123:8123" # HTTP (API·worker 공용 DSN)
@@ -74,11 +74,11 @@ services:
     build:
       context: ..
       dockerfile: apps/worker/Dockerfile
-    image: onda-worker
+    image: nudgeon-worker
     profiles: [app]
-    # Dockerfile ENTRYPOINT는 /onda-worker 고정 — 마이그레이터는 entrypoint를 덮어써야 한다
-    # (미설정 시 command가 onda-worker의 인자로 삼켜져 워커가 기동됨)
-    entrypoint: ["/onda-migrate"]
+    # Dockerfile ENTRYPOINT는 /nudgeon-worker 고정 — 마이그레이터는 entrypoint를 덮어써야 한다
+    # (미설정 시 command가 nudgeon-worker의 인자로 삼켜져 워커가 기동됨)
+    entrypoint: ["/nudgeon-migrate"]
     command: ["/db"]
     # 콜드 스타트 경합 방지 — 번들 DB(full)가 healthy가 될 때까지 대기 후 마이그레이션.
     # required: false — app 단독(관리형 DB) 프로파일에서는 번들 postgres/clickhouse가 비활성이므로
@@ -91,31 +91,31 @@ services:
         condition: service_healthy
         required: false
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgres://onda:onda@postgres:5432/onda}
-      CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://onda:onda@clickhouse:8123/onda}
+      DATABASE_URL: ${DATABASE_URL:-postgres://nudgeon:nudgeon@postgres:5432/nudgeon}
+      CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://nudgeon:nudgeon@clickhouse:8123/nudgeon}
     restart: "no"
 
   api:
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
-    image: onda-api
+    image: nudgeon-api
     profiles: [app]
     depends_on:
       migrator:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgres://onda:onda@postgres:5432/onda}
+      DATABASE_URL: ${DATABASE_URL:-postgres://nudgeon:nudgeon@postgres:5432/nudgeon}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://onda:onda@clickhouse:8123/onda}
+      CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://nudgeon:nudgeon@clickhouse:8123/nudgeon}
       MODE: ${MODE:-multi_tenant}
-      ONDA_MASTER_KEY: ${ONDA_MASTER_KEY:?ONDA_MASTER_KEY 필수 (openssl rand -base64 32)}
+      NUDGEON_MASTER_KEY: ${NUDGEON_MASTER_KEY:?NUDGEON_MASTER_KEY 필수 (openssl rand -base64 32)}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       JOURNEY_GRAPH_V2_ENABLED: ${JOURNEY_GRAPH_V2_ENABLED:-false}
       # 워커와 같은 디렉터리를 읽는다 — 콘솔의 벤더 목록과 실제 발송 가능 여부가 갈리지 않게.
-      ONDA_CONNECTOR_MANIFESTS: ${ONDA_CONNECTOR_MANIFESTS:-/etc/onda/connectors}
+      NUDGEON_CONNECTOR_MANIFESTS: ${NUDGEON_CONNECTOR_MANIFESTS:-/etc/nudgeon/connectors}
     volumes:
-      - ${ONDA_CONNECTOR_DIR:-./connectors}:/etc/onda/connectors:ro
+      - ${NUDGEON_CONNECTOR_DIR:-./connectors}:/etc/nudgeon/connectors:ro
     ports:
       - "8080:8080"
     healthcheck:
@@ -129,23 +129,23 @@ services:
       context: ..
       dockerfile: apps/worker/Dockerfile
       args:
-        # 기본은 비어 있다. E2E에서만 GO_TAGS=onda_mock으로 목 커넥터를 켠다.
+        # 기본은 비어 있다. E2E에서만 GO_TAGS=nudgeon_mock으로 목 커넥터를 켠다.
         GO_TAGS: ${GO_TAGS:-}
-    image: onda-worker
+    image: nudgeon-worker
     profiles: [app]
     depends_on:
       migrator:
         condition: service_completed_successfully
-    command: ["/onda-worker", "--role=all"]
+    command: ["/nudgeon-worker", "--role=all"]
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgres://onda:onda@postgres:5432/onda}
+      DATABASE_URL: ${DATABASE_URL:-postgres://nudgeon:nudgeon@postgres:5432/nudgeon}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://onda:onda@clickhouse:8123/onda}
-      ONDA_MASTER_KEY: ${ONDA_MASTER_KEY:?ONDA_MASTER_KEY 필수}
+      CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://nudgeon:nudgeon@clickhouse:8123/nudgeon}
+      NUDGEON_MASTER_KEY: ${NUDGEON_MASTER_KEY:?NUDGEON_MASTER_KEY 필수}
       # 커넥터 매니페스트 디렉터리. 여기에 놓인 *.json이 곧 "켜진 커넥터"다.
-      ONDA_CONNECTOR_MANIFESTS: ${ONDA_CONNECTOR_MANIFESTS:-/etc/onda/connectors}
+      NUDGEON_CONNECTOR_MANIFESTS: ${NUDGEON_CONNECTOR_MANIFESTS:-/etc/nudgeon/connectors}
     volumes:
-      - ${ONDA_CONNECTOR_DIR:-./connectors}:/etc/onda/connectors:ro
+      - ${NUDGEON_CONNECTOR_DIR:-./connectors}:/etc/nudgeon/connectors:ro
     ports:
       - "9090:9090" # /metrics·/healthz
 
@@ -156,7 +156,7 @@ services:
       # 빌드 시점 주입 — 클라이언트 번들에 인라인될 API 주소 (런타임 env로는 변경 불가)
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
-    image: onda-console
+    image: nudgeon-console
     profiles: [app]
     depends_on:
       - api

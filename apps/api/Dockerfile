@@ -1,4 +1,4 @@
-# onda-api (NestJS) — pnpm workspace 빌드
+# nudgeon-api (NestJS) — pnpm workspace 빌드
 # 빌드 컨텍스트: 저장소 루트
 FROM node:22-slim AS build
 RUN corepack enable
@@ -12,15 +12,15 @@ COPY packages/segment-dsl/package.json ./packages/segment-dsl/
 COPY packages/journey-model/package.json ./packages/journey-model/
 RUN pnpm install --frozen-lockfile
 COPY . .
-RUN pnpm --filter @onda/api... build \
- && pnpm --filter @onda/api --prod deploy --legacy /app
+RUN pnpm --filter @nudgeon/api... build \
+ && pnpm --filter @nudgeon/api --prod deploy --legacy /app
 
 FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app /app
-COPY LICENSE NOTICE TRADEMARKS.md THIRD_PARTY_NOTICES.md /licenses/onda/
-COPY docs-public/LICENSING.md /licenses/onda/LICENSING.md
+COPY LICENSE NOTICE TRADEMARKS.md THIRD_PARTY_NOTICES.md /licenses/nudgeon/
+COPY docs-public/LICENSING.md /licenses/nudgeon/LICENSING.md
 EXPOSE 8080
 USER node
 CMD ["node", "dist/main.js"]

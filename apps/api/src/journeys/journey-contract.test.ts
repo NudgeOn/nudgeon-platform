@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { toGraphDefinition, type JourneyDefinition } from "@onda/journey-model";
+import { toGraphDefinition, type JourneyDefinition } from "@nudgeon/journey-model";
 import { activationSchema, draftRevision, upsertSchema } from "./journey-contract";
 
-const legacy: JourneyDefinition = { entry: { type: "trigger", trigger_event: "start" }, nodes: [{ type: "message", push: { title: "hi", body: "there", deep_link: "onda://home" } }], exit: {}, settings: { category: "transactional", reentry: "never" } };
+const legacy: JourneyDefinition = { entry: { type: "trigger", trigger_event: "start" }, nodes: [{ type: "message", push: { title: "hi", body: "there", deep_link: "nudgeon://home" } }], exit: {}, settings: { category: "transactional", reentry: "never" } };
 describe("journey HTTP contract", () => {
   it("retains IDs, edges, condition DSL and event timing across API parsing", () => {
     const definition = toGraphDefinition(legacy);

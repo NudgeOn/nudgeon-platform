@@ -11,8 +11,8 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/uuid"
-	"github.com/ondahq/onda/apps/worker/internal/ingest"
-	"github.com/ondahq/onda/apps/worker/internal/segment"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/ingest"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/segment"
 )
 
 func TestRuntimeABStableAcrossVersionsAndArrayOrder(t *testing.T) {
@@ -196,7 +196,7 @@ func TestRuntimeBranchUsesCustomerSignupDate(t *testing.T) {
 	id := f.admit("first", 1)
 	f.tick()
 	if _, port, _ := f.execution(id, 0); port != "true" {
-		t.Fatalf("Onda row creation replaced customer signup date: %s", port)
+		t.Fatalf("NudgeOn row creation replaced customer signup date: %s", port)
 	}
 }
 
@@ -229,9 +229,9 @@ func TestRuntimeReentryWaitDoesNotOverflow(t *testing.T) {
 }
 
 func TestRuntimeClickHouseLookupTimeAndScope(t *testing.T) {
-	dsn := os.Getenv("ONDA_JOURNEY_TEST_CLICKHOUSE_URL")
+	dsn := os.Getenv("NUDGEON_JOURNEY_TEST_CLICKHOUSE_URL")
 	if dsn == "" {
-		t.Skip("set ONDA_JOURNEY_TEST_CLICKHOUSE_URL")
+		t.Skip("set NUDGEON_JOURNEY_TEST_CLICKHOUSE_URL")
 	}
 	f := newRuntimeFixture(t, messageGraph())
 	opts, err := clickhouse.ParseDSN(dsn)

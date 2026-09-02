@@ -173,7 +173,7 @@ func (s *Scheduler) retryPendingCHPurges(ctx context.Context) error {
 func (s *Scheduler) cleanupCH(ctx context.Context, tenantID string) {
 	var firstErr error
 	for _, t := range chPurgeTables {
-		q := "ALTER TABLE onda." + t + " DELETE WHERE tenant_id = ?"
+		q := "ALTER TABLE nudgeon." + t + " DELETE WHERE tenant_id = ?"
 		if err := s.ch.Exec(ctx, q, tenantID); err != nil {
 			s.logger.Error("CH 파기 mutation 실패", "table", t, "tenant", tenantID, "err", err)
 			if firstErr == nil {

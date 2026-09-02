@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { outputPorts, type ABSplitNode, type EventWaitNode, type JourneyNode } from "@onda/journey-model";
-import type { AttributeCondition, Condition, LogicalOp, SegmentDSL } from "@onda/segment-dsl";
+import { outputPorts, type ABSplitNode, type EventWaitNode, type JourneyNode } from "@nudgeon/journey-model";
+import type { AttributeCondition, Condition, LogicalOp, SegmentDSL } from "@nudgeon/segment-dsl";
 import { DURATION_UNITS, durationUnit, formatDuration, newJourneyId } from "./journey-editor-model";
 import { connectionIssue, nodeTitle, reachableNodes, type GraphDefinition } from "./journey-graph";
 import { JourneyIcon } from "./journey-ui";

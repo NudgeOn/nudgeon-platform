@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
 const receiptBodyRetention = 30 * 24 * time.Hour

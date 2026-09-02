@@ -1,4 +1,4 @@
--- Onda — user_merges 미러 (PRD-01 3.2, G-9 / R-10). PG user_merges(병합 간선)를 CH로
+-- NudgeOn — user_merges 미러 (PRD-01 3.2, G-9 / R-10). PG user_merges(병합 간선)를 CH로
 -- 미러링해 세그먼트/분석의 이벤트 조건이 병합 이전 user_id로 적재된 과거 이벤트를
 -- canonical(최종 잔존) 사용자에게 귀속시키도록 한다.
 --
@@ -8,7 +8,7 @@
 -- 여기 간선은 항상 최종 canonical을 가리키도록 갱신된다. 쿼리는 argMax(to_user_id, merged_at)로
 -- from_user_id별 최신 간선만 채택한다(ReplacingMergeTree 병합 지연에도 정확).
 
-CREATE TABLE IF NOT EXISTS onda.user_merges
+CREATE TABLE IF NOT EXISTS nudgeon.user_merges
 (
     tenant_id    UUID,
     app_id       UUID,

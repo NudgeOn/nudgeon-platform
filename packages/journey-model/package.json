@@ -1,5 +1,5 @@
 {
-  "name": "@onda/journey-model",
+  "name": "@nudgeon/journey-model",
   "version": "0.1.0",
   "private": true,
   "description": "저니 정의 타입 + 검증. API·콘솔 공유. Go scheduler와 동형 구조.",
@@ -15,7 +15,7 @@
     "lint": "echo 'no lint yet'"
   },
   "dependencies": {
-    "@onda/segment-dsl": "workspace:*"
+    "@nudgeon/segment-dsl": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

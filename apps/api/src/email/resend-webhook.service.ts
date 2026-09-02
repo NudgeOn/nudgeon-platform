@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import type { LifecycleFailureClass, LifecycleStatus } from "@onda/queue-schemas";
+import type { LifecycleFailureClass, LifecycleStatus } from "@nudgeon/queue-schemas";
 
 /**
  * Resend 웹훅 → message.lifecycle 변환의 순수 함수 모음 (컨트롤러와 분리해 단위 테스트).
@@ -146,19 +146,19 @@ export function mapResendEvent(event: ResendEvent): MappedLifecycle | null {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * 발송 시 실은 태그에서 Onda message_id 추출.
- * Resend는 객체 형태 `{onda_message_id: "<uuid>"}`(웹훅 payload)와
+ * 발송 시 실은 태그에서 NudgeOn message_id 추출.
+ * Resend는 객체 형태 `{nudgeon_message_id: "<uuid>"}`(웹훅 payload)와
  * 배열 형태 `[{name, value}]`(API 요청 형식) 둘 다 존재하므로 모두 수용한다.
  */
 export function extractMessageId(tags: unknown): string | null {
   let value: unknown;
   if (Array.isArray(tags)) {
     const hit = tags.find(
-      (t) => t && typeof t === "object" && (t as { name?: unknown }).name === "onda_message_id",
+      (t) => t && typeof t === "object" && (t as { name?: unknown }).name === "nudgeon_message_id",
     ) as { value?: unknown } | undefined;
     value = hit?.value;
   } else if (tags && typeof tags === "object") {
-    value = (tags as Record<string, unknown>).onda_message_id;
+    value = (tags as Record<string, unknown>).nudgeon_message_id;
   }
   return typeof value === "string" && UUID_RE.test(value) ? value.toLowerCase() : null;
 }

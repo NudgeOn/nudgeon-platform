@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import type { SegmentDSL } from "@onda/segment-dsl";
+import type { SegmentDSL } from "@nudgeon/segment-dsl";
 import { useAppId } from "../../use-app-id";
 import { api } from "@/lib/api";
 import { SegmentBuilder } from "../SegmentBuilder";

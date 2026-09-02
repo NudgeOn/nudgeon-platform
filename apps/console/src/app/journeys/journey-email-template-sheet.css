@@ -31,8 +31,8 @@
 .j-template-file-name strong { min-width: 0; overflow: hidden; color: var(--j-text, #172b32); font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .j-template-file-name small { flex-shrink: 0; color: var(--j-muted, #71817f); font-size: 10px; }
 .j-template-success { display: inline-flex; flex-shrink: 0; align-items: center; gap: 4px; padding: 4px 7px; border-radius: 5px; background: var(--j-accent-soft, #e7f4f1); color: var(--j-accent, #0f7d73); font-size: 10px; font-weight: 650; white-space: nowrap; }
-.j-template-secondary-button { min-height: 34px; flex-shrink: 0; padding: 6px 10px; border: 1px solid var(--j-border, #dce6e3); border-radius: 7px; background: var(--j-surface, #fff); color: var(--j-text, #172b32); font: inherit; font-size: 11px; font-weight: 550; white-space: nowrap; }
-.j-template-secondary-button:hover { border-color: #9fc8c3; background: var(--j-accent-soft, #e7f4f1); color: var(--j-accent, #0f7d73); }
+.j-template-SECNUDGEONRy-button { min-height: 34px; flex-shrink: 0; padding: 6px 10px; border: 1px solid var(--j-border, #dce6e3); border-radius: 7px; background: var(--j-surface, #fff); color: var(--j-text, #172b32); font: inherit; font-size: 11px; font-weight: 550; white-space: nowrap; }
+.j-template-SECNUDGEONRy-button:hover { border-color: #9fc8c3; background: var(--j-accent-soft, #e7f4f1); color: var(--j-accent, #0f7d73); }
 .j-template-checks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; border: 1px solid var(--j-border, #dce6e3); border-radius: 9px; overflow: hidden; }
 .j-template-checks span { display: flex; min-width: 0; align-items: center; gap: 6px; padding: 11px 10px; color: var(--j-text, #435a5d); font-size: 11px; line-height: 1.4; word-break: keep-all; }
 .j-template-checks span + span { border-left: 1px solid var(--j-border, #dce6e3); }
@@ -72,7 +72,7 @@
   .j-template-icon-button { width: 44px; height: 44px; flex-basis: 44px; }
   .j-template-sheet-body { padding: 15px 18px 20px; }
   .j-template-file-summary { align-items: stretch; flex-direction: column; }
-  .j-template-secondary-button { width: 100%; min-height: 42px; }
+  .j-template-SECNUDGEONRy-button { width: 100%; min-height: 42px; }
   .j-template-success { margin-left: auto; }
   .j-template-preview-stage { min-height: 430px; padding: 10px; }
   .j-template-preview-stage iframe { min-height: 408px; }

@@ -1,0 +1,364 @@
+#!/bin/sh
+set -eu
+
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+COMPOSE_FILE="$ROOT_DIR/deploy/compose.safe.yaml"
+STATE_DIR=${NUDGEON_STATE_DIR:-"$ROOT_DIR/.nudgeon"}
+case "$STATE_DIR" in
+  /*) ;;
+  *) STATE_DIR="$ROOT_DIR/$STATE_DIR" ;;
+esac
+SECRETS_DIR="$STATE_DIR/secrets"
+ENV_FILE="$STATE_DIR/compose.env"
+PORT_EXPLICIT=0
+BIND_EXPLICIT=0
+VERSION_EXPLICIT=0
+[ "${NUDGEON_PORT+x}" = x ] && PORT_EXPLICIT=1
+[ "${NUDGEON_BIND_ADDRESS+x}" = x ] && BIND_EXPLICIT=1
+[ "${NUDGEON_VERSION+x}" = x ] && VERSION_EXPLICIT=1
+DEFAULT_PORT=${NUDGEON_PORT:-8080}
+DEFAULT_BIND=${NUDGEON_BIND_ADDRESS:-127.0.0.1}
+DEFAULT_VERSION=${NUDGEON_VERSION:-development}
+
+umask 077
+
+fail() {
+  printf 'NudgeOn: %s\n' "$*" >&2
+  exit 1
+}
+
+note() {
+  printf '%s\n' "$*"
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "'$1' 명령이 필요합니다."
+}
+
+random_hex() {
+  openssl rand -hex "$1"
+}
+
+secret_state_ready() {
+  [ -d "$STATE_DIR" ] && [ -d "$SECRETS_DIR" ] || return 1
+  for file in \
+    "$STATE_DIR/installation_id" \
+    "$SECRETS_DIR/postgres_password" \
+    "$SECRETS_DIR/clickhouse_password" \
+    "$SECRETS_DIR/redis_password" \
+    "$SECRETS_DIR/nudgeon_master_key" \
+    "$SECRETS_DIR/setup_token" \
+    "$SECRETS_DIR/database_url" \
+    "$SECRETS_DIR/clickhouse_url" \
+    "$SECRETS_DIR/redis_url" \
+    "$SECRETS_DIR/redis.conf"
+  do
+    [ -s "$file" ] || return 1
+  done
+}
+
+state_volumes_exist() {
+  for volume in nudgeon-safe_pg-data nudgeon-safe_ch-data nudgeon-safe_redis-data; do
+    if docker volume inspect "$volume" >/dev/null 2>&1; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+write_value() {
+  target=$1
+  mode=$2
+  value=$3
+  printf '%s\n' "$value" >"$target"
+  chmod "$mode" "$target"
+}
+
+create_state() {
+  require_command openssl
+  if secret_state_ready; then
+    return
+  fi
+  if [ -e "$STATE_DIR" ]; then
+    fail "상태 디렉터리가 불완전합니다: $STATE_DIR (자동으로 새 시크릿을 만들지 않습니다)."
+  fi
+  if state_volumes_exist; then
+    fail "기존 nudgeon-safe 데이터 볼륨이 있지만 설치 시크릿이 없습니다. 새 시크릿 생성 대신 복구가 필요합니다."
+  fi
+
+  parent=$(dirname -- "$STATE_DIR")
+  mkdir -p "$parent"
+  lock="$STATE_DIR.lock"
+  mkdir "$lock" 2>/dev/null || fail "다른 NudgeOn 초기화가 진행 중이거나 lock이 남아 있습니다: $lock"
+  temp="$STATE_DIR.init.$$"
+  cleanup() {
+    rm -rf -- "$temp"
+    rmdir "$lock" 2>/dev/null || true
+  }
+  trap cleanup EXIT HUP INT TERM
+
+  mkdir -p "$temp/secrets"
+  chmod 700 "$temp" "$temp/secrets"
+  postgres_password=$(random_hex 24)
+  clickhouse_password=$(random_hex 24)
+  redis_password=$(random_hex 24)
+
+  # File-backed Compose secrets need to be readable by non-root container users.
+  # The parent directories remain 0700, so other host users cannot traverse them.
+  write_value "$temp/secrets/postgres_password" 644 "$postgres_password"
+  write_value "$temp/secrets/clickhouse_password" 644 "$clickhouse_password"
+  write_value "$temp/secrets/redis_password" 644 "$redis_password"
+  write_value "$temp/secrets/nudgeon_master_key" 644 "$(openssl rand -base64 32 | tr -d '\n')"
+  write_value "$temp/secrets/database_url" 644 "postgres://nudgeon:${postgres_password}@postgres:5432/nudgeon"
+  write_value "$temp/secrets/clickhouse_url" 644 "http://nudgeon:${clickhouse_password}@clickhouse:8123/nudgeon"
+  write_value "$temp/secrets/redis_url" 644 "redis://:${redis_password}@redis:6379"
+  write_value "$temp/secrets/setup_token" 600 "$(random_hex 32)"
+  write_value "$temp/installation_id" 600 "$(random_hex 16)"
+  {
+    printf 'appendonly yes\n'
+    printf 'appendfsync everysec\n'
+    printf 'requirepass %s\n' "$redis_password"
+  } >"$temp/secrets/redis.conf"
+  chmod 644 "$temp/secrets/redis.conf"
+
+  mv "$temp" "$STATE_DIR"
+  rmdir "$lock"
+  trap - EXIT HUP INT TERM
+}
+
+write_compose_env() {
+  installation_id=$(sed -n '1p' "$STATE_DIR/installation_id")
+  temp="$ENV_FILE.tmp.$$"
+  {
+    printf 'NUDGEON_STATE_DIR=%s\n' "$STATE_DIR"
+    printf 'NUDGEON_INSTALLATION_ID=%s\n' "$installation_id"
+    printf 'NUDGEON_VERSION=%s\n' "$DEFAULT_VERSION"
+    printf 'NUDGEON_BIND_ADDRESS=%s\n' "$DEFAULT_BIND"
+    printf 'NUDGEON_PORT=%s\n' "$DEFAULT_PORT"
+    printf 'NUDGEON_PUBLIC_ORIGIN=http://localhost:%s\n' "$DEFAULT_PORT"
+    printf 'JOURNEY_GRAPH_V2_ENABLED=false\n'
+  } >"$temp"
+  chmod 600 "$temp"
+  mv "$temp" "$ENV_FILE"
+}
+
+load_persisted_runtime() {
+  [ -s "$ENV_FILE" ] || return 0
+  persisted_port=$(sed -n 's/^NUDGEON_PORT=//p' "$ENV_FILE" | tail -n 1)
+  persisted_bind=$(sed -n 's/^NUDGEON_BIND_ADDRESS=//p' "$ENV_FILE" | tail -n 1)
+  persisted_version=$(sed -n 's/^NUDGEON_VERSION=//p' "$ENV_FILE" | tail -n 1)
+  if [ "$PORT_EXPLICIT" -eq 0 ] && [ -n "$persisted_port" ]; then
+    DEFAULT_PORT=$persisted_port
+  fi
+  if [ "$BIND_EXPLICIT" -eq 0 ] && [ -n "$persisted_bind" ]; then
+    DEFAULT_BIND=$persisted_bind
+  fi
+  if [ "$VERSION_EXPLICIT" -eq 0 ] && [ -n "$persisted_version" ]; then
+    DEFAULT_VERSION=$persisted_version
+  fi
+}
+
+require_state() {
+  secret_state_ready || fail "설치 상태가 없습니다. 먼저 './nudgeon up'을 실행해 주세요."
+  [ -s "$ENV_FILE" ] || fail "Compose 상태 파일이 없습니다. './nudgeon up'으로 안전하게 복구해 주세요."
+  persisted_port=$(sed -n 's/^NUDGEON_PORT=//p' "$ENV_FILE" | tail -n 1)
+  persisted_bind=$(sed -n 's/^NUDGEON_BIND_ADDRESS=//p' "$ENV_FILE" | tail -n 1)
+  [ -n "$persisted_port" ] || fail "저장된 NUDGEON_PORT가 없습니다."
+  [ -n "$persisted_bind" ] || fail "저장된 NUDGEON_BIND_ADDRESS가 없습니다."
+  DEFAULT_PORT=$persisted_port
+  DEFAULT_BIND=$persisted_bind
+}
+
+compose() {
+  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+}
+
+preflight_docker() {
+  require_command docker
+  docker compose version >/dev/null 2>&1 || fail "Docker Compose v2가 필요합니다."
+  docker info >/dev/null 2>&1 || fail "Docker 엔진에 연결할 수 없습니다. Docker Desktop 또는 daemon을 시작해 주세요."
+}
+
+gateway_uses_requested_port() {
+  published=$(compose port gateway 8080 2>/dev/null || true)
+  [ "$published" = "127.0.0.1:$DEFAULT_PORT" ] || [ "$published" = "0.0.0.0:$DEFAULT_PORT" ]
+}
+
+preflight_runtime() {
+  case "$DEFAULT_PORT" in
+    ''|*[!0-9]*) fail "NUDGEON_PORT는 숫자여야 합니다." ;;
+  esac
+  [ "$DEFAULT_PORT" -ge 1 ] && [ "$DEFAULT_PORT" -le 65535 ] || fail "NUDGEON_PORT는 1~65535 범위여야 합니다."
+  [ "$DEFAULT_BIND" = "127.0.0.1" ] || fail "Safe boot는 현재 127.0.0.1 bind만 허용합니다. 원격 공개는 TLS gateway 이후 지원합니다."
+  if ! gateway_uses_requested_port && command -v lsof >/dev/null 2>&1; then
+    if lsof -nP -iTCP:"$DEFAULT_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+      fail "포트 ${DEFAULT_PORT}가 이미 사용 중입니다. NUDGEON_PORT로 다른 포트를 지정해 주세요."
+    fi
+  fi
+}
+
+setup_url() {
+  printf 'http://localhost:%s/setup\n' "$DEFAULT_PORT"
+}
+
+wait_for_gateway() {
+  require_command curl
+  attempts=0
+  while [ "$attempts" -lt 60 ]; do
+    if curl -fsS "http://localhost:$DEFAULT_PORT/setup-readyz" >/dev/null 2>&1; then
+      return 0
+    fi
+    attempts=$((attempts + 1))
+    sleep 2
+  done
+  return 1
+}
+
+file_mode() {
+  if stat -f '%Lp' "$1" >/dev/null 2>&1; then
+    stat -f '%Lp' "$1"
+  else
+    stat -c '%a' "$1"
+  fi
+}
+
+expect_mode() {
+  file=$1
+  expected=$2
+  actual=$(file_mode "$file")
+  if [ "$actual" != "$expected" ]; then
+    printf 'FAIL  %s mode=%s (expected %s)\n' "$file" "$actual" "$expected"
+    return 1
+  fi
+}
+
+assert_private_ports() {
+  rendered="$STATE_DIR/compose.rendered.$$"
+  compose config >"$rendered"
+  chmod 600 "$rendered"
+  if awk '
+    /^  [a-zA-Z0-9_-]+:$/ { service=$1; sub(/:$/, "", service) }
+    /^    ports:$/ && service ~ /^(postgres|clickhouse|redis|api|worker|console|setup-status)$/ { found=1 }
+    END { exit found ? 0 : 1 }
+  ' "$rendered"; then
+    rm -f "$rendered"
+    fail "safe stack의 내부 서비스에 host port가 선언되어 있습니다."
+  fi
+  rm -f "$rendered"
+}
+
+doctor_checks() {
+  bad=0
+  expect_mode "$STATE_DIR" 700 || bad=1
+  expect_mode "$SECRETS_DIR" 700 || bad=1
+  for file in \
+    "$SECRETS_DIR/postgres_password" \
+    "$SECRETS_DIR/clickhouse_password" \
+    "$SECRETS_DIR/redis_password" \
+    "$SECRETS_DIR/nudgeon_master_key" \
+    "$SECRETS_DIR/database_url" \
+    "$SECRETS_DIR/clickhouse_url" \
+    "$SECRETS_DIR/redis_url" \
+    "$SECRETS_DIR/redis.conf"
+  do
+    expect_mode "$file" 644 || bad=1
+  done
+  expect_mode "$SECRETS_DIR/setup_token" 600 || bad=1
+  expect_mode "$STATE_DIR/installation_id" 600 || bad=1
+  expect_mode "$ENV_FILE" 600 || bad=1
+  [ "$bad" -eq 0 ] || fail "상태 디렉터리 또는 시크릿 파일 권한을 수정한 뒤 다시 실행해 주세요."
+
+  compose config -q
+  assert_private_ports
+  note "PASS  Docker engine"
+  note "PASS  Compose config"
+  note "PASS  Host state directory is private; service secret files are container-readable"
+  note "PASS  Gateway is the only service with a published port"
+}
+
+doctor() {
+  require_state
+  preflight_docker
+  preflight_runtime
+  doctor_checks
+}
+
+status() {
+  require_state
+  preflight_docker
+  compose ps
+  if command -v curl >/dev/null 2>&1; then
+    response=$(curl -fsS "http://localhost:$DEFAULT_PORT/setup-status/v1/state" 2>/dev/null || true)
+    if [ -n "$response" ]; then
+      if command -v jq >/dev/null 2>&1; then
+        printf '%s\n' "$response" | jq .
+      else
+        printf '%s\n' "$response"
+      fi
+    fi
+  fi
+}
+
+up() {
+  preflight_docker
+  create_state
+  load_persisted_runtime
+  write_compose_env
+  preflight_runtime
+  doctor_checks
+  note "NudgeOn setup shell을 먼저 시작합니다..."
+  compose up -d --build setup-status gateway
+  wait_for_gateway || fail "setup shell이 제한 시간 안에 준비되지 않았습니다."
+  note "NudgeOn setup 화면: $(setup_url)"
+  note "나머지 서비스를 시작합니다. setup 화면에서 진행 상태를 확인할 수 있습니다."
+  if ! compose up -d --build; then
+    compose ps
+    fail "일부 서비스가 시작되지 않았습니다. 이미 열린 setup 화면 또는 './nudgeon status'에서 확인해 주세요."
+  fi
+  note "상태 확인: ./nudgeon status"
+}
+
+down() {
+  require_state
+  preflight_docker
+  compose down
+}
+
+logs() {
+  require_state
+  preflight_docker
+  compose logs --tail=200 "$@"
+}
+
+usage() {
+  cat <<'EOF'
+Usage: ./nudgeon <command>
+
+Commands:
+  up          Generate secrets and start the safe self-host stack
+  status      Show containers and redacted setup status
+  setup-url   Print the local Slice-A setup shell URL
+  doctor      Validate Docker, Compose, port, and secret permissions
+  logs [svc]  Show recent container logs
+  down        Stop containers without deleting data or secrets
+
+Environment:
+  NUDGEON_PORT=8080
+  NUDGEON_BIND_ADDRESS=127.0.0.1
+  NUDGEON_STATE_DIR=/path/to/root-only/state
+  NUDGEON_VERSION=development
+EOF
+}
+
+command=${1:-help}
+if [ "$#" -gt 0 ]; then shift; fi
+case "$command" in
+  up) up "$@" ;;
+  status) status "$@" ;;
+  setup-url) require_state; setup_url ;;
+  doctor) doctor ;;
+  logs) logs "$@" ;;
+  down) down ;;
+  help|-h|--help) usage ;;
+  *) usage >&2; fail "알 수 없는 명령: $command" ;;
+esac

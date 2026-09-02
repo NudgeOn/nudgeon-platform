@@ -282,20 +282,20 @@ func defaultTemplatePage() []map[string]any {
 			"updateDate":            "2026-09-01 12:00:00",
 			"buttons": []map[string]any{
 				{"ordering": 2, "type": "AL", "name": "앱에서 보기",
-					"schemeIos": "ondaapp://orders", "schemeAndroid": "ondaapp://orders"},
+					"schemeIos": "nudgeonapp://orders", "schemeAndroid": "nudgeonapp://orders"},
 				{"ordering": 1, "type": "WL", "name": "주문 상세 보기",
 					"linkMo": "https://m.example.com/orders", "linkPc": "https://example.com/orders"},
 			},
 		},
 		{
-			"templateCode":        "ONDA_PENDING_01",
+			"templateCode":        "NUDGEON_PENDING_01",
 			"templateName":        "심사 중 템플릿",
 			"templateContent":     "#{고객명}님 안녕하세요.",
 			"templateMessageType": "BA",
 			"templateStatus":      TemplateStatusRequested,
 		},
 		{
-			"templateCode":        "ONDA_REJECT_01",
+			"templateCode":        "NUDGEON_REJECT_01",
 			"templateName":        "반려된 템플릿",
 			"templateContent":     "(광고) #{고객명}님 혜택 안내",
 			"templateMessageType": "AD",

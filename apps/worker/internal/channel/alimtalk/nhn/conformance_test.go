@@ -3,7 +3,7 @@ package nhn
 import (
 	"testing"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk/conformance"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk/conformance"
 )
 
 // TestConformance — 계약 테스트 9종을 NHN 벤더에 돌린다.

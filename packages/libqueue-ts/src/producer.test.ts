@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { STREAMS } from "@onda/queue-schemas";
+import { STREAMS } from "@nudgeon/queue-schemas";
 import { EnvelopeValidationError, QueueProducer } from "./producer.js";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";

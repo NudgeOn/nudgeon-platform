@@ -1,4 +1,4 @@
-// onda-seed — 합성 데이터 생성기 (DEV-sub-08 S7).
+// nudgeon-seed — 합성 데이터 생성기 (DEV-sub-08 S7).
 // 지정 테넌트·앱에 유저 N명·디바이스·이벤트 M건을 PG/CH에 벌크 삽입한다.
 // G-6 세그먼트 성능·PT 부하 테스트·데모 데이터의 전제.
 //
@@ -20,7 +20,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/ondahq/onda/apps/worker/internal/config"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/config"
 )
 
 func main() {

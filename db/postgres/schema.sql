@@ -1,4 +1,4 @@
--- Onda — PostgreSQL 선언적 스키마 (Atlas 단일 출처)
+-- NudgeOn — PostgreSQL 선언적 스키마 (Atlas 단일 출처)
 -- 원칙: PG = 현재 상태(current state)만. append-only 수집 기록은 ClickHouse (PRD-01 5.2).
 -- 격리: 모든 테넌트 데이터 테이블은 tenant_id 컬럼 + 애플리케이션 레벨 강제 (PRD-06 4장).
 
@@ -186,7 +186,7 @@ CREATE TABLE alimtalk_templates (
   variables      text[] NOT NULL DEFAULT '{}',  -- 치환자 이름만 (#{} 표기 제외)
   buttons        jsonb NOT NULL DEFAULT '[]',
   quick_replies  jsonb NOT NULL DEFAULT '[]',
-  status         text NOT NULL DEFAULT 'unknown',      -- Onda 정규화 상태 (approved 등)
+  status         text NOT NULL DEFAULT 'unknown',      -- NudgeOn 정규화 상태 (approved 등)
   vendor_status  text NOT NULL DEFAULT '',             -- 벤더 원문 상태 코드 (진단용 보존)
   synced_at      timestamptz,
   created_at     timestamptz NOT NULL DEFAULT now(),

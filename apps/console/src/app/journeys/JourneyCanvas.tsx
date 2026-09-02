@@ -28,7 +28,7 @@ import {
   type OnNodesChange,
   type Connection,
 } from "@xyflow/react";
-import { outputPorts, type JourneyNode } from "@onda/journey-model";
+import { outputPorts, type JourneyNode } from "@nudgeon/journey-model";
 import { formatDuration, NODE_TOOLS } from "./journey-editor-model";
 import { connectionIssue, entryEdgeId, type GraphDefinition } from "./journey-graph";
 import { journeyStructureKey, layoutJourney, type CardKind } from "./journey-layout";

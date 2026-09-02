@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
 )
 
 // VendorStatusMissing — 벤더 목록에서 사라진 템플릿에 남기는 표식.
@@ -21,7 +21,7 @@ import (
 // 그래서 행은 남기되 status='rejected' + 이 표식으로 못 쓰는 상태임을 명시한다.
 // 승인 본문·변수는 그대로 두므로 콘솔은 "무엇이 사라졌는지"를 보여줄 수 있고,
 // 발송은 벤더에 다녀오기 전에 permanent_content로 끊긴다.
-const VendorStatusMissing = "ONDA_MISSING_IN_VENDOR"
+const VendorStatusMissing = "NUDGEON_MISSING_IN_VENDOR"
 
 // Scope — upsert 대상 범위. 템플릿은 발신프로필 단위로만 의미가 있다.
 type Scope struct {

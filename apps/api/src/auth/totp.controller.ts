@@ -67,7 +67,7 @@ export class TotpController {
   @Post("disable")
   @HttpCode(200)
   async disable(@Body() body: unknown, @Req() req: SessionRequest) {
-    const currentToken = (req.cookies?.["onda_session"] as string | undefined) ?? undefined;
+    const currentToken = (req.cookies?.["nudgeon_session"] as string | undefined) ?? undefined;
     const result = await this.totp.disable(
       req.member.tenantId,
       req.member.memberId,

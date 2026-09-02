@@ -162,7 +162,7 @@ export interface JourneyEntryPayload {
 /** send.push 스트림 payload — 멱등 키에 device_id 포함 (PRD-03 4.3 v0.2) */
 export interface SendPushPayload {
   idempotency_key: string;
-  /** 발송 시점 생성 안정 ID — message_log·푸시 data(onda.message_id)·SDK 도달/오픈 연결 (재검증 F) */
+  /** 발송 시점 생성 안정 ID — message_log·푸시 data(nudgeon.message_id)·SDK 도달/오픈 연결 (재검증 F) */
   message_id: string;
   user_id: string;
   device_id: string;

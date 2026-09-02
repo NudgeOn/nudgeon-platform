@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { outputPorts, type JourneyNode } from "@onda/journey-model";
+import { outputPorts, type JourneyNode } from "@nudgeon/journey-model";
 import { NODE_TOOLS } from "./journey-editor-model";
 import { nodeTitle, outgoingEdges, previewRemoval, type GraphDefinition, type RemovalPreview } from "./journey-graph";
 import { JourneyIcon } from "./journey-ui";

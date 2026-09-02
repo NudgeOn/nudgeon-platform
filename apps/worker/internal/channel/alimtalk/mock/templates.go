@@ -4,18 +4,18 @@ import (
 	"context"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
 )
 
 // 픽스처 템플릿 코드. 계약 테스트와 E2E가 이 코드로 발송한다.
 const (
 	// TemplateOrder — BA 기본형(정보성). Category()가 transactional이라 야간 제한 예외다.
-	TemplateOrder = "ONDA_ORDER_01"
+	TemplateOrder = "NUDGEON_ORDER_01"
 	// TemplateDelivery — EX 부가정보형(정보성). DS 배송조회 버튼을 단다.
-	TemplateDelivery = "ONDA_DELIVERY_01"
+	TemplateDelivery = "NUDGEON_DELIVERY_01"
 	// TemplatePromo — AD 광고추가형(광고성). IsAd()가 true라 AC(채널추가) 버튼이 허용된다.
-	TemplatePromo = "ONDA_PROMO_01"
+	TemplatePromo = "NUDGEON_PROMO_01"
 )
 
 // templates — 승인 템플릿 픽스처. 상태를 갖지 않도록 매번 새로 만든다.

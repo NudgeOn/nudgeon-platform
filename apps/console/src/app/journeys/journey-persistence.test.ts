@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { JourneyValidation, OndaClient } from "@onda/api-client";
+import type { JourneyValidation, NudgeOnClient } from "@nudgeon/api-client";
 import { createJourneyDraftSession, type JourneyDraftInput } from "./journey-persistence";
 
 const appId = "app-1";
@@ -20,9 +20,9 @@ function input(title = "첫 번째 알림"): JourneyDraftInput {
 
 function client() {
   return {
-    create: vi.fn<OndaClient["journeys"]["create"]>().mockResolvedValue({ id: journeyId, revision: validation.revision }),
-    update: vi.fn<OndaClient["journeys"]["update"]>().mockResolvedValue({ ok: true, revision: validation.revision }),
-    validate: vi.fn<OndaClient["journeys"]["validate"]>().mockResolvedValue(validation),
+    create: vi.fn<NudgeOnClient["journeys"]["create"]>().mockResolvedValue({ id: journeyId, revision: validation.revision }),
+    update: vi.fn<NudgeOnClient["journeys"]["update"]>().mockResolvedValue({ ok: true, revision: validation.revision }),
+    validate: vi.fn<NudgeOnClient["journeys"]["validate"]>().mockResolvedValue(validation),
   };
 }
 

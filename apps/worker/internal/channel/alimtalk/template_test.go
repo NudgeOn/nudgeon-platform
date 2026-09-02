@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ondahq/onda/apps/worker/internal/connector"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/connector"
 )
 
 func TestVariables(t *testing.T) {

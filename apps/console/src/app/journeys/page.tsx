@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ApiError, type JourneySummary } from "@onda/api-client";
+import { ApiError, type JourneySummary } from "@nudgeon/api-client";
 import Link from "next/link";
 import { useState } from "react";
 import { api } from "@/lib/api";

@@ -15,7 +15,7 @@ describe("normalizeArchivePath", () => {
 });
 
 describe("email HTML safety", () => {
-  it("preserves Onda variables while rejecting executable markup", () => {
+  it("preserves NudgeOn variables while rejecting executable markup", () => {
     expect(hasUnsafeEmailMarkup("<p>안녕하세요 {{ name }}님</p>")).toBe(false);
     expect(hasUnsafeEmailMarkup("<script>alert(1)</script>")).toBe(true);
     expect(hasUnsafeEmailMarkup("<img src=x onerror=alert(1)>")).toBe(true);

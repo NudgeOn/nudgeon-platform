@@ -23,7 +23,7 @@ const setupSchema = z.object({
   name: z.string().min(1).max(100),
 });
 
-const COOKIE = "onda_session";
+const COOKIE = "nudgeon_session";
 
 /**
  * 셀프호스팅 초기 관리자 셋업 (PRD-06 2.1, MODE=single_tenant).
@@ -69,7 +69,7 @@ export class BootstrapController {
       email: parsed.data.email,
       password: parsed.data.password,
       name: parsed.data.name,
-      tenantName: "Onda (self-hosted)",
+      tenantName: "NudgeOn (self-hosted)",
     });
     const { token, expiresAt } = await this.sessions.create(result.tenantId, result.memberId, {
       ip: req.ip,

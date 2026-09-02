@@ -2,7 +2,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import type { AlimtalkSender } from "@onda/api-client";
+import type { AlimtalkSender } from "@nudgeon/api-client";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

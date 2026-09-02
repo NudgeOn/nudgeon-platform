@@ -1,4 +1,4 @@
-# Onda 콘솔 화면 안내
+# NudgeOn 콘솔 화면 안내
 
 2026-09-02 기준 실제 화면입니다. `docker compose --profile full --profile app up`으로 띄운 인스턴스에서 데모 테넌트를 만들어 캡처했습니다. 숫자와 이름은 데모 데이터입니다.
 
@@ -25,6 +25,8 @@
 ### 온보딩 위저드 — 4단계
 
 SDK Key 확인 → 채널 크리덴셜 등록 → 첫 이벤트 수신 확인 → 테스트 발송. 3단계는 iOS·Android·React Native·Flutter 스니펫과 지금 바로 붙여넣을 수 있는 `curl`을 제공하고, 첫 이벤트가 들어올 때까지 5초마다 확인합니다.
+
+> 이 화면은 현재 알파 구현이다. Docker 기동, 안전한 최초 Owner claim, Test Inbox, 서버 저장형 재개를 하나로 잇는 후속 목표는 [P0 Docker Setup Wizard PRD](DOCKER-SETUP-WIZARD-PRD.md)에 정의되어 있으며 아직 출시된 기능이 아니다.
 
 ![온보딩](assets/console/19-onboarding.png)
 

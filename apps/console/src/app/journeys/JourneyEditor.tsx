@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError, type JourneyValidation } from "@onda/api-client";
-import { toGraphDefinition, type JourneyDefinition, type JourneyNode } from "@onda/journey-model";
+import { ApiError, type JourneyValidation } from "@nudgeon/api-client";
+import { toGraphDefinition, type JourneyDefinition, type JourneyNode } from "@nudgeon/journey-model";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";

@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS alimtalk_templates (
   variables      text[] NOT NULL DEFAULT '{}',  -- 치환자 이름만 (#{} 표기 제외)
   buttons        jsonb NOT NULL DEFAULT '[]',
   quick_replies  jsonb NOT NULL DEFAULT '[]',
-  status         text NOT NULL DEFAULT 'unknown',      -- Onda 정규화 상태 (approved 등)
+  status         text NOT NULL DEFAULT 'unknown',      -- NudgeOn 정규화 상태 (approved 등)
   vendor_status  text NOT NULL DEFAULT '',             -- 벤더 원문 상태 코드 (진단용 보존)
   synced_at      timestamptz,
   created_at     timestamptz NOT NULL DEFAULT now(),

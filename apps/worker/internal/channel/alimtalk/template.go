@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/ondahq/onda/apps/worker/internal/connector"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/connector"
 )
 
 // 카카오 원본 제약 (벤더 무관 — 어느 딜러사를 쓰든 동일하다).

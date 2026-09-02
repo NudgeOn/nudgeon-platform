@@ -18,7 +18,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
 )
 
 type receiptTestCH struct {
@@ -67,9 +67,9 @@ type receiptFixture struct {
 
 func newReceiptFixture(t *testing.T) *receiptFixture {
 	t.Helper()
-	dsn := os.Getenv("ONDA_RECEIPT_TEST_DATABASE_URL")
+	dsn := os.Getenv("NUDGEON_RECEIPT_TEST_DATABASE_URL")
 	if dsn == "" {
-		t.Skip("set ONDA_RECEIPT_TEST_DATABASE_URL to an isolated local PostgreSQL database")
+		t.Skip("set NUDGEON_RECEIPT_TEST_DATABASE_URL to an isolated local PostgreSQL database")
 	}
 	u, err := url.Parse(dsn)
 	if err != nil || (u.Hostname() != "127.0.0.1" && u.Hostname() != "localhost" && u.Hostname() != "::1") {
@@ -375,9 +375,9 @@ func TestReceiptDeletionIncludesMergedAliasAndExitsPendingExecution(t *testing.T
 }
 
 func TestReceiptProjectionActualClickHouse(t *testing.T) {
-	dsn := os.Getenv("ONDA_RECEIPT_TEST_CLICKHOUSE_DSN")
+	dsn := os.Getenv("NUDGEON_RECEIPT_TEST_CLICKHOUSE_DSN")
 	if dsn == "" {
-		t.Skip("set ONDA_RECEIPT_TEST_CLICKHOUSE_DSN for actual ClickHouse verification")
+		t.Skip("set NUDGEON_RECEIPT_TEST_CLICKHOUSE_DSN for actual ClickHouse verification")
 	}
 	f := newReceiptFixture(t)
 	u, err := url.Parse(dsn)

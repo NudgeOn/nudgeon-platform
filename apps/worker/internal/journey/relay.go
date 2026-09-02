@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
 // RunRelay는 outbox 릴레이다. 미발행 outbox 행을 send.push로 발행하고 published 마킹한다.

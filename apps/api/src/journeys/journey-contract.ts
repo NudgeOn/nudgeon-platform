@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import type { SegmentDSL } from "@onda/segment-dsl";
-import type { JourneyDefinition } from "@onda/journey-model";
+import type { SegmentDSL } from "@nudgeon/segment-dsl";
+import type { JourneyDefinition } from "@nudgeon/journey-model";
 
 const identifierSchema = z.string().min(1).max(128).refine(value => Buffer.byteLength(value, "utf8") <= 128, {
   message: "ID는 UTF-8 최대 128바이트입니다",

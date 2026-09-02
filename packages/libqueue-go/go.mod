@@ -1,4 +1,4 @@
-module github.com/ondahq/onda/packages/libqueue-go
+module github.com/nudgeon/nudgeon-platform/packages/libqueue-go
 
 go 1.23
 

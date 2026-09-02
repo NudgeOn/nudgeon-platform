@@ -1,9 +1,9 @@
-# Onda API — OpenAPI 3.1 스펙 (단일 출처, ADR-5)
+# NudgeOn API — OpenAPI 3.1 스펙 (단일 출처, ADR-5)
 # TODO(S3): 이 스펙에서 TS 클라이언트·콘솔 훅을 코드젠으로 생성하고
 #           src/의 수기 클라이언트를 대체한다. 스펙 드리프트 검사는 IT-6.
 openapi: 3.1.0
 info:
-  title: Onda API
+  title: NudgeOn API
   version: 0.1.0
   description: 관리 API + Ingestion API
 servers:
@@ -609,7 +609,7 @@ components:
     sessionCookie:
       type: apiKey
       in: cookie
-      name: onda_session
+      name: nudgeon_session
     apiKey:
       type: http
       scheme: bearer

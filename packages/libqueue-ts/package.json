@@ -1,5 +1,5 @@
 {
-  "name": "@onda/libqueue",
+  "name": "@nudgeon/libqueue",
   "version": "0.1.0",
   "private": true,
   "description": "Redis Streams 큐 래퍼 (TS) — 큐 접근의 유일한 경로 (ADR-1)",
@@ -14,7 +14,7 @@
     "lint": "echo 'no lint yet'"
   },
   "dependencies": {
-    "@onda/queue-schemas": "workspace:*",
+    "@nudgeon/queue-schemas": "workspace:*",
     "ajv": "^8.17.0",
     "ajv-formats": "^3.0.0"
   },

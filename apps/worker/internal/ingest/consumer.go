@@ -16,9 +16,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/ondahq/onda/apps/worker/internal/clock"
-	"github.com/ondahq/onda/apps/worker/internal/metrics"
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/metrics"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
 const (
@@ -323,7 +323,7 @@ func (c *Consumer) handleTrack(ctx context.Context, tenantID, appID string, p *I
 func (c *Consumer) deleteFromClickHouse(ctx context.Context, tenantID, appID, userID string) {
 	tables := []string{"events", "attr_changes", "message_log"}
 	for _, tbl := range tables {
-		q := "ALTER TABLE onda." + tbl + " DELETE WHERE tenant_id = ? AND app_id = ? AND user_id = ?"
+		q := "ALTER TABLE nudgeon." + tbl + " DELETE WHERE tenant_id = ? AND app_id = ? AND user_id = ?"
 		if err := c.ch.Exec(ctx, q, tenantID, appID, userID); err != nil {
 			c.logger.Error("CH 삭제 mutation 실패", "table", tbl, "user", userID, "err", err)
 		}

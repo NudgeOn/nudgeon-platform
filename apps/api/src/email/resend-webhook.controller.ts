@@ -13,8 +13,8 @@ import {
 import type { ClickHouseClient } from "@clickhouse/client";
 import type { Request } from "express";
 import type { Pool } from "pg";
-import { QueueProducer } from "@onda/libqueue";
-import { STREAMS, type MessageLifecyclePayload } from "@onda/queue-schemas";
+import { QueueProducer } from "@nudgeon/libqueue";
+import { STREAMS, type MessageLifecyclePayload } from "@nudgeon/queue-schemas";
 import { CLICKHOUSE, PG, QUEUE } from "../infra/infra.module";
 import { decryptEnvelope, loadMasterKey } from "../crypto/envelope";
 import {

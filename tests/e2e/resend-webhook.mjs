@@ -5,8 +5,8 @@ import { createHmac, randomUUID } from "node:crypto";
 
 const BASE = process.env.API_URL ?? "http://localhost:8080";
 const CH = process.env.CLICKHOUSE_HTTP ?? "http://localhost:8123";
-const CH_AUTH = process.env.CLICKHOUSE_AUTH ?? "onda:onda";
-const SECRET_RAW = Buffer.from("onda-e2e-webhook-secret-0123456789ab");
+const CH_AUTH = process.env.CLICKHOUSE_AUTH ?? "nudgeon:nudgeon";
+const SECRET_RAW = Buffer.from("nudgeon-e2e-webhook-secret-0123456789ab");
 const WEBHOOK_SECRET = "whsec_" + SECRET_RAW.toString("base64");
 
 async function req(method, path, { cookie, body, headers = {}, raw } = {}) {
@@ -26,7 +26,7 @@ async function req(method, path, { cookie, body, headers = {}, raw } = {}) {
 }
 
 async function ch(sql) {
-  const res = await fetch(`${CH}/?database=onda`, {
+  const res = await fetch(`${CH}/?database=nudgeon`, {
     method: "POST",
     headers: { authorization: "Basic " + Buffer.from(CH_AUTH).toString("base64") },
     body: sql,
@@ -97,24 +97,24 @@ const main = async () => {
 
   // 4. 서명 실패·만료 → 401
   const base = (type, data) => ({ type, created_at: new Date().toISOString(), data: { created_at: new Date().toISOString(), from: "noreply@example.com", to: ["u@example.com"], subject: "e2e", ...data } });
-  const bad = await webhook(appId, base("email.delivered", { email_id: "em_x", tags: { onda_message_id: m1 } }), { badSecret: true });
+  const bad = await webhook(appId, base("email.delivered", { email_id: "em_x", tags: { nudgeon_message_id: m1 } }), { badSecret: true });
   assert(bad.status === 401, `잘못된 서명 → 401 (got ${bad.status})`);
-  const stale = await webhook(appId, base("email.delivered", { email_id: "em_x", tags: { onda_message_id: m1 } }), { staleTs: true });
+  const stale = await webhook(appId, base("email.delivered", { email_id: "em_x", tags: { nudgeon_message_id: m1 } }), { staleTs: true });
   assert(stale.status === 401, `만료된 타임스탬프 → 401 (got ${stale.status})`);
 
   // 5. 정상 이벤트: m1은 태그(object) delivered+opened, m2는 태그 없이 email_id 폴백 delivered + clicked(array 태그)
-  const ok1 = await webhook(appId, base("email.delivered", { email_id: "em_" + m1.slice(0, 8), tags: { onda_message_id: m1 } }));
+  const ok1 = await webhook(appId, base("email.delivered", { email_id: "em_" + m1.slice(0, 8), tags: { nudgeon_message_id: m1 } }));
   assert(ok1.status === 200 && ok1.json?.accepted === true, `delivered(tag object) 수락 ${ok1.status} ${JSON.stringify(ok1.json)}`);
-  const ok2 = await webhook(appId, base("email.opened", { email_id: "em_" + m1.slice(0, 8), tags: { onda_message_id: m1 } }));
+  const ok2 = await webhook(appId, base("email.opened", { email_id: "em_" + m1.slice(0, 8), tags: { nudgeon_message_id: m1 } }));
   assert(ok2.status === 200 && ok2.json?.accepted === true, `opened 수락`);
   const ok3 = await webhook(appId, base("email.delivered", { email_id: em2 }));
   assert(ok3.status === 200 && ok3.json?.accepted === true, `delivered(provider_message_id 폴백) 수락 ${JSON.stringify(ok3.json)}`);
-  const ok4 = await webhook(appId, base("email.clicked", { email_id: em2, tags: [{ name: "onda_message_id", value: m2 }], click: { link: "https://example.com/x" } }));
+  const ok4 = await webhook(appId, base("email.clicked", { email_id: em2, tags: [{ name: "nudgeon_message_id", value: m2 }], click: { link: "https://example.com/x" } }));
   assert(ok4.status === 200 && ok4.json?.accepted === true, `clicked(tag array) 수락`);
   const ign = await webhook(appId, base("email.delivery_delayed", { email_id: em2 }));
   assert(ign.status === 200 && ign.json?.accepted === false, `delivery_delayed 무시`);
   // 재전송(동일 이벤트) → 중복 제거 확인용
-  await webhook(appId, base("email.delivered", { email_id: "em_" + m1.slice(0, 8), tags: { onda_message_id: m1 } }));
+  await webhook(appId, base("email.delivered", { email_id: "em_" + m1.slice(0, 8), tags: { nudgeon_message_id: m1 } }));
 
   // 6. 워커 lifecycle 소비 → CH
   const rows = await until(async () => {
@@ -137,7 +137,7 @@ const main = async () => {
   assert(rep.json.clicked === 1, `clicked=1 (got ${rep.json.clicked})`);
 
   // 8. 다른 앱의 webhook URL로 같은 서명 → 크리덴셜 없음 401 (테넌트 격리)
-  const other = await webhook(randomUUID(), base("email.delivered", { email_id: "x", tags: { onda_message_id: m1 } }));
+  const other = await webhook(randomUUID(), base("email.delivered", { email_id: "x", tags: { nudgeon_message_id: m1 } }));
   assert(other.status === 401 || other.status === 404, `미등록 앱 → 401/404 (got ${other.status})`);
 
   console.log("\nRESEND WEBHOOK E2E: PASS");

@@ -47,8 +47,8 @@ func TestIgnorablePostgresErrorsRequireDuplicateObjectSQLState(t *testing.T) {
 
 func TestClickHouseAlreadyExistsCompatibility(t *testing.T) {
 	for _, err := range []error{
-		&clickhouse.Exception{Code: 57, Message: "Table onda.events already exists"},
-		fmt.Errorf("bootstrap: %w", errors.New("Database ONDA ALREADY EXISTS")),
+		&clickhouse.Exception{Code: 57, Message: "Table nudgeon.events already exists"},
+		fmt.Errorf("bootstrap: %w", errors.New("Database NUDGEON ALREADY EXISTS")),
 	} {
 		if !ignorableClickHouseErr(err) {
 			t.Fatalf("ClickHouse already-exists error should remain ignorable: %v", err)
@@ -58,6 +58,38 @@ func TestClickHouseAlreadyExistsCompatibility(t *testing.T) {
 		if ignorableClickHouseErr(err) {
 			t.Fatalf("unrelated ClickHouse error should fail migration: %v", err)
 		}
+	}
+}
+
+func TestPostgresMigrationPhases(t *testing.T) {
+	tests := []struct {
+		name          string
+		hasBaseSchema bool
+		want          []postgresMigrationPhase
+	}{
+		{
+			name:          "fresh database creates enum types before upgrades",
+			hasBaseSchema: false,
+			want:          []postgresMigrationPhase{postgresSchemaPhase, postgresUpgradePhase},
+		},
+		{
+			name:          "existing database retains upgrades before schema",
+			hasBaseSchema: true,
+			want:          []postgresMigrationPhase{postgresUpgradePhase, postgresSchemaPhase},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := postgresMigrationPhases(test.hasBaseSchema)
+			if len(got) != len(test.want) {
+				t.Fatalf("phase count = %d, want %d", len(got), len(test.want))
+			}
+			for i := range test.want {
+				if got[i] != test.want[i] {
+					t.Fatalf("phase %d = %d, want %d", i, got[i], test.want[i])
+				}
+			}
+		})
 	}
 }
 
@@ -71,14 +103,14 @@ func TestSplitSQLMessageLifecycleMigration(t *testing.T) {
 	if len(stmts) != 2 {
 		t.Fatalf("2개 문 기대, got %d: %q", len(stmts), stmts)
 	}
-	if !strings.HasPrefix(stmts[0], "CREATE TABLE IF NOT EXISTS onda.message_lifecycle") ||
+	if !strings.HasPrefix(stmts[0], "CREATE TABLE IF NOT EXISTS nudgeon.message_lifecycle") ||
 		!strings.Contains(stmts[0], "ENGINE = ReplacingMergeTree(received_at)") {
 		t.Errorf("CREATE 문 불일치: %q", stmts[0])
 	}
 	if strings.Contains(stmts[0], "--") {
 		t.Errorf("주석이 제거되지 않음: %q", stmts[0])
 	}
-	if stmts[1] != "ALTER TABLE onda.message_log ADD COLUMN IF NOT EXISTS provider_message_id String DEFAULT ''" {
+	if stmts[1] != "ALTER TABLE nudgeon.message_log ADD COLUMN IF NOT EXISTS provider_message_id String DEFAULT ''" {
 		t.Errorf("ALTER 문 불일치: %q", stmts[1])
 	}
 }

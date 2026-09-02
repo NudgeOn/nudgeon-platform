@@ -30,10 +30,10 @@ const validate = (id: string, data: unknown) => {
   return { ok, errors: v.errors };
 };
 
-const SEND = "https://onda.dev/schemas/queue/send.message.v1.json";
-const MANIFEST = "https://onda.dev/schemas/connector/manifest.v0.json";
-const LIFECYCLE = "https://onda.dev/schemas/queue/message.lifecycle.v1.json";
-const TPLSYNC = "https://onda.dev/schemas/queue/alimtalk.template.sync.v1.json";
+const SEND = "https://nudgeon.dev/schemas/queue/send.message.v1.json";
+const MANIFEST = "https://nudgeon.dev/schemas/connector/manifest.v0.json";
+const LIFECYCLE = "https://nudgeon.dev/schemas/queue/message.lifecycle.v1.json";
+const TPLSYNC = "https://nudgeon.dev/schemas/queue/alimtalk.template.sync.v1.json";
 
 describe("schemas compile", () => {
   it("모든 schemas/*.schema.json 이 2020-12로 컴파일된다", () => {

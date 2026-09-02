@@ -1,4 +1,4 @@
-import type { SegmentDSL } from "@onda/segment-dsl";
+import type { SegmentDSL } from "@nudgeon/segment-dsl";
 
 /** v1 remains an immutable linear definition. v2 stores an exclusive DAG. */
 export type MessageCategory = "marketing" | "transactional";

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
 )
 
 // caseValidateCredentials — 유효한 키는 통과하고, 무효한 키는 반드시 credential_auth여야 한다.

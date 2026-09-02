@@ -45,7 +45,7 @@ function decryptSecret(buf: Buffer): Buffer {
 /**
  * TOTP 2FA (PRD-06 2.1, DEV-sub-07 T-4).
  * 등록→로그인→드리프트±1→재사용 방지→5회 실패 잠금→백업 코드→Owner/Admin 리셋.
- * 시크릿은 봉투 암호화(ONDA_MASTER_KEY)로 저장, 백업 코드는 Argon2id 해시.
+ * 시크릿은 봉투 암호화(NUDGEON_MASTER_KEY)로 저장, 백업 코드는 Argon2id 해시.
  */
 @Injectable()
 export class TotpService {

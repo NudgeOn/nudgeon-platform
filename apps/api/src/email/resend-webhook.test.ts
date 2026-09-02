@@ -3,8 +3,8 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { ClickHouseClient } from "@clickhouse/client";
 import type { Pool } from "pg";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { QueueProducer } from "@onda/libqueue";
-import { STREAMS } from "@onda/queue-schemas";
+import type { QueueProducer } from "@nudgeon/libqueue";
+import { STREAMS } from "@nudgeon/queue-schemas";
 import { encryptEnvelope, loadMasterKey } from "../crypto/envelope";
 import { ResendWebhookController } from "./resend-webhook.controller";
 import {
@@ -107,11 +107,11 @@ describe("mapResendEvent", () => {
 
 describe("extractMessageId", () => {
   const id = randomUUID();
-  it("객체 형태 태그", () => expect(extractMessageId({ onda_message_id: id, campaign: "x" })).toBe(id));
-  it("배열 형태 태그", () => expect(extractMessageId([{ name: "campaign", value: "x" }, { name: "onda_message_id", value: id }])).toBe(id));
+  it("객체 형태 태그", () => expect(extractMessageId({ nudgeon_message_id: id, campaign: "x" })).toBe(id));
+  it("배열 형태 태그", () => expect(extractMessageId([{ name: "campaign", value: "x" }, { name: "nudgeon_message_id", value: id }])).toBe(id));
   it("없거나 UUID가 아니면 null", () => {
     expect(extractMessageId(undefined)).toBeNull();
-    expect(extractMessageId({ onda_message_id: "not-a-uuid" })).toBeNull();
+    expect(extractMessageId({ nudgeon_message_id: "not-a-uuid" })).toBeNull();
     expect(extractMessageId([{ name: "other", value: id }])).toBeNull();
     expect(extractMessageId("string")).toBeNull();
   });
@@ -135,7 +135,7 @@ describe("ResendWebhookController", () => {
   const messageId = randomUUID();
 
   beforeAll(() => {
-    process.env.ONDA_MASTER_KEY = randomBytes(32).toString("base64");
+    process.env.NUDGEON_MASTER_KEY = randomBytes(32).toString("base64");
   });
 
   function harness(opts: { secret?: string | null; credential?: boolean; chHit?: string | null } = {}) {
@@ -165,11 +165,11 @@ describe("ResendWebhookController", () => {
     } as unknown as Parameters<ResendWebhookController["receive"]>[1];
   }
 
-  it("태그의 onda_message_id로 lifecycle 발행 (source=provider_callback, connector=email_resend)", async () => {
+  it("태그의 nudgeon_message_id로 lifecycle 발행 (source=provider_callback, connector=email_resend)", async () => {
     const { ctrl, queue, ch } = harness();
     const res = await ctrl.receive(appId, request({
       type: "email.clicked", created_at: "2026-09-02T11:00:00.000Z",
-      data: { email_id: "re_abc", created_at: "2026-09-02T11:00:01.000Z", tags: { onda_message_id: messageId }, click: { link: "https://x.test/p" } },
+      data: { email_id: "re_abc", created_at: "2026-09-02T11:00:01.000Z", tags: { nudgeon_message_id: messageId }, click: { link: "https://x.test/p" } },
     }));
     expect(res).toEqual({ accepted: true, status: "clicked" });
     expect(ch.query).not.toHaveBeenCalled();
@@ -206,14 +206,14 @@ describe("ResendWebhookController", () => {
 
   it("매핑 없는 타입(delivery_delayed)은 200 {accepted:false, ignored}", async () => {
     const { ctrl, queue } = harness();
-    const res = await ctrl.receive(appId, request({ type: "email.delivery_delayed", data: { email_id: "re_abc", tags: { onda_message_id: messageId } } }));
+    const res = await ctrl.receive(appId, request({ type: "email.delivery_delayed", data: { email_id: "re_abc", tags: { nudgeon_message_id: messageId } } }));
     expect(res).toEqual({ accepted: false, ignored: "email.delivery_delayed" });
     expect(queue.publish).not.toHaveBeenCalled();
   });
 
   it("서명 불일치 → 401, 발행 없음", async () => {
     const { ctrl, queue } = harness();
-    await expect(ctrl.receive(appId, request({ type: "email.sent", data: { tags: { onda_message_id: messageId } } }, OTHER_SECRET)))
+    await expect(ctrl.receive(appId, request({ type: "email.sent", data: { tags: { nudgeon_message_id: messageId } } }, OTHER_SECRET)))
       .rejects.toMatchObject({ status: 401 });
     expect(queue.publish).not.toHaveBeenCalled();
   });
@@ -227,7 +227,7 @@ describe("ResendWebhookController", () => {
 
   it("bounced는 failure_class=invalid_target로 실린다", async () => {
     const { ctrl, queue } = harness();
-    await ctrl.receive(appId, request({ type: "email.bounced", data: { email_id: "re_b", tags: [{ name: "onda_message_id", value: messageId }], bounce: { message: "User unknown" } } }));
+    await ctrl.receive(appId, request({ type: "email.bounced", data: { email_id: "re_b", tags: [{ name: "nudgeon_message_id", value: messageId }], bounce: { message: "User unknown" } } }));
     expect((queue.publish.mock.calls[0] as unknown as [string, { payload: Record<string, unknown> }])[1].payload).toMatchObject({
       status: "bounced", failure_class: "invalid_target", failure_detail: "User unknown",
     });

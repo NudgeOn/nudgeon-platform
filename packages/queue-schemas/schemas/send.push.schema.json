@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://onda.dev/schemas/queue/send.push.json",
+  "$id": "https://nudgeon.dev/schemas/queue/send.push.json",
   "title": "SendPushPayload",
   "description": "send.push 스트림 payload (DEV-MAIN §5). idempotency_key = (journey_id, version, user_id, node_index, device_id) — PRD-03 4.3 v0.2. 테스트 발송은 test: 접두 키 사용.",
   "type": "object",
@@ -10,7 +10,7 @@
     "message_id": {
       "type": "string",
       "format": "uuid",
-      "description": "발송 시점에 생성하는 안정적 식별자. message_log·푸시 data(onda.message_id)·SDK 도달/오픈 이벤트를 같은 ID로 연결한다 (재검증 F)."
+      "description": "발송 시점에 생성하는 안정적 식별자. message_log·푸시 data(nudgeon.message_id)·SDK 도달/오픈 이벤트를 같은 ID로 연결한다 (재검증 F)."
     },
     "user_id": { "type": "string", "format": "uuid" },
     "device_id": { "type": "string", "format": "uuid" },

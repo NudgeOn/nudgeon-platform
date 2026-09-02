@@ -20,15 +20,31 @@ type Config struct {
 // (예: migrate/seed는 Redis 불필요). 조용한 localhost 기본값은 예측 불가 동작을 낳으므로 금지한다.
 // HEALTH_ADDR는 외부 연결 대상이 아닌 바인드 주소이므로 안전한 기본값을 유지한다.
 func Load(required ...string) (Config, error) {
+	databaseURL, err := envOrFile("DATABASE_URL")
+	if err != nil {
+		return Config{}, err
+	}
+	redisURL, err := envOrFile("REDIS_URL")
+	if err != nil {
+		return Config{}, err
+	}
+	clickHouseURL, err := envOrFile("CLICKHOUSE_URL")
+	if err != nil {
+		return Config{}, err
+	}
 	cfg := Config{
-		DatabaseURL:   os.Getenv("DATABASE_URL"),
-		RedisURL:      os.Getenv("REDIS_URL"),
-		ClickHouseURL: os.Getenv("CLICKHOUSE_URL"),
+		DatabaseURL:   databaseURL,
+		RedisURL:      redisURL,
+		ClickHouseURL: clickHouseURL,
 		HealthAddr:    cmp.Or(os.Getenv("HEALTH_ADDR"), ":9090"),
 	}
 	var missing []string
 	for _, key := range required {
-		if strings.TrimSpace(os.Getenv(key)) == "" {
+		value, err := envOrFile(key)
+		if err != nil {
+			return Config{}, err
+		}
+		if strings.TrimSpace(value) == "" {
 			missing = append(missing, key)
 		}
 	}
@@ -38,4 +54,20 @@ func Load(required ...string) (Config, error) {
 			strings.Join(missing, ", "))
 	}
 	return cfg, nil
+}
+
+func envOrFile(key string) (string, error) {
+	inline := strings.TrimSpace(os.Getenv(key))
+	file := strings.TrimSpace(os.Getenv(key + "_FILE"))
+	if inline != "" && file != "" {
+		return "", fmt.Errorf("%s와 %s_FILE은 동시에 설정할 수 없습니다", key, key)
+	}
+	if file == "" {
+		return inline, nil
+	}
+	raw, err := os.ReadFile(file)
+	if err != nil {
+		return "", fmt.Errorf("%s_FILE 읽기: %w", key, err)
+	}
+	return strings.TrimSpace(string(raw)), nil
 }

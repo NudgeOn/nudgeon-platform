@@ -145,10 +145,10 @@ describe("planCredential", () => {
 
   it("슬롯 매핑도 함께 보낸다 — 서버가 extra 위에 얹는 호환용이다", () => {
     const plan = planCredential(fields, {
-      app_key: "AK", secret_key: "SK", sender_key: "@onda", base_url: "https://x.example.com",
+      app_key: "AK", secret_key: "SK", sender_key: "@nudgeon", base_url: "https://x.example.com",
     });
     expect(plan.credential).toEqual({
-      api_key: "AK", secret_key: "SK", sender_key: "@onda", base_url: "https://x.example.com",
+      api_key: "AK", secret_key: "SK", sender_key: "@nudgeon", base_url: "https://x.example.com",
     });
   });
 
@@ -191,16 +191,16 @@ describe("planCredential", () => {
         user_id: { type: "string", title: "발신 계정 ID" },
       },
     });
-    const plan = planCredential(withExtra, { api_key: "ak", user_id: "onda" });
-    expect(plan.extra).toEqual({ api_key: "ak", user_id: "onda" });
+    const plan = planCredential(withExtra, { api_key: "ak", user_id: "nudgeon" });
+    expect(plan.extra).toEqual({ api_key: "ak", user_id: "nudgeon" });
   });
 
   it("api_key에 매핑되는 필드가 없어도 저장한다 — 무엇이 필요한지는 매니페스트가 정한다", () => {
     const odd = schemaFields({
       type: "object", required: ["user_id"], properties: { user_id: { type: "string", title: "계정" } },
     });
-    const plan = planCredential(odd, { user_id: "onda" });
-    expect(plan.extra).toEqual({ user_id: "onda" });
+    const plan = planCredential(odd, { user_id: "nudgeon" });
+    expect(plan.extra).toEqual({ user_id: "nudgeon" });
     expect(canSubmit(plan)).toBe(true);
   });
 
@@ -208,7 +208,7 @@ describe("planCredential", () => {
     const odd = schemaFields({
       type: "object", required: ["user_id"], properties: { user_id: { type: "string" } },
     });
-    expect(planCredential(odd, { user_id: "onda" }).credential).toEqual({});
+    expect(planCredential(odd, { user_id: "nudgeon" }).credential).toEqual({});
   });
 
   it("아무 값도 없으면 저장할 수 없다 — 서버가 빈 크리덴셜을 거절한다", () => {
@@ -223,7 +223,7 @@ describe("planCredential", () => {
       required: ["user_id", "password"],
       properties: { user_id: { type: "string" }, password: { type: "string", "x-secret": true } },
     });
-    const plan = planCredential(odd, { user_id: "onda", password: "pw" });
+    const plan = planCredential(odd, { user_id: "nudgeon", password: "pw" });
     expect(plan.credential).toEqual({ secret_key: "pw" });
     expect(plan.credential.api_key).toBeUndefined();
     expect(canSubmit(plan)).toBe(true);

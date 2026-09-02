@@ -1,5 +1,5 @@
 import { graphlib, layout } from "@dagrejs/dagre";
-import { outputPorts, type JourneyNode } from "@onda/journey-model";
+import { outputPorts, type JourneyNode } from "@nudgeon/journey-model";
 import type { GraphDefinition } from "./journey-graph";
 
 export type CardKind = "entry" | "exit" | JourneyNode["type"];

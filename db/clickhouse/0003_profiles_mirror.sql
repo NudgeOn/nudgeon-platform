@@ -1,4 +1,4 @@
--- Onda — profiles_mirror (PRD-02 3.1). PG 현재 상태를 CH로 미러링해
+-- NudgeOn — profiles_mirror (PRD-02 3.1). PG 현재 상태를 CH로 미러링해
 -- 세그먼트 평가를 CH 단일 쿼리로 만든다 (속성·채널 조건 = 미러, 행동 조건 = events 조인).
 --
 -- 동기화: ingest-consumer(sub-01)가 PG upsert 성공 시 mirror upsert 행을 동일
@@ -6,7 +6,7 @@
 -- push_reachable 사전 계산 플래그가 아니라 구성 요소 3필드를 분리 보관하고
 -- 쿼리 시점에 카테고리(marketing/transactional)에 맞게 조합한다 (PRD-02 2.3 v0.2).
 
-CREATE TABLE IF NOT EXISTS onda.profiles_mirror
+CREATE TABLE IF NOT EXISTS nudgeon.profiles_mirror
 (
     tenant_id     UUID,
     app_id        UUID,

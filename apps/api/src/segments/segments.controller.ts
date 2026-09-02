@@ -26,7 +26,7 @@ import {
   type Category,
   type Compiled,
   type SegmentDSL,
-} from "@onda/segment-dsl";
+} from "@nudgeon/segment-dsl";
 import { CLICKHOUSE, PG, REDIS } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
 

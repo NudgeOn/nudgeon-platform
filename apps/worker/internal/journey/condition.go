@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/ondahq/onda/apps/worker/internal/segment"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/segment"
 )
 
 type conditionSnapshot struct {
@@ -93,7 +93,7 @@ func (s *Scheduler) captureCondition(ctx context.Context, tx pgx.Tx, c *claimedS
 		}
 	}
 	// Use the same JSON attribute namespace as Segment DSL. In particular,
-	// created_at is the customer's signup date, not Onda's profile-row timestamp.
+	// created_at is the customer's signup date, not NudgeOn's profile-row timestamp.
 	return &conditionSnapshot{Attributes: attrs, EvaluatedAt: now, ReceiptSeq: sequence}, nil
 }
 

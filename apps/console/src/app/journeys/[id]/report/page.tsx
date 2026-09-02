@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { outputPorts, toGraphDefinition, type JourneyDefinition, type JourneyNode } from "@onda/journey-model";
+import { outputPorts, toGraphDefinition, type JourneyDefinition, type JourneyNode } from "@nudgeon/journey-model";
 import { api } from "@/lib/api";
 import { JourneyAppGate } from "../../JourneyAppGate";
 import { JourneyCanvas } from "../../JourneyCanvas";

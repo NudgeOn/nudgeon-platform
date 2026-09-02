@@ -24,7 +24,7 @@ export class SessionGuard implements CanActivate {
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest<SessionRequest>();
-    const token = (req.cookies?.["onda_session"] as string | undefined) ?? "";
+    const token = (req.cookies?.["nudgeon_session"] as string | undefined) ?? "";
     const member = await this.sessions.resolve(token);
     if (!member) throw new UnauthorizedException("로그인이 필요합니다");
     req.member = member;

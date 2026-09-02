@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import type { AlimtalkSender, AlimtalkTemplate } from "@onda/api-client";
+import type { AlimtalkSender, AlimtalkTemplate } from "@nudgeon/api-client";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,7 @@ import {
 const SYNC_REFETCH_DELAY_MS = 4000;
 
 /**
- * 승인 템플릿 캐시. Onda는 템플릿을 편집하지 않는다 —
+ * 승인 템플릿 캐시. NudgeOn는 템플릿을 편집하지 않는다 —
  * 알림톡 본문은 카카오 심사를 통과한 것과 정확히 일치해야 하므로 벤더에서 읽어 캐시만 한다.
  */
 export function TemplatesCard({

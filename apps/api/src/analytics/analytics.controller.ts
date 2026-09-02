@@ -12,7 +12,7 @@ import {
 } from "@nestjs/common";
 import type { ClickHouseClient } from "@clickhouse/client";
 import type { Pool } from "pg";
-import type { JourneyDefinition } from "@onda/journey-model";
+import type { JourneyDefinition } from "@nudgeon/journey-model";
 import { CLICKHOUSE, PG } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
 import { PermissionGuard } from "../authz/permission.guard";

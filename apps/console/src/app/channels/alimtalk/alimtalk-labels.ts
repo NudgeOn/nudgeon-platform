@@ -93,7 +93,7 @@ export function isTemplateApproved(status: string): boolean {
  * 행을 지우지 않는 이유: 미동기화 템플릿은 발송 전 검증을 건너뛰므로, 삭제가 곧 가드를
  * 조용히 끄는 일이 된다. 저니가 아직 참조하고 있을 수도 있어 눈에 보여야 한다.
  */
-export const VENDOR_STATUS_MISSING = "ONDA_MISSING_IN_VENDOR";
+export const VENDOR_STATUS_MISSING = "NUDGEON_MISSING_IN_VENDOR";
 
 export function isMissingInVendor(vendorStatus: string | undefined): boolean {
   return vendorStatus === VENDOR_STATUS_MISSING;

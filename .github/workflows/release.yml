@@ -32,7 +32,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}/onda-${{ matrix.name }}
+          images: ghcr.io/${{ github.repository }}/nudgeon-${{ matrix.name }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}

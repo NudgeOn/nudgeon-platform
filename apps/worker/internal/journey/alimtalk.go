@@ -10,9 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
-	"github.com/ondahq/onda/apps/worker/internal/policy"
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/policy"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
 // 알림톡 노드 → send.message.v1 outbox.
@@ -26,7 +26,7 @@ var phoneDigits = regexp.MustCompile(`\D`)
 // telNamespace — 전화번호에서 결정적 endpoint_id를 만들 때 쓰는 네임스페이스.
 // 전화번호는 디바이스처럼 레지스트리가 없으므로 번호에서 UUID를 유도해
 // 멱등 키의 마지막 요소(엔드포인트 식별자)를 안정적으로 만든다.
-var telNamespace = uuid.NewSHA1(uuid.NameSpaceURL, []byte("onda:endpoint:tel"))
+var telNamespace = uuid.NewSHA1(uuid.NameSpaceURL, []byte("nudgeon:endpoint:tel"))
 
 // normalizeKoreanPhone — 국내 번호를 E.164로. 알림톡은 국내 전용이라 KR을 기본으로 본다.
 // 정규화할 수 없으면 빈 문자열.

@@ -14,27 +14,27 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
 export function snippet(platform: Platform, sdkKeyHint: string, apiUrl: string): string {
   switch (platform) {
     case "ios":
-      return `import OndaSDK
+      return `import NudgeOnSDK
 
 // AppDelegate 또는 App init
-Onda.initialize("${sdkKeyHint}", options: .init(apiUrl: "${apiUrl}"))
-Onda.track("app_open")`;
+NudgeOn.initialize("${sdkKeyHint}", options: .init(apiUrl: "${apiUrl}"))
+NudgeOn.track("app_open")`;
     case "android":
-      return `import io.onda.sdk.Onda
+      return `import io.nudgeon.sdk.NudgeOn
 
 // Application.onCreate()
-Onda.initialize(this, "${sdkKeyHint}", OndaOptions(apiUrl = "${apiUrl}"))
-Onda.track("app_open")`;
+NudgeOn.initialize(this, "${sdkKeyHint}", NudgeOnOptions(apiUrl = "${apiUrl}"))
+NudgeOn.track("app_open")`;
     case "rn":
-      return `import { Onda } from "@onda/react-native";
+      return `import { NudgeOn } from "@nudgeon/react-native";
 
-await Onda.initialize("${sdkKeyHint}", { apiUrl: "${apiUrl}" });
-await Onda.track("app_open");`;
+await NudgeOn.initialize("${sdkKeyHint}", { apiUrl: "${apiUrl}" });
+await NudgeOn.track("app_open");`;
     case "flutter":
-      return `import 'package:onda_sdk/onda_sdk.dart';
+      return `import 'package:nudgeon_sdk/nudgeon_sdk.dart';
 
-await Onda.initialize('${sdkKeyHint}', OndaOptions(apiUrl: '${apiUrl}'));
-await Onda.track('app_open');`;
+await NudgeOn.initialize('${sdkKeyHint}', NudgeOnOptions(apiUrl: '${apiUrl}'));
+await NudgeOn.track('app_open');`;
     case "curl":
       return `curl -X POST ${apiUrl}/v1/track \\
   -H "Authorization: Bearer ${sdkKeyHint}" \\

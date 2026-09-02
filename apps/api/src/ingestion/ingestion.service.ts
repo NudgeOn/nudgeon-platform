@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { Inject, Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import type { ClickHouseClient } from "@clickhouse/client";
 import type { Pool } from "pg";
-import { QueueProducer } from "@onda/libqueue";
-import { STREAMS, type IngestBatchPayload } from "@onda/queue-schemas";
+import { QueueProducer } from "@nudgeon/libqueue";
+import { STREAMS, type IngestBatchPayload } from "@nudgeon/queue-schemas";
 import { CLICKHOUSE, PG, QUEUE } from "../infra/infra.module";
 import type { ResolvedApiKey } from "../auth/api-key.service";
 import type {

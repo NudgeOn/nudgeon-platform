@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
 )
 
 // EmailPlugin — SMTP 이메일 채널 (PRD-04 확장). 자체호스팅 우선: 표준 SMTP(STARTTLS/implicit TLS/plaintext).
@@ -217,7 +217,7 @@ func buildMIME(c *smtpCred, to string, e *EmailContent) []byte {
 	b.WriteString("To: " + to + "\r\n")
 	b.WriteString("Subject: " + mime.QEncoding.Encode("utf-8", e.Subject) + "\r\n")
 	if e.MessageID != "" {
-		b.WriteString("Message-ID: <" + e.MessageID + "@onda>\r\n")
+		b.WriteString("Message-ID: <" + e.MessageID + "@nudgeon>\r\n")
 	}
 	b.WriteString("MIME-Version: 1.0\r\n")
 	b.WriteString("Content-Type: text/html; charset=UTF-8\r\n")

@@ -2,8 +2,8 @@
 
 import { useId, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { EMAIL_PROVIDER_LABELS, type EmailProvider, type SegmentSummary } from "@onda/api-client";
-import type { MessageNode, DelayNode, JourneyNode } from "@onda/journey-model";
+import { EMAIL_PROVIDER_LABELS, type EmailProvider, type SegmentSummary } from "@nudgeon/api-client";
+import type { MessageNode, DelayNode, JourneyNode } from "@nudgeon/journey-model";
 import { api } from "@/lib/api";
 import { useAppId } from "../use-app-id";
 import { isEmailProvider } from "../email-templates/email-provider-card";
@@ -437,7 +437,7 @@ function PushMessageFields({ node, index, editable, onUpdate, id }: {
           <div className="j-inspector-notification">
             <div className="j-inspector-notification-heading">
               <span className="j-inspector-notification-app"><JourneyIcon name="wave" size={15} /></span>
-              <span>Onda</span><small>지금</small>
+              <span>NudgeOn</span><small>지금</small>
             </div>
             <strong className={!title ? "j-inspector-preview-placeholder" : undefined}>{title || "메시지 제목"}</strong>
             <p className={!body ? "j-inspector-preview-placeholder" : undefined}>{body || "작성한 메시지가 여기에 표시됩니다."}</p>

@@ -16,12 +16,12 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/uuid"
-	"github.com/ondahq/onda/apps/worker/internal/channel"
-	"github.com/ondahq/onda/apps/worker/internal/clock"
-	"github.com/ondahq/onda/apps/worker/internal/ingest"
-	"github.com/ondahq/onda/apps/worker/internal/segment"
-	"github.com/ondahq/onda/apps/worker/internal/trigger"
-	libqueue "github.com/ondahq/onda/packages/libqueue-go"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/ingest"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/segment"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/trigger"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -57,7 +57,7 @@ func (w testLogWriter) Write(p []byte) (int, error) { w.t.Log(string(p)); return
 // API acceptance/activation have separate integration suites; this begins at the
 // durable receipt/outbox boundary and runs the actual worker role constructors.
 func TestWorkerEndToEndGraphThroughRealStores(t *testing.T) {
-	redisURL, chURL := os.Getenv("ONDA_JOURNEY_TEST_REDIS_URL"), os.Getenv("ONDA_JOURNEY_TEST_CLICKHOUSE_URL")
+	redisURL, chURL := os.Getenv("NUDGEON_JOURNEY_TEST_REDIS_URL"), os.Getenv("NUDGEON_JOURNEY_TEST_CLICKHOUSE_URL")
 	if redisURL == "" || chURL == "" {
 		t.Skip("set explicit Redis and ClickHouse integration URLs")
 	}
@@ -172,7 +172,7 @@ func TestWorkerEndToEndGraphThroughRealStores(t *testing.T) {
 	if requests[0].Content.Push.Title == "fallback" {
 		t.Fatal("a required condition or wait fell through")
 	}
-	messageID := requests[0].Content.Push.Data["onda.message_id"]
+	messageID := requests[0].Content.Push.Data["nudgeon.message_id"]
 	if _, err := uuid.Parse(messageID); err != nil {
 		t.Fatalf("stable message_id missing: %q", messageID)
 	}

@@ -14,8 +14,8 @@ import {
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import { z } from "zod";
-import { QueueProducer } from "@onda/libqueue";
-import { STREAMS, type SendEmailPayload } from "@onda/queue-schemas";
+import { QueueProducer } from "@nudgeon/libqueue";
+import { STREAMS, type SendEmailPayload } from "@nudgeon/queue-schemas";
 import { PG, QUEUE } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
 import { PermissionGuard } from "../authz/permission.guard";

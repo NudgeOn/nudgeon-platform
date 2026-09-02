@@ -1,7 +1,7 @@
 // 알림톡 P0 E2E — 저니 알림톡 노드 → send.message.v1 → mock 벤더 → message.lifecycle → 리포트.
 //
 // 전제:
-//   1) 워커를 GO_TAGS=onda_mock으로 빌드하고 mock 매니페스트를 커넥터 디렉터리에 배치할 것
+//   1) 워커를 GO_TAGS=nudgeon_mock으로 빌드하고 mock 매니페스트를 커넥터 디렉터리에 배치할 것
 //      (deploy/connectors/alimtalk_mock.json). 목은 기본 빌드에 들어가지 않는다.
 //   2) docker compose --profile full --profile app 기동.
 // 사용: API_URL=http://localhost:18085 node tests/e2e/alimtalk.mjs
@@ -38,9 +38,9 @@ async function req(method, path, { cookie, body } = {}) {
 }
 
 async function ch(sql) {
-  const res = await fetch(`${CH}/?database=onda`, {
+  const res = await fetch(`${CH}/?database=nudgeon`, {
     method: "POST",
-    headers: { authorization: "Basic " + Buffer.from("onda:onda").toString("base64") },
+    headers: { authorization: "Basic " + Buffer.from("nudgeon:nudgeon").toString("base64") },
     body: sql,
   });
   const t = await res.text();
@@ -50,7 +50,7 @@ async function ch(sql) {
 
 function psql(sql) {
   return execFileSync("docker", ["compose", "-f", COMPOSE, "exec", "-T", "postgres",
-    "psql", "-U", "onda", "-d", "onda", "-tAc", sql], { encoding: "utf8" }).trim();
+    "psql", "-U", "nudgeon", "-d", "nudgeon", "-tAc", sql], { encoding: "utf8" }).trim();
 }
 
 async function until(fn, label, tries = 40) {
@@ -105,8 +105,8 @@ const main = async () => {
 
   // 정보성(BA)과 광고성(AD) 두 템플릿 — 정책 분기를 검증하기 위함.
   // 코드·본문은 mock 벤더의 픽스처와 일치해야 한다. 실제 딜러사도 자기에게 등록된 승인 템플릿만 받는다.
-  const info = "ONDA_ORDER_01";
-  const promo = "ONDA_PROMO_01";
+  const info = "NUDGEON_ORDER_01";
+  const promo = "NUDGEON_PROMO_01";
   const infoBody = "#{고객명}님, 주문 #{주문번호}이 정상 접수되었습니다.\n결제금액: #{결제금액}원\n\n주문 상세는 아래 버튼에서 확인하실 수 있습니다.";
   const promoBody = "(광고) #{고객명}님께 #{쿠폰명} 쿠폰을 드립니다.\n사용기한: #{사용기한}\n\n무료수신거부 080-000-0000";
   psql(`INSERT INTO alimtalk_templates

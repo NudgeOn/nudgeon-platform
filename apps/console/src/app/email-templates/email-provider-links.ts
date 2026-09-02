@@ -1,4 +1,4 @@
-import { EMAIL_PROVIDERS, type EmailProvider } from "@onda/api-client";
+import { EMAIL_PROVIDERS, type EmailProvider } from "@nudgeon/api-client";
 
 /**
  * 이메일 발송기 설정의 순수 헬퍼 — 외부 콘솔 딥링크·웹훅 URL·발송기 판별.
