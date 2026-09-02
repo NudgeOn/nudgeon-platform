@@ -7,108 +7,127 @@
 </p>
 
 <p align="center">
-  <img src="docs-public/assets/nudgeon-logo-pigeon.png" alt="NudgeOn — 메시지를 전달하는 전서구 로고 시안" width="440" />
+  <img src="docs-public/assets/nudgeon-logo-pigeon.png" alt="NudgeOn — messenger pigeon logo" width="440" />
 </p>
 
+<p align="center">
+  <b>English</b> · <a href="README.ko.md">한국어</a>
+</p>
+
+**NudgeOn is an open-source customer engagement platform with native support for KakaoTalk Alimtalk and Korean SMS — a self-hostable alternative to Braze.**
+
+Collect events from your apps, build audiences, orchestrate journeys, and deliver messages on infrastructure you control. Push and email work today; Alimtalk is landing this quarter. The engine, console, and SDKs are all Apache-2.0, with no open-core feature gating.
+
 **Open source. Easy to start — Safe Boot Preview.**
-소스와 데이터를 직접 소유하고 검토할 수 있는 Open Source의 투명성은 그대로, 시작은 `./nudgeon up` 한 명령으로 단순하게 만들고 있습니다. 현재 Preview는 로컬 시크릿 생성, 안전한 런타임 기동, 설치 상태 화면까지 제공하며 최초 Owner 위자드와 Test Inbox는 다음 단계로 개발 중입니다. 관리형 SaaS도 준비 중입니다.
+You keep the transparency of open source — owning and auditing both the source and the data — while getting started stays a single `./nudgeon up`. The current Preview generates local secrets, boots the runtime safely, and shows an install-status screen. The first-Owner wizard and Test Inbox come next. A managed SaaS is also in preparation.
 
-> ⚠️ 개발 중인 Push 중심 MVP입니다. 핵심 경로의 코드가 있으나 발송 복구·SDK 계약 연결·운영 검증이 남아 있습니다. 최근 수정 항목도 통합 검증이 필요합니다. API·스키마는 예고 없이 변경됩니다.
+> ⚠️ This is a Push-focused MVP under active development. The core paths exist in source, but delivery recovery, SDK contract wiring, and operational verification are unfinished. Recent fixes still need integration testing. APIs and schemas may change without notice.
 
-## 전체 아키텍처
+## Why NudgeOn
 
-고객 앱의 이벤트를 수집하고, 고객 조건과 저니에 따라 푸시를 발송합니다. 아래 그림은 **현재 코드의 구성과 연결**을 기준으로 하며, 운영 완료를 의미하지 않습니다.
+| | Braze / Airship | OneSignal / Firebase | Novu / Dittofeed | **NudgeOn** |
+|---|---|---|---|---|
+| KakaoTalk Alimtalk · Korean SMS | partner-dependent | ✗ | ✗ | **native** |
+| Self-hostable | ✗ | ✗ | ✓ | **✓** |
+| Segments + journey orchestration | ✓ | thin | varies | **✓** |
+| License | commercial | commercial | MIT / AGPL | **Apache-2.0, fully open** |
 
-![NudgeOn 전체 아키텍처 — SDK, API, 큐, 워커, 저장소, Push 채널](docs-public/assets/architecture.svg)
+Korean teams that need Alimtalk, regulatory compliance (advertising disclosure, night-time send restrictions, 080 opt-out routing), reasonable cost, and data sovereignty have had no self-hostable option. That gap is why NudgeOn exists.
+
+## Architecture
+
+NudgeOn ingests events from your apps and delivers messages according to audience rules and journeys. The diagram below reflects **what exists and is wired in the current source** — it does not imply production readiness.
+
+![NudgeOn architecture — SDKs, API, queues, workers, storage, push channels](docs-public/assets/architecture.svg)
 
 <details>
-<summary>상세 아키텍처와 데이터 흐름 (Mermaid)</summary>
+<summary>Detailed architecture and data flow (Mermaid)</summary>
 
 ```mermaid
 flowchart TB
-  subgraph clients["고객 앱 · 고객사 서버"]
+  subgraph clients["Customer apps · customer backends"]
     direction LR
-    bridges["React Native · Flutter<br/>무상태 브리지"]
-    native["iOS · Android 코어 SDK<br/>식별 · 이벤트 · 오프라인 큐 · 푸시"]
-    backend["고객사 백엔드<br/>Server Key"]
+    bridges["React Native · Flutter<br/>stateless bridges"]
+    native["iOS · Android core SDKs<br/>identify · events · offline queue · push"]
+    backend["Customer backend<br/>Server Key"]
     bridges --> native
   end
 
-  subgraph control["관리 · 수집 API"]
+  subgraph control["Management · Ingestion API"]
     direction LR
-    console["관리 콘솔 · Next.js<br/>온보딩 · 고객 · 세그먼트 · 저니 · 리포트"]
-    management["관리 API · NestJS<br/>세션 인증 · 테넌트별 리소스 접근"]
-    segmentApi["세그먼트 DSL → SQL<br/>속성·이벤트 조건 · 대상 스냅샷<br/>디바이스 상세 조건은 미지원"]
-    ingestion["Ingestion API · NestJS<br/>API Key · 입력 검증 · Rate Limit"]
-    console <-->|"공유 API 클라이언트"| management
+    console["Admin console · Next.js<br/>onboarding · users · segments · journeys · reports"]
+    management["Management API · NestJS<br/>session auth · per-tenant resource access"]
+    segmentApi["Segment DSL → SQL<br/>attribute + event conditions · audience snapshots<br/>device-level conditions unsupported"]
+    ingestion["Ingestion API · NestJS<br/>API key · input validation · rate limit"]
+    console <-->|"shared API client"| management
     management --> segmentApi
   end
 
-  subgraph queues["Redis · libqueue 경유 Redis Streams"]
+  subgraph queues["Redis · Redis Streams via libqueue"]
     direction LR
     ingestQ["stream:ingest"]
     eventsQ["stream:events"]
     entryQ["stream:journey.entry"]
     sendQ["stream:send.push"]
-    redisState["중복 억제 · 빈도 제한 · 캐시"]
+    redisState["dedup · frequency caps · cache"]
   end
 
-  subgraph engine["실행 엔진 · Go 워커"]
+  subgraph engine["Execution engine · Go workers"]
     direction LR
-    ingestWorker["Ingest Consumer<br/>고객·디바이스 갱신 · 병합 · 이벤트 적재"]
-    trigger["Trigger Matcher<br/>이벤트 → 저니 진입·이탈"]
-    scheduler["Scheduler<br/>대기·메시지 노드 · 정책 · 디바이스별 발송"]
-    relay["Outbox Relay<br/>커밋된 발송 작업을 큐로 전달"]
-    channel["Channel Worker<br/>크리덴셜 검증·복호화 · PushPlugin<br/>재시도·DLQ·선점 복구 미완성"]
+    ingestWorker["Ingest Consumer<br/>user/device upsert · merge · event load"]
+    trigger["Trigger Matcher<br/>events → journey entry/exit"]
+    scheduler["Scheduler<br/>wait + message nodes · policy · per-device send"]
+    relay["Outbox Relay<br/>hands committed send jobs to the queue"]
+    channel["Channel Worker<br/>credential verify/decrypt · PushPlugin<br/>retry · DLQ · lease recovery incomplete"]
   end
 
-  subgraph storage["데이터 저장"]
+  subgraph storage["Storage"]
     direction LR
-    pg[("PostgreSQL<br/>테넌트 · 멤버 · 키 · 암호화 크리덴셜<br/>고객 · 디바이스 · 저니 상태 · Outbox")]
-    ch[("ClickHouse<br/>수집 원본 · 이벤트 · 프로필 미러<br/>대상 스냅샷 · 발송 로그 · 사용량")]
+    pg[("PostgreSQL<br/>tenants · members · keys · encrypted credentials<br/>users · devices · journey state · outbox")]
+    ch[("ClickHouse<br/>raw ingestion · events · profile mirror<br/>audience snapshots · message log · usage")]
   end
 
-  subgraph delivery["외부 Push 채널"]
+  subgraph delivery["External push channels"]
     direction LR
     providers["FCM · APNs"]
-    device["고객 디바이스<br/>알림 수신 · 열기"]
+    device["Customer device<br/>receive · open"]
   end
 
   native -->|"SDK Key · HTTPS"| ingestion
   backend -->|"Server Key · HTTPS"| ingestion
   ingestion --> ingestQ
-  ingestion -->|"원본 비동기 적재"| ch
-  ingestion -->|"Rate Limit"| redisState
+  ingestion -->|"async raw load"| ch
+  ingestion -->|"rate limit"| redisState
   management <--> pg
-  management -->|"로그 · 리포트 조회"| ch
+  management -->|"log · report queries"| ch
   segmentApi <--> ch
-  segmentApi -->|"단발 캠페인 대상 참조"| entryQ
+  segmentApi -->|"one-off campaign audience ref"| entryQ
   ingestQ --> ingestWorker
   ingestWorker --> pg
-  ingestWorker -->|"이벤트 · 프로필 미러"| ch
-  ingestWorker -->|"정규화 이벤트 · 실패 복구 미완성"| eventsQ
+  ingestWorker -->|"events · profile mirror"| ch
+  ingestWorker -->|"normalized events · failure recovery incomplete"| eventsQ
   eventsQ --> trigger
   trigger <--> pg
   trigger --> entryQ
   entryQ --> scheduler
-  ch -->|"대상 스냅샷 읽기"| scheduler
+  ch -->|"read audience snapshot"| scheduler
   scheduler <--> pg
-  scheduler -->|"빈도 제한"| redisState
-  scheduler -->|"발송 생략 사유"| ch
-  pg -->|"Outbox"| relay
+  scheduler -->|"frequency caps"| redisState
+  scheduler -->|"skip reasons"| ch
+  pg -->|"outbox"| relay
   relay --> sendQ
   sendQ --> channel
   channel <--> pg
-  channel -->|"중복 억제"| redisState
-  channel -->|"발송 결과"| ch
+  channel -->|"dedup"| redisState
+  channel -->|"delivery results"| ch
   channel --> providers
   providers --> device
-  device -->|"수신·오픈 콜백"| native
-  native -.->|"도달·오픈 이벤트: 발송 ID 연결 미완성"| ingestion
-  native -.->|"수신 동의 · 로그아웃 · 토큰 소유권 동기화 미완성"| ingestion
+  device -->|"receive/open callbacks"| native
+  native -.->|"delivered/opened events: message-ID linkage incomplete"| ingestion
+  native -.->|"consent · logout · token ownership sync incomplete"| ingestion
 
-  pending["미구현: segment 워커의 주기 평가·대사"]
-  future["v1.5 이후 계획<br/>알림톡 · SMS · 이메일 · 분기 저니"]
+  pending["Not implemented: periodic evaluation and reconciliation in the segment worker"]
+  future["Planned after v1.5<br/>Alimtalk · SMS · email · branching journeys"]
   pending -.-> ch
   channel -.-> future
 
@@ -122,85 +141,94 @@ flowchart TB
 
 </details>
 
-- **실선**: 코드에 연결이 존재합니다. 실기기·장애 복구·부하 검증 통과를 뜻하지는 않습니다.
-- **점선**: 아직 완성되지 않은 연결 또는 향후 구현 범위입니다. 현재 실제 채널 구현은 FCM/APNs Push와 이메일(SMTP · AWS SES · Resend(SMTP/API + 웹훅) · NHN Cloud)입니다.
-- **배포**: Docker Compose로 API·콘솔·워커와 PostgreSQL·ClickHouse·Redis를 구성합니다. 외부 DB 연결 설정과 Prometheus 지표도 포함하며, 관리형 DB 호환성과 백업 복구는 별도 검증이 필요합니다.
-- **SDK**: 네이티브 코어가 상태를 관리하고 RN/Flutter는 이를 호출합니다. SDK 배포와 4개 플랫폼의 전체 연동 검증은 진행 중입니다.
+- **Solid lines**: the connection exists in source. It does not mean it has passed real-device, failure-recovery, or load testing.
+- **Dashed lines**: connections that are unfinished or planned. The channels actually implemented today are FCM/APNs push and email (SMTP · AWS SES · Resend (SMTP/API + webhooks) · NHN Cloud).
+- **Deployment**: Docker Compose brings up the API, console, and workers alongside PostgreSQL, ClickHouse, and Redis. External DB configuration and Prometheus metrics are included; managed-DB compatibility and backup/restore need separate verification.
+- **SDKs**: the native cores hold state and the RN/Flutter bridges call into them. SDK publishing and full four-platform integration testing are in progress.
 
+### Runtime at a glance
 
-## 현재 상태와 남은 작업
+If the diagram above is the full wiring, the one below keeps only **the main path a single push travels and the trust boundaries it crosses**. The remaining streams and rules are written on the cards inside the image.
 
-현재는 **Push MVP 알파**입니다. 출시 조건과 소스 근거는 [출시 체크리스트](docs-public/RELEASE-CHECKLIST.md)에 정리했습니다.
+![NudgeOn runtime architecture — push main path and trust boundaries](docs-public/architecture/runtime-architecture.svg)
 
-API 연동 방법과 전체 엔드포인트는 [API 가이드](docs-public/API.md)에서 확인할 수 있습니다.
+- **Main path**: SDK → Ingestion API → `stream:ingest` → Ingest Consumer → `stream:events` → Trigger Matcher → `stream:journey.entry` → Journey Scheduler → `stream:send.push` → Channel Worker → FCM · APNs
+- **Trust boundaries**: external (customer apps and backends) / auth edge (`pk_` SDK Key · `sk_` Server Key · session cookie) / internal plane (private network, no per-request auth) / external channel-vendor egress
+- **Interactive version**: [`docs-public/architecture/runtime-architecture.html`](docs-public/architecture/runtime-architecture.html) — open the file in a browser for search, path tracing, dark mode, and PNG/SVG export. The shape definitions live in `runtime-architecture.json` in the same folder.
 
-콘솔 화면은 [콘솔 안내](docs-public/CONSOLE-GUIDE.md)에 실제 캡처와 함께 정리했습니다. 이메일은 SMTP·AWS SES·NHN Cloud·Resend를 지원하며, Resend는 웹훅으로 도달·오픈·클릭까지 수집합니다 ([Resend 설정 가이드](docs-public/RESEND-SETUP.md)).
+## Current status
 
-- **발송 전 필수:** message_id 연결, 채널 재시도·DLQ·유실 복구, SDK 동의·로그아웃·토큰 소유권, 수집→저니 트리거 복구.
-- **수정 반영·검증 대기:** 수집 dedup, pause, 권한, OS 권한 정규화 및 최근 설치·인증 변경.
-- **공개·운영 준비:** 콘솔 API 주소 빌드 설정, SDK 패키지·실기기 검증, CI, 백업·부하·격리, 영문 문서와 관리형 서비스 운영.
-- **기능 확장:** 디바이스 상세 필터, 세그먼트 정기 평가, 도달·오픈 리포트. 추가 채널과 분기 저니는 이후 계획입니다.
+NudgeOn is a **Push MVP alpha**. Release gates and their source-level evidence are tracked in the [release checklist](docs-public/RELEASE-CHECKLIST.md).
 
-홍보 웹페이지는 상위 작업 공간의 `nudgeon-webpage`에서 별도로 관리합니다. 영문·국문 페이지를 제공하며, 현재 Cloud 가입·결제는 열지 않습니다.
+For integration details and the full endpoint list, see the [API guide](docs-public/API.md).
 
-## 구조
+The console screens are documented with real screenshots in the [console guide](docs-public/CONSOLE-GUIDE.md). Email supports SMTP, AWS SES, NHN Cloud, and Resend; Resend additionally collects delivered, opened, and clicked events via webhooks ([Resend setup guide](docs-public/RESEND-SETUP.md)).
+
+- **Required before real sends**: message_id linkage; channel retry, DLQ, and loss recovery; SDK consent, logout, and token ownership; ingestion→journey trigger recovery.
+- **Fixed, pending verification**: ingestion dedup, pause, permissions, OS-permission normalization, and recent install/auth changes.
+- **Public launch and operations**: console API-URL build configuration, SDK packaging and real-device verification, CI, backup/load/isolation testing, and managed-service operations.
+- **Feature expansion**: device-level filters, scheduled segment evaluation, delivered/opened reporting. Additional channels and branching journeys come later.
+
+## Repository layout
 
 ```
 apps/
-  api/        NestJS — 관리 API + Ingestion API
-  console/    Next.js — 어드민 콘솔
-  worker/     Go — 실행 엔진 (--role: ingest-consumer|scheduler|trigger-matcher|segment|channel)
+  api/        NestJS — Management API + Ingestion API
+  console/    Next.js — admin console
+  worker/     Go — execution engine (--role: ingest-consumer|scheduler|trigger-matcher|segment|channel)
 packages/
-  openapi/         OpenAPI 3.1 스펙 + 공유 클라이언트 (자동 생성은 예정)
-  queue-schemas/   큐 메시지 JSON Schema (단일 출처)
-  libqueue-ts/     Redis Streams 래퍼 (TS, 생산)
-  libqueue-go/     Redis Streams 래퍼 (Go, 생산·소비)
-  segment-dsl/     세그먼트 DSL 스키마 + 골든 테스트
+  openapi/         OpenAPI 3.1 spec + shared client (generation planned)
+  queue-schemas/   JSON Schema for queue messages (single source of truth)
+  libqueue-ts/     Redis Streams wrapper (TS, produce)
+  libqueue-go/     Redis Streams wrapper (Go, produce and consume)
+  segment-dsl/     Segment DSL schema + golden tests
 db/
-  postgres/        Atlas 선언적 스키마
-  clickhouse/      순번 SQL 마이그레이션
+  postgres/        Atlas declarative schema
+  clickhouse/      Sequential SQL migrations
 deploy/            Docker Compose
 ```
 
-## 빠른 시작 (개발)
+The SDKs live in sibling repositories: [iOS](https://github.com/NudgeOn/nudgeon-ios-sdk) · [Android](https://github.com/NudgeOn/nudgeon-android-sdk) · [React Native](https://github.com/NudgeOn/nudgeon-rn-sdk) · [Flutter](https://github.com/NudgeOn/nudgeon-flutter-sdk)
+
+## Quick start (development)
 
 ```bash
-# 데이터 서비스만 (앱은 로컬 실행)
+# Data services only (run the apps locally)
 docker compose -f deploy/compose.yaml --profile full up -d
 export NUDGEON_MASTER_KEY=$(openssl rand -base64 32)
-go run ./apps/worker/cmd/migrate db        # 스키마 적용 (멱등)
+go run ./apps/worker/cmd/migrate db           # apply schema (idempotent)
 pnpm install && pnpm build
-pnpm --filter @nudgeon/api dev                # 관리·Ingestion API :8080
-go run ./apps/worker/cmd/worker --role=all # 워커 (전 역할)
-pnpm --filter @nudgeon/console dev            # 콘솔 :3000
+pnpm --filter @nudgeon/api dev                # Management + Ingestion API :8080
+go run ./apps/worker/cmd/worker --role=all    # worker (all roles)
+pnpm --filter @nudgeon/console dev            # console :3000
 ```
 
-## 셀프호스팅 — Safe Boot Preview
+## Self-hosting — Safe Boot Preview
 
 ```bash
-# Docker Engine/Compose v2를 시작한 뒤 저장소 루트에서 실행합니다.
+# Start Docker Engine / Compose v2, then run from the repository root.
 ./nudgeon up
 
-# 컨테이너와 redacted 설치 상태를 다시 확인합니다.
+# Re-check containers and the redacted install status.
 ./nudgeon status
 ```
 
-Safe Boot는 별도 `.env` 작성 없이 로컬 시크릿을 생성하고, 개발 seed를 넣지 않은 스택을 기동하며, 브라우저의 `http://localhost:8080/setup`에서 PostgreSQL·Redis·ClickHouse·API·worker·console 준비 상태를 보여줍니다. DB와 내부 서비스는 호스트에 직접 공개하지 않고 gateway 하나만 `127.0.0.1`에 바인딩합니다. 8080 포트를 이미 사용 중이면 `NUDGEON_PORT=18080 ./nudgeon up`처럼 바꿀 수 있습니다.
+Safe Boot generates local secrets without you writing a `.env`, boots a stack with no development seed data, and shows the readiness of PostgreSQL, Redis, ClickHouse, the API, the worker, and the console at `http://localhost:8080/setup`. Databases and internal services are not exposed on the host — only a single gateway binds to `127.0.0.1`. If port 8080 is already in use, override it: `NUDGEON_PORT=18080 ./nudgeon up`.
 
-현재 Preview는 저장소 소스를 로컬에서 빌드하는 **Slice A**입니다. 설치 소유권 claim, 최초 Owner 생성, Test Inbox, versioned release image와 clean-host 출시 증거는 아직 포함하지 않으므로 setup 화면의 Owner 버튼도 비활성화되어 있습니다. 원격 공개 설치나 production-ready 경로로 안내하지 마세요.
+The current Preview is **Slice A**, which builds the repository source locally. Install-ownership claim, first-Owner creation, Test Inbox, versioned release images, and clean-host launch evidence are not included yet, so the Owner button on the setup screen is disabled. Do not present this as a remote public install or a production-ready path.
 
-명령·수동 개발 Compose·관리형 DB·백업·업그레이드는 [배포 가이드](docs-public/DEPLOY.md), 전체 위자드 목표와 구현 경계는 [P0 Docker Setup Wizard PRD](docs-public/DOCKER-SETUP-WIZARD-PRD.md), 출시 증거는 [출시 체크리스트](docs-public/RELEASE-CHECKLIST.md)에서 확인할 수 있습니다.
+For commands, the manual development Compose file, managed databases, backup, and upgrades, see the [deployment guide](docs-public/DEPLOY.md). The full wizard goals and implementation boundaries are in the [P0 Docker Setup Wizard PRD](docs-public/DOCKER-SETUP-WIZARD-PRD.md), and launch evidence is in the [release checklist](docs-public/RELEASE-CHECKLIST.md).
 
-## 운영 도구
+## Operations tooling
 
 ```bash
-go run ./apps/worker/cmd/seed --tenant <uuid> --app <uuid> --users 500000   # 합성 데이터
-go run ./apps/worker/cmd/loadgen --key pk_... --rate 5000 --dur 30s          # 수집 부하
-node tests/isolation/run.mjs                                                  # 테넌트 격리 검증
+go run ./apps/worker/cmd/seed --tenant <uuid> --app <uuid> --users 500000   # synthetic data
+go run ./apps/worker/cmd/loadgen --key pk_... --rate 5000 --dur 30s          # ingestion load
+node tests/isolation/run.mjs                                                 # tenant isolation checks
 ```
 
-## 라이선스
+## License
 
-별도 표시가 없는 NudgeOn 플랫폼의 소스 코드와 문서는 [Apache License 2.0](LICENSE)으로 제공됩니다. NudgeOn 이름·워드마크·로고와 `docs-public/assets/nudgeon-logo-pigeon.png`는 Apache-2.0 허여 대상이 아닙니다.
+Unless otherwise marked, the NudgeOn platform source and documentation are provided under the [Apache License 2.0](LICENSE). The NudgeOn name, wordmark, and logo — including `docs-public/assets/nudgeon-logo-pigeon.png` — are not covered by the Apache-2.0 grant.
 
-범위와 재배포 안내는 [라이선싱 가이드](docs-public/LICENSING.md), 브랜드 사용 조건은 [상표 정책](TRADEMARKS.md), 제3자 구성요소 경계는 [제3자 고지](THIRD_PARTY_NOTICES.md)를 확인하세요.
+For scope and redistribution guidance see the [licensing guide](docs-public/LICENSING.md), for brand usage see the [trademark policy](TRADEMARKS.md), and for third-party component boundaries see the [third-party notices](THIRD_PARTY_NOTICES.md).

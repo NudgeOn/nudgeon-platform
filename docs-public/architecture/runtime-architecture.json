@@ -1,0 +1,485 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "NudgeOn 런타임 아키텍처",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1360,
+      740
+    ],
+    "repository": {
+      "url": "https://github.com/ondahq/onda-platform",
+      "revision": "1283beb1a67a52283f87651ea7dc3e7b2a0d6405"
+    }
+  },
+  "components": [
+    {
+      "id": "sdk",
+      "type": "external",
+      "label": "모바일 SDK",
+      "sublabel": "iOS · Android · RN · Flutter",
+      "tag": "pk_ SDK Key",
+      "pos": [
+        60,
+        64
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "custBackend",
+      "type": "external",
+      "label": "고객사 백엔드",
+      "sublabel": "서버 사이드 연동",
+      "tag": "sk_ Server Key",
+      "pos": [
+        60,
+        240
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "ingestion",
+      "type": "backend",
+      "label": "Ingestion API",
+      "sublabel": "NestJS · /v1/track",
+      "tag": "API Key + Rate Limit",
+      "pos": [
+        330,
+        64
+      ],
+      "size": [
+        165,
+        68
+      ],
+      "sources": [
+        {
+          "path": "apps/api/src/ingestion/track.controller.ts",
+          "line": 38,
+          "label": "가드 · 키 종류"
+        }
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "messagebus",
+      "label": "Redis Streams",
+      "sublabel": "libqueue 단일 경유",
+      "pos": [
+        600,
+        64
+      ],
+      "size": [
+        165,
+        68
+      ],
+      "sources": [
+        {
+          "path": "packages/libqueue-go/libqueue.go",
+          "line": 20,
+          "end_line": 31,
+          "label": "스트림 목록"
+        }
+      ]
+    },
+    {
+      "id": "ingestw",
+      "type": "backend",
+      "label": "Ingest Consumer",
+      "sublabel": "Go · 고객·디바이스 병합",
+      "pos": [
+        870,
+        64
+      ],
+      "size": [
+        165,
+        68
+      ],
+      "sources": [
+        {
+          "path": "apps/worker/cmd/worker/main.go",
+          "line": 117,
+          "end_line": 130,
+          "label": "역할 기동"
+        }
+      ]
+    },
+    {
+      "id": "trigger",
+      "type": "backend",
+      "label": "Trigger Matcher",
+      "sublabel": "Go · 저니 진입·이탈 판정",
+      "pos": [
+        1140,
+        64
+      ],
+      "size": [
+        165,
+        68
+      ],
+      "sources": [
+        {
+          "path": "apps/worker/internal/trigger/matcher.go",
+          "label": "이벤트 매칭"
+        }
+      ]
+    },
+    {
+      "id": "scheduler",
+      "type": "backend",
+      "label": "Journey Scheduler",
+      "sublabel": "Go · 상태머신 + Outbox Relay",
+      "pos": [
+        1140,
+        240
+      ],
+      "size": [
+        165,
+        68
+      ],
+      "sources": [
+        {
+          "path": "apps/worker/internal/journey/scheduler.go",
+          "line": 29,
+          "label": "틱 · 릴레이 · 리퍼"
+        }
+      ]
+    },
+    {
+      "id": "channel",
+      "type": "backend",
+      "label": "Channel Worker",
+      "sublabel": "Go · 크리덴셜 복호화 · 발송",
+      "tag": "MASTER_KEY 필수",
+      "pos": [
+        1140,
+        420
+      ],
+      "size": [
+        165,
+        68
+      ],
+      "sources": [
+        {
+          "path": "apps/worker/cmd/worker/main.go",
+          "line": 132,
+          "end_line": 240,
+          "label": "channel 역할"
+        }
+      ]
+    },
+    {
+      "id": "providers",
+      "type": "external",
+      "label": "FCM · APNs",
+      "sublabel": "푸시 제공자",
+      "pos": [
+        1140,
+        600
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "vendors",
+      "type": "external",
+      "label": "알림톡 · 이메일 벤더",
+      "sublabel": "NHN · Resend · SMTP",
+      "pos": [
+        870,
+        600
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "현재 상태 · 저니 · Outbox",
+      "pos": [
+        870,
+        420
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "ch",
+      "type": "database",
+      "label": "ClickHouse",
+      "sublabel": "append-only 수집 · 로그",
+      "pos": [
+        600,
+        240
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "console",
+      "type": "frontend",
+      "label": "관리 콘솔",
+      "sublabel": "Next.js 15 App Router",
+      "pos": [
+        330,
+        240
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "management",
+      "type": "backend",
+      "label": "관리 API",
+      "sublabel": "NestJS · RBAC · 테넌트 격리",
+      "tag": "세션 쿠키 + TOTP",
+      "pos": [
+        330,
+        420
+      ],
+      "size": [
+        165,
+        68
+      ],
+      "sources": [
+        {
+          "path": "apps/api/src/app.module.ts",
+          "line": 44,
+          "label": "컨트롤러 구성"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "외부 — 고객 앱 · 서버",
+      "wraps": [
+        "sdk",
+        "custBackend"
+      ],
+      "pad": 24
+    },
+    {
+      "kind": "security-group",
+      "label": "인증 에지 — 외부 요청의 유일한 통과 지점",
+      "wraps": [
+        "ingestion",
+        "console",
+        "management"
+      ],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "내부 평면 — 비공개 네트워크 · 요청 단위 인증 없음",
+      "wraps": [
+        "redis",
+        "ch",
+        "ingestw",
+        "trigger",
+        "scheduler",
+        "channel",
+        "pg"
+      ],
+      "pad": 34
+    },
+    {
+      "kind": "security-group",
+      "label": "외부 채널 벤더 — egress",
+      "wraps": [
+        "vendors",
+        "providers"
+      ],
+      "pad": 24
+    }
+  ],
+  "connections": [
+    {
+      "id": "sdk-ingest",
+      "from": "sdk",
+      "to": "ingestion",
+      "label": "HTTPS · SDK Key",
+      "variant": "emphasis"
+    },
+    {
+      "id": "server-ingest",
+      "from": "custBackend",
+      "to": "ingestion",
+      "label": "HTTPS · Server Key",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "ingest-queue",
+      "from": "ingestion",
+      "to": "redis",
+      "label": "stream:ingest",
+      "variant": "emphasis"
+    },
+    {
+      "id": "queue-consumer",
+      "from": "redis",
+      "to": "ingestw",
+      "label": "consumer group",
+      "variant": "emphasis"
+    },
+    {
+      "id": "events-hop",
+      "from": "ingestw",
+      "to": "trigger",
+      "label": "stream:events",
+      "variant": "emphasis"
+    },
+    {
+      "id": "entry-hop",
+      "from": "trigger",
+      "to": "scheduler",
+      "label": "stream:journey.entry",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 45
+    },
+    {
+      "id": "send-hop",
+      "from": "scheduler",
+      "to": "channel",
+      "label": "stream:send.push",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 50
+    },
+    {
+      "id": "push-out",
+      "from": "channel",
+      "to": "providers",
+      "label": "푸시 전송",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 50,
+      "labelDx": 58
+    },
+    {
+      "id": "other-channels",
+      "from": "channel",
+      "to": "vendors",
+      "label": "알림톡 · 이메일",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 30
+    },
+    {
+      "id": "ingestw-pg",
+      "from": "ingestw",
+      "to": "pg",
+      "label": "고객 · 디바이스 upsert",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 110,
+      "labelDx": 78
+    },
+    {
+      "id": "ingestw-ch",
+      "from": "ingestw",
+      "to": "ch",
+      "label": "이벤트 적재",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 40
+    },
+    {
+      "id": "sched-pg",
+      "from": "scheduler",
+      "to": "pg",
+      "label": "저니 상태 · Outbox",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "console-api",
+      "from": "console",
+      "to": "management",
+      "label": "세션 쿠키 · 생성 클라이언트",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 40
+    },
+    {
+      "id": "mgmt-pg",
+      "from": "management",
+      "to": "pg",
+      "label": "테넌트 · 암호화 크리덴셜",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "mgmt-ch",
+      "from": "management",
+      "to": "ch",
+      "label": "리포트 조회",
+      "fromSide": "top",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "수집 에지",
+      "items": [
+        "pk_ / sk_ 키가 권한을 가른다",
+        "원본은 ClickHouse에 적재",
+        "Rate Limit은 Redis 테넌트별"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "실행 엔진 (Go 단일 바이너리)",
+      "items": [
+        "--role 로 5개 역할 분할",
+        "틱 + Outbox 릴레이 + 리퍼",
+        "time.Now() 금지, 주입 Clock"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "큐 규약",
+      "items": [
+        "모든 워커 hop = Redis Stream",
+        "send.email · lifecycle 등",
+        "libqueue 경유만 허용"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "신뢰 경계와 멱등",
+      "items": [
+        "세션 쿠키 + TOTP, JWT 비채택",
+        "크리덴셜 AES-256-GCM 봉투암호",
+        "멱등 키에 device_id 필수"
+      ]
+    }
+  ]
+}
