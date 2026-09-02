@@ -6,7 +6,7 @@
 # --- 동적 tenant 주입: 리터럴엔 없지만 런타임 SQL엔 tenant_id 존재 ---
 packages/segment-dsl/src/index.ts::c1fdbadc9691   # profiles_mirror: 컴파일러가 where[] 루트에 tenant_id/app_id 주입 (G-2 불변식·정적테스트)
 apps/api/src/segments/segments.controller.ts::044358058741   # profiles_mirror: 컴파일된(tenant 주입) 서브쿼리로 user_id 한정
-apps/api/src/messaging/message-log.controller.ts::5a5b7de69f41   # message_log: tenant_id/app_id를 conds[]에 주입 (런타임 필터 존재)
+apps/api/src/messaging/message-log.controller.ts::8586a3b6d58d   # message_log: tenant_id/app_id를 conds[]에 주입 (런타임 필터 존재)
 
 # --- app_id 스코프: app_id는 uuid PK로 단일 테넌트 소속 → 교차 테넌트 불가 ---
 apps/api/src/data/data.controller.ts::363172899ed7   # attribute_registry DELETE by app_id (assertApp로 tenant 선검증)

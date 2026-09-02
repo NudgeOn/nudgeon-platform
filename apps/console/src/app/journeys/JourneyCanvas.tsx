@@ -335,10 +335,12 @@ function CanvasContent({ definition, selectedId, segmentName, editable, supporte
     definition.nodes.forEach((node) => {
       const tool = NODE_TOOLS.find((item) => item.type === node.type)!;
       let title = tool.label;
+      let kindLabel = tool.label;
       let detail = "";
       let needsSetup = false;
       if (node.type === "message") {
         if (node.email) {
+          kindLabel = "이메일 메시지"; // 채널에 맞춘 종류 라벨 (기본값은 푸시)
           title = node.email.subject || "새 이메일 메시지";
           detail = "이메일 · " + (node.email.provider || "활성 발송기");
           needsSetup = !node.email.subject.trim() || !node.email.html.trim();
@@ -360,7 +362,7 @@ function CanvasContent({ definition, selectedId, segmentName, editable, supporte
         title = `${node.variants.length}개 경로 · 고객별 고정 배정`;
         needsSetup = node.variants.reduce((sum, variant) => sum + variant.weight, 0) !== 100;
       }
-      append(`node:${node.id}`, { kind: node.type, label: tool.label, title, detail, icon: tool.icon,
+      append(`node:${node.id}`, { kind: node.type, label: kindLabel, title, detail, icon: tool.icon,
         ariaLabel: `${tool.label}: ${title}`, ports: outputPorts(node), needsSetup, metric: nodeMetrics?.[node.id] });
     });
     append("exit", { kind: "exit", label: "저니 종료", title: "", detail: "선택한 경로를 완료하면 종료",

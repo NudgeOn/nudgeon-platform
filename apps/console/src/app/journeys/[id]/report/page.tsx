@@ -14,9 +14,10 @@ import "./journey-report.css";
 
 const STATES: Record<string, string> = { active: "진행", waiting: "대기", claimed: "처리 중", completed: "완료", exited: "이탈", failed: "실패" };
 const SENDS: Record<string, string> = { sent: "발송 접수", failed: "실패", duplicate: "중복 제외", skipped_quiet_hours: "조용시간 생략", skipped_cap: "빈도제한 생략", skipped_unreachable: "도달불가 생략" };
-const TYPES: Record<string, string> = { message: "푸시 메시지", delay: "고정 대기", branch: "조건 분기", event_wait: "이벤트 대기", ab_split: "A/B 분기" };
+const TYPES: Record<string, string> = { message: "메시지", delay: "고정 대기", branch: "조건 분기", event_wait: "이벤트 대기", ab_split: "A/B 분기" };
 const number = (n: number) => n.toLocaleString("ko-KR");
 const label = (node: JourneyNode) => node.type === "message" ? (node.push?.title || node.email?.subject || TYPES.message) : TYPES[node.type];
+const typeLabel = (node: JourneyNode) => node.type === "message" ? (node.email ? "이메일 메시지" : "푸시 메시지") : TYPES[node.type];
 const ArrowLeft = ({ size }: { size: number }) => <JourneyIcon name="arrow-left" size={size} />;
 const ArrowUpRight = ({ size }: { size: number }) => <JourneyIcon name="arrow-right" size={size} />;
 const BarChart3 = ({ size }: { size: number }) => <JourneyIcon name="chart" size={size} />;
@@ -36,6 +37,12 @@ function JourneyReportView({ appId, id }: { appId: string; id: string }) {
   const report = useQuery({
     queryKey: ["journey-report", appId, id, version],
     queryFn: () => api.analytics.journeyReport(appId!, id, version ? { version } : undefined),
+    enabled: !!appId && detail.isSuccess,
+  });
+  // 도달·오픈·클릭: SDK 이벤트 ∪ 공급자 콜백(message_lifecycle — 예: Resend 웹훅) 집계.
+  const delivery = useQuery({
+    queryKey: ["journey-delivery", appId, id],
+    queryFn: () => api.analytics.deliveryReport(appId!, id),
     enabled: !!appId && detail.isSuccess,
   });
   const r = report.data;
@@ -95,7 +102,7 @@ function JourneyReportView({ appId, id }: { appId: string; id: string }) {
         <p className="jr-eyebrow">STEP DETAILS</p>
         <h2>{selectedNode ? label(selectedNode) : "흐름을 살펴보세요"}</h2>
         {!selectedNode ? <p className="jr-hint">조건별 통과 수, 이벤트 대기 결과, A/B 배정을 캔버스에서 선택해 확인하세요.</p> : <>
-          <p className="jr-hint">{TYPES[selectedNode.type]} · v{r.version}</p>
+          <p className="jr-hint">{typeLabel(selectedNode)} · v{r.version}</p>
           {r.instrumentation !== "available" ? <p className="jr-hint">이 버전의 단계 집계가 없습니다.</p> : <>
             <div className="jr-node-totals"><div><span>도달</span><strong>{number(selectedMetrics?.arrived ?? 0)}<small>회</small></strong></div><div><span>대기 중</span><strong>{number(selectedMetrics?.waiting ?? 0)}<small>회</small></strong></div><div><span>완료</span><strong>{number(selectedMetrics?.completed ?? 0)}<small>회</small></strong></div><div><span>실패</span><strong>{number(selectedMetrics?.failed ?? 0)}<small>회</small></strong></div></div>
             {outputPorts(selectedNode).map(port => {
@@ -118,6 +125,17 @@ function JourneyReportView({ appId, id }: { appId: string; id: string }) {
         {!r.sends.length && <p className="jr-hint">아직 발송 처리 기록이 없습니다.</p>}
         {r.sends.map((send, index) => <div className="jr-row" key={`${send.node_index}-${send.status}-${index}`}><span>{graph?.nodes[send.node_index] ? label(graph.nodes[send.node_index]!) : `단계 ${send.node_index + 1}`}<small>{SENDS[send.status] ?? send.status}</small></span><strong>{number(send.count)}건</strong></div>)}
         <p className="jr-footnote">발송은 디바이스 단위이며 일부 생략 기록은 고객 단위입니다. 고객 수나 실제 도달·열람 수로 해석하지 않습니다.</p>
+      </div>
+      <div className="jr-panel"><div className="jr-panel-title"><h2>도달·반응</h2><span>SDK 이벤트 · 공급자 콜백</span></div>
+        {delivery.isError && <p className="jr-hint">도달 집계를 불러오지 못했습니다.</p>}
+        {delivery.isPending && <p className="jr-hint">도달 집계를 불러오는 중…</p>}
+        {delivery.data && <>
+          <div className="jr-row"><span>도달<small>단말·수신함 도착</small></span><strong>{number(delivery.data.delivered)}건 · {(delivery.data.delivery_rate * 100).toFixed(1)}%</strong></div>
+          <div className="jr-row"><span>오픈<small>도달 대비</small></span><strong>{number(delivery.data.opened)}건 · {(delivery.data.open_rate * 100).toFixed(1)}%</strong></div>
+          <div className="jr-row"><span>클릭<small>이메일 링크</small></span><strong>{number(delivery.data.clicked)}건</strong></div>
+          <div className="jr-row"><span>반송<small>수신 거부·주소 오류</small></span><strong>{number(delivery.data.bounced)}건</strong></div>
+          <p className="jr-footnote">푸시는 SDK가, 이메일은 공급자 웹훅(Resend 등)이 보고합니다. 웹훅을 등록하지 않은 발송기는 도달·오픈이 0으로 남습니다.</p>
+        </>}
       </div>
     </section>
   </main>;
