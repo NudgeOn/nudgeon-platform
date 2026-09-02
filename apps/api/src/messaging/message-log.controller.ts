@@ -50,7 +50,7 @@ export class MessageLogController {
     const res = await this.ch.query({
       query: `SELECT message_id, idempotency_key, journey_id, journey_version, node_index,
                      campaign_ref, user_id, device_id, channel, status, failure_class,
-                     failure_detail, formatDateTime(sent_at, '%Y-%m-%dT%H:%M:%S') AS sent_at
+                     failure_detail, formatDateTime(sent_at, '%Y-%m-%d %H:%i:%S') AS sent_at
                 FROM message_log WHERE ${conds.join(" AND ")}
                ORDER BY sent_at DESC LIMIT ${max}`,
       query_params: params,

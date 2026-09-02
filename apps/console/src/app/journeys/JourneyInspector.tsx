@@ -44,7 +44,7 @@ const inspectorContent: Record<InspectorKind, {
     helper: "종료 이벤트가 없으면 마지막 단계까지 진행한 뒤 저니가 완료됩니다.",
   },
   message: {
-    title: "푸시 메시지", icon: "message", description: "고객에게 전할 이야기를 작성하세요.",
+    title: "메시지", icon: "message", description: "고객에게 전할 이야기를 작성하세요.",
     helper: "캔버스에서 다른 단계를 선택하면 해당 설정을 확인할 수 있습니다.",
   },
   delay: {

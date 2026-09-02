@@ -231,3 +231,51 @@ func TestResendValidateDomains(t *testing.T) {
 		})
 	}
 }
+
+// Resend는 잘못된 API 키에 401이 아니라 400 {"name":"validation_error","message":"API key is invalid"}를
+// 반환한다(2026-09 실측). 이를 permanent_content로 두면 Verifier.judge가 "인증은 통과"로 읽어
+// 잘못된 키가 verified로 표시되고 발송도 크리덴셜 정지 경로를 타지 않는다.
+func TestClassifyResendAPIKeyErrorIsCredentialAuth(t *testing.T) {
+	cases := []struct {
+		name string
+		code int
+		body string
+		want FailureClass
+	}{
+		{"400 API key is invalid", 400, `{"statusCode":400,"name":"validation_error","message":"API key is invalid"}`, FailureCredentialAuth},
+		{"401 unauthorized", 401, `{"statusCode":401,"name":"missing_api_key","message":"Missing API key"}`, FailureCredentialAuth},
+		{"403 restricted key", 403, `{"statusCode":403,"name":"restricted_api_key","message":"This API key is restricted to only send emails"}`, FailureCredentialAuth},
+		{"422 도메인 권한", 422, `{"statusCode":422,"name":"validation_error","message":"You do not have permission to send from this domain"}`, FailureCredentialAuth},
+		{"422 수신자 오류는 그대로", 422, `{"statusCode":422,"name":"validation_error","message":"Invalid ` + "`to`" + ` field: not an email address"}`, FailureInvalidTarget},
+		{"422 콘텐츠 오류는 그대로", 422, `{"statusCode":422,"name":"validation_error","message":"The subject field is required"}`, FailurePermanentContent},
+		{"5xx는 키 언급이 있어도 재시도", 503, `{"statusCode":503,"message":"api key service unavailable"}`, FailureRetryable},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := &http.Response{StatusCode: tc.code, Header: http.Header{}}
+			if got := Classify(classifyResend(resp, []byte(tc.body))); got != tc.want {
+				t.Fatalf("분류 = %v, 기대 %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// 검증 경로: 잘못된 키 → error 상태로 이어지는 credential_auth 여야 한다 (verified 아님).
+func TestValidateResendInvalidAPIKey(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"statusCode":400,"name":"validation_error","message":"API key is invalid"}`))
+	}))
+	defer srv.Close()
+	p := NewEmailPlugin(clock.Real{})
+	err := p.ValidateCredentials(context.Background(), Credentials{
+		Kind: "email_resend",
+		JSON: []byte(`{"api_key":"re_bad","from_email":"noreply@onda.dev","base_url":"` + srv.URL + `"}`),
+	})
+	if err == nil {
+		t.Fatal("잘못된 키인데 검증 통과")
+	}
+	if got := Classify(err); got != FailureCredentialAuth {
+		t.Fatalf("분류 = %v, 기대 credential_auth (permanent_content이면 Verifier가 verified로 표시)", got)
+	}
+}

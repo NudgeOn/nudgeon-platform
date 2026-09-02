@@ -83,6 +83,12 @@ var resendHTTP = &http.Client{Timeout: 15 * time.Second}
 // (token/into 등 오탐 방지), recipient/email address는 부분 문자열.
 var resendRecipientErr = regexp.MustCompile(`(?i)(\bto\b|recipient|email address)`)
 
+// resendAuthErr — 키·권한 문제를 가리키는 메시지. Resend는 잘못된 API 키에 401이 아니라
+// 400 {"name":"validation_error","message":"API key is invalid"}를 반환하므로 상태코드만으로는
+// 인증 실패를 구분할 수 없다. 이를 permanent_content로 두면 검증기(judge)가 "인증은 통과"로 읽어
+// 잘못된 키를 verified로 표시하고, 발송에서도 크리덴셜 정지 경로를 타지 않는다.
+var resendAuthErr = regexp.MustCompile(`(?i)(api[ _-]?key|unauthor|forbidden|restricted|permission)`)
+
 func (p *EmailPlugin) sendResend(ctx context.Context, req SendRequest) (SendResult, error) {
 	c, err := parseResendCred(req.Credentials)
 	if err != nil {
@@ -149,6 +155,8 @@ func classifyResend(resp *http.Response, body []byte) error {
 		return NewSendError(FailureCredentialAuth, "Resend 인증 실패(%d): %s", code, re.Message)
 	case code == http.StatusTooManyRequests:
 		return NewRateLimitError(parseRetryAfter(resp.Header.Get("Retry-After")), "Resend 429: %s", re.Message)
+	case code >= 400 && code < 500 && resendAuthErr.MatchString(re.Message):
+		return NewSendError(FailureCredentialAuth, "Resend 인증 실패(%d) %s: %s", code, re.Name, re.Message)
 	case code == http.StatusBadRequest || code == http.StatusUnprocessableEntity:
 		if resendRecipientErr.MatchString(re.Message) {
 			return NewSendError(FailureInvalidTarget, "Resend %d %s: %s", code, re.Name, re.Message)
