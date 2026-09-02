@@ -341,7 +341,7 @@ Acceptance criteria:
 - [ ] 실패 후 credential 수정 또는 테스트 대상 변경으로 돌아갈 수 있다.
 - [ ] 대상 준비가 끝나지 않으면 send CTA를 비활성화하고 누락된 권한·token·identity·environment를 각각 안내한다.
 - [ ] 단일 선택 endpoint와 channel environment를 확인하는 마지막 confirmation을 거친다.
-- [ ] 완료 화면의 primary CTA는 `첫 저니 만들기` 하나이며 SECNUDGEONRy CTA는 `NudgeOn Health 보기`다.
+- [ ] 완료 화면의 primary CTA는 `첫 저니 만들기` 하나이며 secondary CTA는 `NudgeOn Health 보기`다.
 
 ## 8. 설치·온보딩 상태 모델
 

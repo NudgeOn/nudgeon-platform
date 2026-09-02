@@ -57,10 +57,10 @@ h2 { margin-bottom: 0; font-size: 20px; letter-spacing: -.02em; }
 .next-step { display: flex; align-items: center; justify-content: space-between; gap: 24px; border-color: #cfcaf9 !important; background: #f8f7ff !important; }
 .next-step p { margin: 8px 0 0; color: #5f687a; }
 .next-badge { flex: 0 0 auto; padding: 8px 12px; border-radius: 999px; color: #5145d8; background: #e9e6ff; font-size: 13px; font-weight: 750; }
-.primary, .SECNUDGEONRy { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 16px; border-radius: 11px; text-decoration: none; font-weight: 750; }
+.primary, .secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 16px; border-radius: 11px; text-decoration: none; font-weight: 750; }
 .primary { border: 0; color: white; background: #5145d8; cursor: pointer; }
 .primary:disabled { cursor: not-allowed; opacity: .62; }
-.SECNUDGEONRy { border: 1px solid #d7dbe5; color: #30394b; background: white; cursor: pointer; }
+.secondary { border: 1px solid #d7dbe5; color: #30394b; background: white; cursor: pointer; }
 .text-button { border: 0; padding: 8px 0; color: #5548d7; background: transparent; cursor: pointer; font-weight: 700; }
 footer { display: flex; align-items: center; gap: 12px; min-height: 48px; color: #6c7586; font-size: 13px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

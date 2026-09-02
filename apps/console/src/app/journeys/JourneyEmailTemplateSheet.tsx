@@ -66,7 +66,7 @@ export function JourneyEmailTemplateSheet({ template, onCancel, onChooseAnother,
             <small>{formatBytes(template.archiveSize)}</small>
             <span className="j-template-success"><JourneyIcon name="check" size={14} />검사 완료</span>
           </div>
-          <button type="button" className="j-template-SECNUDGEONRy-button" onClick={onChooseAnother}>다른 ZIP 선택</button>
+          <button type="button" className="j-template-secondary-button" onClick={onChooseAnother}>다른 ZIP 선택</button>
         </section>
 
         <section className="j-template-checks" aria-label="ZIP 검사 결과">
