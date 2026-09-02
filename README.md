@@ -134,6 +134,8 @@ flowchart TB
 
 API 연동 방법과 전체 엔드포인트는 [API 가이드](docs-public/API.md)에서 확인할 수 있습니다.
 
+콘솔 화면은 [콘솔 안내](docs-public/CONSOLE-GUIDE.md)에 실제 캡처와 함께 정리했습니다. 이메일은 SMTP·AWS SES·NHN Cloud·Resend를 지원하며, Resend는 웹훅으로 도달·오픈·클릭까지 수집합니다 ([Resend 설정 가이드](docs-public/RESEND-SETUP.md)).
+
 - **발송 전 필수:** message_id 연결, 채널 재시도·DLQ·유실 복구, SDK 동의·로그아웃·토큰 소유권, 수집→저니 트리거 복구.
 - **수정 반영·검증 대기:** 수집 dedup, pause, 권한, OS 권한 정규화 및 최근 설치·인증 변경.
 - **공개·운영 준비:** 콘솔 API 주소 빌드 설정, SDK 패키지·실기기 검증, CI, 백업·부하·격리, 영문 문서와 관리형 서비스 운영.

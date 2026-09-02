@@ -1,0 +1,134 @@
+[
+  {
+    "file": "01-login.png",
+    "name": "login",
+    "desc": "로그인",
+    "url": "/login"
+  },
+  {
+    "file": "02-signup.png",
+    "name": "signup",
+    "desc": "가입 — 테넌트·Owner·기본 앱 생성",
+    "url": "/signup"
+  },
+  {
+    "file": "03-dashboard.png",
+    "name": "dashboard",
+    "desc": "대시보드 — 발송·도달·DAU·삭제율",
+    "url": "/"
+  },
+  {
+    "file": "04-segments.png",
+    "name": "segments",
+    "desc": "세그먼트 목록",
+    "url": "/segments"
+  },
+  {
+    "file": "05-segment-detail.png",
+    "name": "segment-detail",
+    "desc": "세그먼트 상세 — 조건 빌더·미리보기",
+    "url": "/segments/b3dbb2ec-bf54-4f04-aa9c-770439b2bcff"
+  },
+  {
+    "file": "06-segment-new.png",
+    "name": "segment-new",
+    "desc": "세그먼트 생성",
+    "url": "/segments/new"
+  },
+  {
+    "file": "07-journeys.png",
+    "name": "journeys",
+    "desc": "저니 목록",
+    "url": "/journeys"
+  },
+  {
+    "file": "08-journey-canvas.png",
+    "name": "journey-canvas",
+    "desc": "저니 캔버스 — 지연·이메일(Resend)·이벤트 대기·푸시",
+    "url": "/journeys/d055552e-4049-4892-a85b-b966f7fb8554"
+  },
+  {
+    "file": "09-journey-report.png",
+    "name": "journey-report",
+    "desc": "저니 리포트 — 발송·도달·오픈·클릭(Resend 웹훅 반영)",
+    "url": "/journeys/d055552e-4049-4892-a85b-b966f7fb8554/report"
+  },
+  {
+    "file": "10-users.png",
+    "name": "users",
+    "desc": "유저 검색",
+    "url": "/users"
+  },
+  {
+    "file": "11-data.png",
+    "name": "data",
+    "desc": "데이터 — 속성 사전·수집 오류",
+    "url": "/data"
+  },
+  {
+    "file": "12-logs.png",
+    "name": "logs",
+    "desc": "발송 로그",
+    "url": "/logs"
+  },
+  {
+    "file": "13-email-templates.png",
+    "name": "email-templates",
+    "desc": "이메일 템플릿 + 발송기 카드(기본: 범용 SMTP)",
+    "url": "/email-templates"
+  },
+  {
+    "file": "14-provider-ses.png",
+    "name": "provider-ses",
+    "desc": "발송기 — AWS SES (SMTP)",
+    "url": "/email-templates"
+  },
+  {
+    "file": "15-provider-resend-smtp.png",
+    "name": "provider-resend-smtp",
+    "desc": "발송기 — Resend (SMTP): 바로가기 패널·키 발급·도메인 인증 링크",
+    "url": "/email-templates"
+  },
+  {
+    "file": "16-provider-resend-api.png",
+    "name": "provider-resend-api",
+    "desc": "발송기 — Resend (API): 바로가기 패널·웹훅 서명 비밀·웹훅 URL 안내",
+    "url": "/email-templates"
+  },
+  {
+    "file": "17-provider-nhn.png",
+    "name": "provider-nhn",
+    "desc": "발송기 — NHN Cloud (API)",
+    "url": "/email-templates"
+  },
+  {
+    "file": "18-provider-resend-closeup.png",
+    "name": "provider-resend-closeup",
+    "desc": "Resend(API) 발송기 카드 클로즈업 — 딥링크 4종·웹훅 가이드",
+    "url": "/email-templates"
+  },
+  {
+    "file": "19-onboarding.png",
+    "name": "onboarding",
+    "desc": "온보딩 위저드 — 앱·키·크리덴셜·SDK 스니펫·테스트 발송",
+    "url": "/onboarding"
+  },
+  {
+    "file": "20-team.png",
+    "name": "team",
+    "desc": "팀 — 멤버·역할·초대",
+    "url": "/team"
+  },
+  {
+    "file": "21-audit.png",
+    "name": "audit",
+    "desc": "감사 로그",
+    "url": "/audit"
+  },
+  {
+    "file": "22-settings.png",
+    "name": "settings",
+    "desc": "설정 — 조용시간·빈도 상한·2FA·키",
+    "url": "/settings"
+  }
+]
