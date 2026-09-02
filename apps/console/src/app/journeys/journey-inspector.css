@@ -174,3 +174,27 @@
 @media (prefers-reduced-motion: reduce) {
   .j-inspector *, .j-inspector *::before, .j-inspector *::after { transition: none !important; }
 }
+
+/* 알림톡 노드 — 채널이 셋(푸시·이메일·알림톡)이라 세그먼트가 3열이 된다. */
+.j-inspector-segmented-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* 치환자 매핑 — 한 줄에 #{이름} · 값 · 종류. 미매핑은 색으로 드러낸다. */
+.j-alimtalk-vars { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.j-alimtalk-var { display: grid; grid-template-columns: minmax(72px, 30%) minmax(0, 1fr); align-items: center; gap: 6px 8px; }
+.j-alimtalk-var > label { min-width: 0; }
+.j-alimtalk-var code { display: block; overflow-wrap: anywhere; color: var(--j-inspector-tint); font-size: 12px; }
+.j-inspector .j-alimtalk-var input { min-height: 36px; padding: 8px 9px; font-size: 13px; }
+.j-alimtalk-var-kind { grid-column: 2; color: var(--j-muted, #72818b); font-size: 11px; }
+.j-alimtalk-var.is-unmapped .j-alimtalk-var-kind { color: var(--j-danger, #bd5a43); }
+.j-alimtalk-var.is-unmapped input { border-color: var(--j-danger, #bd5a43); }
+
+/* 승인 본문 미리보기 — 줄바꿈을 그대로 보여야 실제 발송과 같은 모양이 된다. */
+.j-alimtalk-preview {
+  margin: 0; padding: 13px 14px; border: 1px solid #f0e2b4; border-radius: 10px;
+  background: #fef9e7; color: #3b3a2f;
+  font: inherit; font-size: 13px; line-height: 1.75;
+  white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere;
+}
+
+.j-alimtalk-fallback-toggle { display: flex; align-items: center; gap: 8px; color: var(--j-text, #172b32); font-size: 13px; }
+.j-inspector .j-alimtalk-fallback-toggle input { width: auto; min-height: 0; }

@@ -11,6 +11,8 @@ import { ABSplitSettings, EventWaitSettings, JourneyConditionEditor, RouteSettin
 import { canMoveNode, outgoingEdges, type GraphDefinition, type PublishedABNodes } from "./journey-graph";
 import { DURATION_UNITS, durationUnit, formatDuration } from "./journey-editor-model";
 import { JourneyIcon, type JourneyIconName } from "./journey-ui";
+import { AlimtalkMessageFields } from "./JourneyAlimtalkFields";
+import { withMessageChannel, type MessageChannel } from "./alimtalk-variables";
 import "./journey-inspector.css";
 
 export interface JourneyInspectorProps {
@@ -351,35 +353,41 @@ function ExitSettings({ definition, editable, onUpdate, id }: {
   );
 }
 
+const CHANNEL_LABELS: Record<MessageChannel, string> = { push: "푸시", email: "이메일", alimtalk: "알림톡" };
+
 function MessageSettings({ node, index, editable, onUpdate, id }: {
   node: MessageNode; index: number; editable: boolean; onUpdate: UpdateDefinition; id: string;
 }) {
-  const channel: "push" | "email" = node.email ? "email" : "push";
+  // 채널은 정확히 하나. 셋 다 비어 있는 새 노드는 푸시로 읽는다.
+  const channel: MessageChannel = node.alimtalk ? "alimtalk" : node.email ? "email" : "push";
 
-  function setChannel(next: "push" | "email") {
+  function setChannel(next: MessageChannel) {
     if (next === channel) return;
     onUpdate((draft) => {
       const current = draft.nodes[index];
       if (current?.type !== "message") return;
-      draft.nodes[index] = next === "email"
-        ? { id: current.id, type: "message", email: { subject: "", html: "" } }
-        : { id: current.id, type: "message", push: { title: "", body: "" } };
+      // 다른 채널의 키를 남기면 messageChannel이 null이 되고 발행 검증이 막힌다.
+      draft.nodes[index] = { ...withMessageChannel({ id: current.id, type: "message" }, next), id: current.id };
     });
   }
 
   return (
     <>
       <Field id={`${id}-channel`} label="채널">
-        <div className="j-inspector-segmented" role="group" aria-label="발송 채널">
-          <button type="button" disabled={!editable} aria-pressed={channel === "push"}
-            className={channel === "push" ? "is-active" : undefined} onClick={() => setChannel("push")}>푸시</button>
-          <button type="button" disabled={!editable} aria-pressed={channel === "email"}
-            className={channel === "email" ? "is-active" : undefined} onClick={() => setChannel("email")}>이메일</button>
+        <div className="j-inspector-segmented j-inspector-segmented-3" role="group" aria-label="발송 채널">
+          {(["push", "email", "alimtalk"] as const).map((option) => (
+            <button key={option} type="button" disabled={!editable} aria-pressed={channel === option}
+              className={channel === option ? "is-active" : undefined} onClick={() => setChannel(option)}>
+              {CHANNEL_LABELS[option]}
+            </button>
+          ))}
         </div>
       </Field>
-      {channel === "email"
-        ? <EmailMessageFields node={node} index={index} editable={editable} onUpdate={onUpdate} id={id} />
-        : <PushMessageFields node={node} index={index} editable={editable} onUpdate={onUpdate} id={id} />}
+      {channel === "alimtalk"
+        ? <AlimtalkMessageFields node={node} index={index} editable={editable} onUpdate={onUpdate} id={id} />
+        : channel === "email"
+          ? <EmailMessageFields node={node} index={index} editable={editable} onUpdate={onUpdate} id={id} />
+          : <PushMessageFields node={node} index={index} editable={editable} onUpdate={onUpdate} id={id} />}
     </>
   );
 }
@@ -393,7 +401,11 @@ function PushMessageFields({ node, index, editable, onUpdate, id }: {
     onUpdate((draft) => {
       const current = draft.nodes[index];
       if (current?.type === "message") {
-        draft.nodes[index] = { ...current, push: { ...(current.push ?? { title: "", body: "" }), [field]: value }, email: undefined };
+        // 다른 채널의 키를 남기지 않는다 — 메시지 노드는 정확히 하나의 채널만 채워야 한다.
+        draft.nodes[index] = {
+          ...current, push: { ...(current.push ?? { title: "", body: "" }), [field]: value },
+          email: undefined, alimtalk: undefined,
+        };
       }
     });
   }
@@ -461,7 +473,7 @@ function EmailMessageFields({ node, index, editable, onUpdate, id }: {
       const current = draft.nodes[index];
       if (current?.type === "message") {
         const base = current.email ?? { subject: "", html: "" };
-        draft.nodes[index] = { ...current, email: { ...base, ...patch }, push: undefined };
+        draft.nodes[index] = { ...current, email: { ...base, ...patch }, push: undefined, alimtalk: undefined };
       }
     });
   }
