@@ -56,7 +56,7 @@ type Node struct {
 type EmailContent struct {
 	Subject  string `json:"subject"`
 	HTML     string `json:"html"`
-	Provider string `json:"provider,omitempty"` // email_smtp | email_nhn | ""(활성)
+	Provider string `json:"provider,omitempty"` // email_smtp | email_nhn | email_resend | ""(활성)
 }
 
 type Variant struct {

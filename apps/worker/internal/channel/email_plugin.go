@@ -34,12 +34,18 @@ type smtpCred struct {
 func (p *EmailPlugin) Kind() ChannelKind      { return KindEmail }
 func (p *EmailPlugin) TargetType() TargetType { return TargetEmail }
 
-// 이메일 크리덴셜 kind → 공급자 라우팅. SMTP(범용·AWS SES SMTP 포함) / NHN Cloud Email API.
+// 이메일 크리덴셜 kind → 공급자 라우팅. SMTP(범용·AWS SES SMTP 포함) / NHN Cloud Email API / Resend.
 // AWS SES는 email-smtp.{region}.amazonaws.com SMTP로 email_smtp에서 바로 동작(콘솔 프리셋).
 const (
-	credEmailSMTP = "email_smtp"
-	credEmailNHN  = "email_nhn"
+	credEmailSMTP   = "email_smtp"
+	credEmailNHN    = "email_nhn"
+	credEmailResend = "email_resend"
 )
+
+// isEmailProvider — send.email payload의 provider 지정값이 알려진 이메일 발송기 kind인지.
+func isEmailProvider(kind string) bool {
+	return kind == credEmailSMTP || kind == credEmailNHN || kind == credEmailResend
+}
 
 func parseSMTPCred(creds Credentials) (*smtpCred, error) {
 	var c smtpCred
@@ -56,10 +62,14 @@ func parseSMTPCred(creds Credentials) (*smtpCred, error) {
 }
 
 func (p *EmailPlugin) ValidateCredentials(ctx context.Context, creds Credentials) error {
-	if creds.Kind == credEmailNHN {
+	switch creds.Kind {
+	case credEmailNHN:
 		return p.validateNHN(ctx, creds)
+	case credEmailResend:
+		return p.validateResend(ctx, creds)
+	default:
+		return p.validateSMTP(ctx, creds)
 	}
-	return p.validateSMTP(ctx, creds)
 }
 
 func (p *EmailPlugin) validateSMTP(ctx context.Context, creds Credentials) error {
@@ -86,10 +96,14 @@ func (p *EmailPlugin) Send(ctx context.Context, req SendRequest) (SendResult, er
 	if req.Content.Email == nil {
 		return SendResult{}, NewSendError(FailurePermanentContent, "email content 없음")
 	}
-	if req.Credentials.Kind == credEmailNHN {
+	switch req.Credentials.Kind {
+	case credEmailNHN:
 		return p.sendNHN(ctx, req)
+	case credEmailResend:
+		return p.sendResend(ctx, req)
+	default:
+		return p.sendSMTP(ctx, req)
 	}
-	return p.sendSMTP(ctx, req)
 }
 
 func (p *EmailPlugin) sendSMTP(ctx context.Context, req SendRequest) (SendResult, error) {

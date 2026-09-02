@@ -28,7 +28,7 @@ type SendEmailPayload struct {
 	MessageID      string `json:"message_id"`
 	UserID         string `json:"user_id"`
 	Email          string `json:"email"`    // 수신 이메일 주소
-	Provider       string `json:"provider"` // email_smtp | email_nhn (미지정=활성 발송기 폴백)
+	Provider       string `json:"provider"` // email_smtp | email_nhn | email_resend (미지정=활성 발송기 폴백)
 	Content        struct {
 		Email *EmailContent `json:"email"`
 	} `json:"content"`
@@ -123,7 +123,11 @@ func (w *EmailWorker) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 	}
 	now := w.clk.Now()
 	base := func(status, class, detail string) []any {
-		return w.logRow(env.TenantID, env.AppID, &p, messageID, status, class, detail, now)
+		return w.logRow(env.TenantID, env.AppID, &p, messageID, status, class, detail, "", now)
+	}
+	// sentRow — 전송 성공(및 재전달 시 재기록) 행. provider_message_id로 공급자 콜백과 조인.
+	sentRow := func(providerID, detail string) []any {
+		return w.logRow(env.TenantID, env.AppID, &p, messageID, "sent", "", detail, providerID, now)
 	}
 
 	idemKey := fmt.Sprintf("send:email:idem:%s:%s", env.TenantID, p.IdempotencyKey)
@@ -166,8 +170,9 @@ func (w *EmailWorker) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 		val, _ := w.rdb.Get(ctx, idemKey).Result()
 		switch {
 		case strings.HasPrefix(val, statusSent+"|"):
+			providerID := strings.TrimPrefix(val, statusSent+"|")
 			metrics.ChannelSends.WithLabelValues("duplicate").Inc()
-			return base("sent", "", "provider_id="+strings.TrimPrefix(val, statusSent+"|")), false
+			return sentRow(providerID, "provider_id="+providerID), false
 		case strings.HasPrefix(val, statusFailed+"|"):
 			return base("failed", strings.TrimPrefix(val, statusFailed+"|"), ""), false
 		default:
@@ -182,7 +187,7 @@ func (w *EmailWorker) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 	}
 	if !ok {
 		commitFailed("credential_missing")
-		return base("failed", "credential_missing", "email_smtp 크리덴셜 미등록/미검증"), false
+		return base("failed", "credential_missing", "이메일 발송기(email_*) 크리덴셜 미등록/미검증"), false
 	}
 
 	p.Content.Email.MessageID = messageID
@@ -196,7 +201,7 @@ func (w *EmailWorker) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 		w.rdb.Set(ctx, idemKey, statusSent+"|"+res.ProviderID, idemCommitTTL)
 		w.rdb.Del(ctx, attemptsKey, retryAtKey)
 		metrics.ChannelSends.WithLabelValues("sent").Inc()
-		return base("sent", "", ""), false
+		return sentRow(res.ProviderID, ""), false
 	}
 
 	class := w.plugin.ClassifyError(sendErr)
@@ -213,14 +218,14 @@ func (w *EmailWorker) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 }
 
 // emailCredential — verified 이메일 공급자 크리덴셜 복호화(요청당 조회 — 이메일 볼륨 낮음).
-// 앱이 설정한 email_* 공급자(email_smtp/email_nhn) 중 최근 검증된 것을 선택하고 kind를 실어
+// 앱이 설정한 email_* 공급자(email_smtp/email_nhn/email_resend) 중 최근 검증된 것을 선택하고 kind를 실어
 // 플러그인이 공급자별로 분기하도록 한다.
 // provider 지정 시 그 발송기만, 미지정 시 최근 검증된 활성 발송기로 폴백.
 func (w *EmailWorker) emailCredential(ctx context.Context, appID, provider string) (Credentials, bool, error) {
 	var kind string
 	var ciphertext, dekWrapped []byte
 	var err error
-	if provider == "email_smtp" || provider == "email_nhn" {
+	if isEmailProvider(provider) {
 		err = w.pg.QueryRow(ctx, `
 			SELECT kind::text, ciphertext, dek_wrapped FROM credentials
 			 WHERE app_id = $1 AND kind = $2 AND status = 'verified'`, appID, provider).
@@ -228,7 +233,7 @@ func (w *EmailWorker) emailCredential(ctx context.Context, appID, provider strin
 	} else {
 		err = w.pg.QueryRow(ctx, `
 			SELECT kind::text, ciphertext, dek_wrapped FROM credentials
-			 WHERE app_id = $1 AND kind IN ('email_smtp','email_nhn') AND status = 'verified'
+			 WHERE app_id = $1 AND kind IN ('email_smtp','email_nhn','email_resend') AND status = 'verified'
 			 ORDER BY last_verified_at DESC NULLS LAST LIMIT 1`, appID).
 			Scan(&kind, &ciphertext, &dekWrapped)
 	}
@@ -245,7 +250,8 @@ func (w *EmailWorker) emailCredential(ctx context.Context, appID, provider strin
 	return Credentials{Kind: kind, JSON: plain}, true, nil
 }
 
-func (w *EmailWorker) logRow(tenantID, appID string, p *SendEmailPayload, messageID, status, class, detail string, at time.Time) []any {
+// logRow — message_log 행. providerID는 sent 행에서만 채운다(그 외 ”).
+func (w *EmailWorker) logRow(tenantID, appID string, p *SendEmailPayload, messageID, status, class, detail, providerID string, at time.Time) []any {
 	journeyID := zeroUUID
 	if p.JourneyID != nil {
 		journeyID = *p.JourneyID
@@ -268,7 +274,7 @@ func (w *EmailWorker) logRow(tenantID, appID string, p *SendEmailPayload, messag
 	return []any{
 		tenantID, appID, messageID, p.IdempotencyKey,
 		journeyID, version, node, campaignRef,
-		userID, zeroUUID, "email", status, class, detail, at,
+		userID, zeroUUID, "email", status, class, detail, at, providerID,
 	}
 }
 
@@ -279,7 +285,8 @@ func (w *EmailWorker) flushLog(ctx context.Context, rows [][]any) error {
 	batch, err := w.ch.PrepareBatch(ctx, `
 		INSERT INTO message_log (tenant_id, app_id, message_id, idempotency_key,
 			journey_id, journey_version, node_index, campaign_ref,
-			user_id, device_id, channel, status, failure_class, failure_detail, sent_at)`)
+			user_id, device_id, channel, status, failure_class, failure_detail, sent_at,
+			provider_message_id)`)
 	if err != nil {
 		return err
 	}
