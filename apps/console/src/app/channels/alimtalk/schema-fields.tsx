@@ -14,12 +14,15 @@ export function SchemaFields({
   values,
   disabled,
   idPrefix,
+  hint,
   onChange,
 }: {
   fields: SchemaField[];
   values: Record<string, string>;
   disabled?: boolean;
   idPrefix: string;
+  /** 값이 어디에 저장되는지 한 줄로 — 비밀을 조용히 버리지 않는다는 원칙을 화면에 드러낸다. */
+  hint?: (field: SchemaField) => string;
   onChange: (name: string, value: string) => void;
 }) {
   return (
@@ -59,6 +62,7 @@ export function SchemaFields({
               />
             )}
             {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
+            {hint && <p className="text-[11px] text-muted-foreground">{hint(field)}</p>}
           </div>
         );
       })}

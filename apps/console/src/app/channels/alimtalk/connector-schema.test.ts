@@ -3,6 +3,7 @@ import {
   CREDENTIAL_SLOTS,
   canSubmit,
   credentialSlot,
+  fieldDestination,
   initialValues,
   planConfig,
   planCredential,
@@ -129,29 +130,26 @@ describe("credentialSlot", () => {
 describe("planCredential", () => {
   const fields = schemaFields(nhnSchema);
 
-  it("비밀은 크리덴셜 슬롯으로, 슬롯 없는 비(非)비밀은 배선 config로 나눈다", () => {
-    const withExtra = schemaFields({
-      type: "object",
-      required: ["api_key"],
-      properties: {
-        api_key: { type: "string", "x-secret": true },
-        user_id: { type: "string", title: "발신 계정 ID" },
-      },
-    });
-    const plan = planCredential(withExtra, { api_key: "ak", user_id: "onda" });
-    expect(plan.credential).toEqual({ api_key: "ak" });
-    expect(plan.config).toEqual({ user_id: "onda" });
+  it("매니페스트가 선언한 이름 그대로 extra에 싣는다 — 벤더가 그 이름으로 읽는다", () => {
+    const plan = planCredential(fields, { app_key: "AK", secret_key: "SK" });
+    expect(plan.extra).toEqual({ app_key: "AK", secret_key: "SK" });
+  });
+
+  it("회귀: NHN을 저장하면 app_key가 실제로 실린다 (슬롯 이름으로만 보내 검증 실패하던 결함)", () => {
+    const plan = planCredential(fields, { app_key: "AK", secret_key: "SK" });
+    // 워커 nhn.go의 credential 구조체가 읽는 이름
+    expect(plan.extra.app_key).toBe("AK");
+    expect(plan.extra.secret_key).toBe("SK");
     expect(canSubmit(plan)).toBe(true);
   });
 
-  it("NHN 폼을 서버가 받는 슬롯으로 옮긴다", () => {
+  it("슬롯 매핑도 함께 보낸다 — 서버가 extra 위에 얹는 호환용이다", () => {
     const plan = planCredential(fields, {
       app_key: "AK", secret_key: "SK", sender_key: "@onda", base_url: "https://x.example.com",
     });
     expect(plan.credential).toEqual({
       api_key: "AK", secret_key: "SK", sender_key: "@onda", base_url: "https://x.example.com",
     });
-    expect(plan.config).toEqual({});
   });
 
   it("빈 필수 필드를 라벨로 알려 주고 저장을 막는다", () => {
@@ -161,16 +159,16 @@ describe("planCredential", () => {
   });
 
   it("값 앞뒤 공백은 저장 전에 지운다", () => {
-    expect(planCredential(fields, { app_key: "  AK  ", secret_key: "SK" }).credential.api_key).toBe("AK");
+    expect(planCredential(fields, { app_key: "  AK  ", secret_key: "SK" }).extra.app_key).toBe("AK");
   });
 
   it("선택 필드가 비면 아예 보내지 않는다 (서버 기본값을 쓰게)", () => {
     const plan = planCredential(fields, { app_key: "AK", secret_key: "SK", base_url: "" });
+    expect(plan.extra.base_url).toBeUndefined();
     expect(plan.credential.base_url).toBeUndefined();
-    expect(plan.credential.sender_key).toBeUndefined();
   });
 
-  it("슬롯 없는 비밀은 저장을 막는다 — 조용히 버리면 진단 불가능한 실패가 된다", () => {
+  it("슬롯이 없는 비밀도 이제 저장된다 — 갈 곳이 생겼으므로 막지 않는다", () => {
     const odd = schemaFields({
       type: "object",
       required: ["api_key", "signing_seed"],
@@ -180,16 +178,59 @@ describe("planCredential", () => {
       },
     });
     const plan = planCredential(odd, { api_key: "ak", signing_seed: "seed" });
-    expect(plan.unstorableSecrets).toEqual(["서명 시드"]);
-    expect(canSubmit(plan)).toBe(false);
+    expect(plan.extra).toEqual({ api_key: "ak", signing_seed: "seed" });
+    expect(canSubmit(plan)).toBe(true);
   });
 
-  it("api_key 슬롯을 채울 필드가 아예 없으면 저장이 불가능하다고 표시한다", () => {
-    const odd = schemaFields({
-      type: "object", required: ["user_id"], properties: { user_id: { type: "string" } },
+  it("비(非)비밀 필드도 크리덴셜에 남는다 — config로 새지 않는다", () => {
+    const withExtra = schemaFields({
+      type: "object",
+      required: ["api_key"],
+      properties: {
+        api_key: { type: "string", "x-secret": true },
+        user_id: { type: "string", title: "발신 계정 ID" },
+      },
     });
-    expect(planCredential(odd, { user_id: "onda" }).missingApiKey).toBe(true);
-    expect(planCredential(schemaFields(nhnSchema), {}).missingApiKey).toBe(false);
+    const plan = planCredential(withExtra, { api_key: "ak", user_id: "onda" });
+    expect(plan.extra).toEqual({ api_key: "ak", user_id: "onda" });
+  });
+
+  it("api_key에 매핑되는 필드가 없으면 첫 필수 필드로 서버의 필수 슬롯을 채우고 그 사실을 밝힌다", () => {
+    const odd = schemaFields({
+      type: "object", required: ["user_id"], properties: { user_id: { type: "string", title: "계정" } },
+    });
+    const plan = planCredential(odd, { user_id: "onda" });
+    expect(plan.credential.api_key).toBe("onda");
+    expect(plan.apiKeyBorrowedFrom).toBe("계정");
+    expect(plan.extra).toEqual({ user_id: "onda" });
+    expect(canSubmit(plan)).toBe(true);
+  });
+
+  it("슬롯이 제대로 매핑되면 빌려 오지 않는다", () => {
+    expect(planCredential(fields, { app_key: "AK", secret_key: "SK" }).apiKeyBorrowedFrom).toBeNull();
+  });
+
+  it("아무 값도 없으면 저장할 수 없다", () => {
+    const plan = planCredential(fields, {});
+    expect(plan.missingApiKey).toBe(true);
+    expect(canSubmit(plan)).toBe(false);
+  });
+});
+
+describe("fieldDestination", () => {
+  it("이름이 슬롯과 다르면 둘 다 밝힌다 (조용히 버리지 않는다)", () => {
+    const [appKey] = schemaFields(nhnSchema);
+    expect(fieldDestination(appKey!)).toBe("크리덴셜에 app_key(으)로 저장 · api_key 슬롯에도 함께");
+  });
+
+  it("이름이 슬롯과 같으면 한 마디로 끝낸다", () => {
+    const [secretKey] = schemaFields({ type: "object", properties: { secret_key: { type: "string" } } });
+    expect(fieldDestination(secretKey!)).toBe("크리덴셜에 이 이름 그대로 저장");
+  });
+
+  it("슬롯이 없는 필드도 제 이름으로 저장된다고 말한다", () => {
+    const [seed] = schemaFields({ type: "object", properties: { signing_seed: { type: "string" } } });
+    expect(fieldDestination(seed!)).toBe("크리덴셜에 이 이름 그대로 저장");
   });
 });
 

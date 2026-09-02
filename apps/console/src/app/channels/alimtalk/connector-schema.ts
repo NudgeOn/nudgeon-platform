@@ -141,37 +141,44 @@ export function credentialSlot(name: string): CredentialSlot | null {
 }
 
 export interface CredentialPlan {
-  /** PUT /credentials 본문에 실을 값 (kind·connector_id는 호출부가 붙인다) */
+  /**
+   * 벤더가 실제로 읽는 값 — 매니페스트가 선언한 필드명 그대로.
+   * NHN은 app_key를, mock은 api_key를 자기 이름으로 읽으므로 이것이 정본이다.
+   */
+  extra: Record<string, string>;
+  /** 이름 있는 슬롯(호환용). 서버가 extra 위에 얹으므로 같은 키면 이 값이 이긴다. */
   credential: Partial<Record<CredentialSlot, string>>;
-  /** 슬롯이 없는 비(非)비밀 필드 — 채널 배선의 config로 보낸다 */
-  config: Record<string, string>;
   /** 값이 비어 있는 필수 필드 */
   missingRequired: string[];
   /**
-   * 슬롯이 없는 비밀 필드. 저장하면 유실되므로 막는다 —
-   * 조용히 버리면 "등록했는데 발송이 안 되는" 진단 불가능한 상태가 된다.
+   * api_key 슬롯에 매핑되는 필드가 없어 첫 필수 필드 값을 대신 채웠다.
+   * 서버가 api_key를 필수로 받기 때문이고, 벤더는 extra의 제 이름만 읽으므로 발송에는 영향이 없다.
+   * 화면에 밝혀 두는 이유: 저장된 값이 그 이름으로도 남는다는 사실을 감추지 않기 위해서다.
    */
-  unstorableSecrets: string[];
-  /** api_key 슬롯을 채울 필드가 없음. 서버가 api_key를 필수로 받으므로 저장이 불가능하다. */
+  apiKeyBorrowedFrom: string | null;
+  /** 어떤 값도 넣지 않아 api_key를 채울 수 없다 — 저장하면 400이 난다. */
   missingApiKey: boolean;
 }
 
 /** 저장 가능한 계획인가 — 버튼 활성화 조건. */
 export function canSubmit(plan: CredentialPlan): boolean {
-  return plan.missingRequired.length === 0 && plan.unstorableSecrets.length === 0 && !plan.missingApiKey;
+  return plan.missingRequired.length === 0 && !plan.missingApiKey;
 }
 
 /**
  * 폼 값 → 저장 계획.
  *
- * 비밀은 크리덴셜(봉투 암호화)로, 비밀이 아닌 나머지는 채널 배선 config로 나눈다.
- * 이 분리는 서버 계약이다: channel_connectors.config에는 비밀을 넣지 않는다.
+ * 크리덴셜 스키마가 선언한 필드는 **모두** 제 이름으로 extra에 싣는다. 벤더가 그 이름으로 읽기
+ * 때문이고, 슬롯 이름으로만 보내면 이름이 다른 벤더는 "필드 누락"으로 검증에서 떨어진다
+ * (NHN이 app_key를 읽는데 콘솔이 api_key로만 저장하던 결함이 정확히 이것이었다).
+ * 슬롯 매핑은 흔한 형태를 위한 호환으로 함께 보낸다 — 서버가 extra 위에 얹는다.
+ *
+ * config(비밀 아닌 앱 설정)는 config_schema가 따로 정하므로 여기서 나누지 않는다.
  */
 export function planCredential(fields: SchemaField[], values: Record<string, string>): CredentialPlan {
+  const extra: Record<string, string> = {};
   const credential: Partial<Record<CredentialSlot, string>> = {};
-  const config: Record<string, string> = {};
   const missingRequired: string[] = [];
-  const unstorableSecrets: string[] = [];
 
   for (const field of fields) {
     const value = (values[field.name] ?? "").trim();
@@ -179,19 +186,37 @@ export function planCredential(fields: SchemaField[], values: Record<string, str
       if (field.required) missingRequired.push(field.label);
       continue;
     }
+    extra[field.name] = value;
     const slot = credentialSlot(field.name);
     if (slot) credential[slot] = value;
-    else if (field.secret) unstorableSecrets.push(field.label);
-    else config[field.name] = value;
+  }
+
+  // 서버는 api_key를 필수로 받는다. 매핑되는 필드가 없는 벤더도 저장할 수 있어야
+  // "매니페스트만 있으면 벤더가 들어온다"는 계약이 닫힌다.
+  let apiKeyBorrowedFrom: string | null = null;
+  if (!credential.api_key) {
+    const donor = fields.find((f) => f.required && extra[f.name]) ?? fields.find((f) => extra[f.name]);
+    if (donor) {
+      credential.api_key = extra[donor.name]!;
+      apiKeyBorrowedFrom = donor.label;
+    }
   }
 
   return {
+    extra,
     credential,
-    config,
     missingRequired,
-    unstorableSecrets,
-    missingApiKey: !fields.some((f) => credentialSlot(f.name) === "api_key"),
+    apiKeyBorrowedFrom,
+    missingApiKey: !credential.api_key,
   };
+}
+
+/** 이 필드의 값이 어디에 저장되는지 — 화면에 그대로 밝힌다(조용히 버리지 않는다는 원칙). */
+export function fieldDestination(field: SchemaField): string {
+  const slot = credentialSlot(field.name);
+  return slot && slot !== field.name
+    ? `크리덴셜에 ${field.name}(으)로 저장 · ${slot} 슬롯에도 함께`
+    : "크리덴셜에 이 이름 그대로 저장";
 }
 
 /** config 스키마 폼 값 → 배선 config. 빈 값은 보내지 않는다(서버가 기본값을 쓰게). */

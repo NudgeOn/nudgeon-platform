@@ -8,7 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ALIMTALK_CHANNEL } from "./channel";
 import { connectorWebhookUrl, reportSummary, serverMessage } from "./alimtalk-labels";
-import { canSubmit, initialValues, planConfig, planCredential, schemaFields } from "./connector-schema";
+import {
+  canSubmit,
+  fieldDestination,
+  initialValues,
+  planConfig,
+  planCredential,
+  schemaFields,
+} from "./connector-schema";
 import { SchemaFields } from "./schema-fields";
 
 /** 배선에 저장된 config 중 문자열 값만 폼으로 되돌린다 — 폼 위젯이 다룰 수 있는 형태만 쓴다. */
@@ -69,15 +76,17 @@ export function ConnectorSetup({
       await api.credentials.upsert(appId, {
         kind: "alimtalk",
         connector_id: connector.id,
+        // 벤더가 실제로 읽는 이름은 매니페스트가 정한다 — 슬롯 이름으로만 보내면
+        // 이름이 다른 벤더(NHN의 app_key)가 "필드 누락"으로 검증에서 떨어진다.
+        extra: plan.extra,
         api_key: plan.credential.api_key,
         ...(plan.credential.secret_key ? { secret_key: plan.credential.secret_key } : {}),
         ...(plan.credential.sender_key ? { sender_key: plan.credential.sender_key } : {}),
         ...(plan.credential.base_url ? { base_url: plan.credential.base_url } : {}),
       });
-      // 스키마에 있었지만 크리덴셜 슬롯이 없는 비(非)비밀 값은 배선 config로 간다.
       await api.alimtalk.connector.put(appId, ALIMTALK_CHANNEL, {
         connector_id: connector.id,
-        config: { ...plan.config, ...planConfig(configFields, configValues) },
+        config: planConfig(configFields, configValues),
         enabled: true,
       });
     },
@@ -127,6 +136,7 @@ export function ConnectorSetup({
               values={credentialValues}
               idPrefix={`cred-${connector.id}`}
               disabled={save.isPending}
+              hint={fieldDestination}
               onChange={(name, value) => setCredentialValues((v) => ({ ...v, [name]: value }))}
             />
           )}
@@ -145,16 +155,15 @@ export function ConnectorSetup({
           </div>
         )}
 
-        {plan.missingApiKey && (
+        {plan.missingApiKey && !plan.missingRequired.length && (
           <p className="text-xs text-destructive">
-            이 벤더의 스키마에 API 키로 저장할 필드가 없습니다. 콘솔이 저장할 수 없으니 커넥터 매니페스트를
-            고치거나 배포 담당자에게 알려 주세요.
+            저장할 값이 하나도 없습니다. 위 필드를 채워 주세요.
           </p>
         )}
-        {plan.unstorableSecrets.length > 0 && (
-          <p className="text-xs text-destructive">
-            비밀 필드 {plan.unstorableSecrets.join(" · ")}를 저장할 자리가 없습니다. 그냥 저장하면 값이 사라지고
-            발송이 조용히 실패하므로 막았습니다.
+        {plan.apiKeyBorrowedFrom && (
+          <p className="text-xs text-muted-foreground">
+            이 벤더에는 API 키에 해당하는 필드가 없어, 서버의 필수 슬롯을 &lsquo;{plan.apiKeyBorrowedFrom}&rsquo;
+            값으로 채웁니다. 벤더는 매니페스트가 선언한 이름만 읽으므로 발송 동작에는 영향이 없습니다.
           </p>
         )}
         {plan.missingRequired.length > 0 && (
