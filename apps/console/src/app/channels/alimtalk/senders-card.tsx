@@ -133,7 +133,7 @@ export function SendersCard({
             <Input
               id="sender-name"
               value={channelName}
-              placeholder="@온다"
+              placeholder="@넛지온"
               onChange={(e) => setChannelName(e.target.value)}
             />
           </div>

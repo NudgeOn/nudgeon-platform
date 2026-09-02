@@ -97,7 +97,7 @@ const main = async () => {
   // ── 3. 발신프로필 + 승인 템플릿 (P0에서는 동기화가 없어 직접 넣는다)
   const senderRes = await req("POST", `/v1/apps/${appId}/alimtalk/senders`, {
     cookie,
-    body: { sender_key: SENDER_KEY, channel_name: "@온다샵", is_default: true },
+    body: { sender_key: SENDER_KEY, channel_name: "@넛지온샵", is_default: true },
   });
   ok(senderRes.status === 201 || senderRes.status === 200, `발신프로필 등록 ${senderRes.status} ${JSON.stringify(senderRes.json)}`);
   const senderId = senderRes.json?.id ?? psql(
@@ -178,7 +178,7 @@ const main = async () => {
   for (const u of users) {
     psql(`INSERT INTO users (tenant_id, app_id, external_id, std_attrs, custom_attrs, subscriptions, status)
           VALUES ('${tenantId}','${appId}','${u.ext}',
-                  '{"phone":"${u.phone}","name":"온다","order_no":"A-1","amount":"12000","coupon":"가을맞이","expires":"2026-12-31"}'::jsonb,'{}'::jsonb,'{}'::jsonb,'active')
+                  '{"phone":"${u.phone}","name":"넛지온","order_no":"A-1","amount":"12000","coupon":"가을맞이","expires":"2026-12-31"}'::jsonb,'{}'::jsonb,'{}'::jsonb,'active')
           ON CONFLICT DO NOTHING`);
   }
   ok(psql(`SELECT count(*) FROM users WHERE app_id='${appId}'`) === "3", "대상 유저 3명");

@@ -14,7 +14,7 @@
   "content": {
     "template": {
       "code": "ORDER_SHIPPED_01",
-      "variables": { "고객명": "김온다", "주문번호": "A20260902-0017", "택배사": "CJ대한통운" },
+      "variables": { "고객명": "홍길동", "주문번호": "A20260902-0017", "택배사": "CJ대한통운" },
       "sender_key": "5f1e2d3c4b5a69788776655443322110aabbccdd"
     },
     "buttons": [
@@ -31,7 +31,7 @@
       "channel": "sms",
       "connector": { "id": "sms_nhn", "version": "0.1.0", "credential_ref": "cred:sms_nhn:prod" },
       "target": { "type": "phone", "endpoint_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", "value": "+821012345678", "country": "KR" },
-      "content": { "text": { "body": "[온다샵] 김온다님의 주문 A20260902-0017이 CJ대한통운으로 발송되었습니다. 배송 조회: https://shop.example.com/o/17", "sender": "0212345678" } },
+      "content": { "text": { "body": "[넛지온샵] 홍길동님의 주문 A20260902-0017이 CJ대한통운으로 발송되었습니다. 배송 조회: https://shop.example.com/o/17", "sender": "0212345678" } },
       "on": ["invalid_target", "permanent_content", "retry_exhausted", "unsupported"]
     }
   ],
