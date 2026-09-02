@@ -55,6 +55,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          # 이 잡은 node 표준 라이브러리만 쓴다(의존성 설치 없음). setup-node v5는 기본값
+          # package-manager-cache: true 로 pnpm-lock.yaml을 감지해 pnpm 캐시를 시도하는데,
+          # 이 잡에는 pnpm/action-setup이 없어 "Unable to locate executable file: pnpm"로 실패한다.
+          package-manager-cache: false
       # compose 파일은 app 프로파일의 ${NUDGEON_MASTER_KEY:?} 보간을 전체 파일에서 수행하므로
       # 미설정 시 config 검증도 실패한다. 문법 검증용 placeholder 주입 (기동 아님).
       - name: 기존 Compose config 검증
