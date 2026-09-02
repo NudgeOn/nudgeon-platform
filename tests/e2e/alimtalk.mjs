@@ -204,6 +204,17 @@ const main = async () => {
   const rows = await ch(`SELECT status, failure_class, provider_message_id FROM message_log
     WHERE tenant_id='${tenantId}' AND app_id='${appId}' AND channel='kakao_alimtalk' ORDER BY status FORMAT TSV`);
   console.log(rows.split("\n").map((l) => "  " + l).join("\n"));
+  if (!rows.includes("sent")) {
+    // 가장 흔한 원인: 아래 본문이 mock 픽스처(alimtalk/mock/templates.go)와 어긋났다.
+    // 목은 자기 픽스처로 필수 치환자를 도출하므로 한 글자만 달라도 발송 전에 거절된다.
+    const why = await ch(`SELECT DISTINCT failure_detail FROM message_log
+      WHERE tenant_id='${tenantId}' AND app_id='${appId}' AND channel='kakao_alimtalk' FORMAT TSV`);
+    console.error("  실패 사유:", why.replace(/\n/g, " | "));
+    if (/치환자|승인된 템플릿/.test(why)) {
+      console.error("  → 이 E2E의 infoBody/promoBody가 mock 픽스처(apps/worker/internal/channel/alimtalk/mock/templates.go)와");
+      console.error("    일치하는지 확인하세요. 목은 자기 픽스처 본문에서 필수 치환자를 도출합니다.");
+    }
+  }
   ok(rows.includes("sent"), "성공 발송 기록");
   ok(/mock_/.test(rows), "provider_message_id 기록 (공급자 접수 식별자)");
 
