@@ -1,7 +1,7 @@
 # NudgeOn
 
 <p align="center">
-  <a href="https://github.com/nudgeon/nudgeon-platform/actions/workflows/ci.yml"><img src="https://github.com/nudgeon/nudgeon-platform/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/NudgeOn/nudgeon-platform/actions/workflows/ci.yml"><img src="https://github.com/NudgeOn/nudgeon-platform/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache-2.0" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange.svg" alt="status: alpha" />
 </p>
@@ -14,10 +14,22 @@
   <a href="README.md">English</a> · <b>한국어</b>
 </p>
 
-**Open source. Easy to start — Safe Boot Preview.**
-소스와 데이터를 직접 소유하고 검토할 수 있는 Open Source의 투명성은 그대로, 시작은 `./nudgeon up` 한 명령으로 단순하게 만들고 있습니다. 현재 Preview는 로컬 시크릿 생성, 안전한 런타임 기동, 설치 상태 화면까지 제공하며 최초 Owner 위자드와 Test Inbox는 다음 단계로 개발 중입니다. 관리형 SaaS도 준비 중입니다.
+**NudgeOn은 제품팀을 위한 오픈소스 고객 인게이지먼트 플랫폼입니다.**
 
-> ⚠️ 개발 중인 Push 중심 MVP입니다. 핵심 경로의 코드가 있으나 발송 복구·SDK 계약 연결·운영 검증이 남아 있습니다. 최근 수정 항목도 통합 검증이 필요합니다. API·스키마는 예고 없이 변경됩니다.
+앱 이벤트를 수집하고, 대상을 정의하고, 저니를 실행해 모바일 푸시를 발송합니다. 데이터와 발송 인프라는 직접 관리할 수 있으며 플랫폼 소스는 Apache-2.0으로 제공됩니다.
+
+**Safe Boot Preview로 로컬에서 시작하세요.**
+`./nudgeon up`을 실행하면 로컬 시크릿 생성, 런타임 기동, 설치 상태 확인까지 진행됩니다. 최초 Owner 위자드와 Test Inbox는 개발 중이며, 관리형 SaaS도 준비하고 있습니다.
+
+> ⚠️ 현재 버전은 Push 중심 MVP alpha입니다. 이벤트 수집, 대상 조건, 저니 실행, FCM/APNs 발송 경로는 소스에 구현되어 있지만 발송 복구, SDK 계약 연결, 실기기·채널 검증, 운영 준비는 끝나지 않았습니다. 최근 수정 항목도 통합 검증이 필요합니다. API와 스키마는 예고 없이 바뀔 수 있습니다.
+
+## 현재 범위
+
+- 이벤트 수집과 고객·디바이스 기록
+- 속성과 이벤트 기반 대상 조건
+- 대기·메시지 노드를 포함한 이벤트 기반 저니
+- FCM과 APNs 모바일 푸시 발송 경로
+- Safe Boot Preview를 통한 로컬 셀프호스팅
 
 ## 전체 아키텍처
 

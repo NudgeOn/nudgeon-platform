@@ -1,7 +1,7 @@
 # NudgeOn
 
 <p align="center">
-  <a href="https://github.com/nudgeon/nudgeon-platform/actions/workflows/ci.yml"><img src="https://github.com/nudgeon/nudgeon-platform/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/NudgeOn/nudgeon-platform/actions/workflows/ci.yml"><img src="https://github.com/NudgeOn/nudgeon-platform/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache-2.0" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange.svg" alt="status: alpha" />
 </p>
@@ -14,25 +14,22 @@
   <b>English</b> · <a href="README.ko.md">한국어</a>
 </p>
 
-**NudgeOn is an open-source customer engagement platform with native support for KakaoTalk Alimtalk and Korean SMS — a self-hostable alternative to Braze.**
+**NudgeOn is an open-source customer engagement platform for product teams.**
 
-Collect events from your apps, build audiences, orchestrate journeys, and deliver messages on infrastructure you control. Push and email work today; Alimtalk is landing this quarter. The engine, console, and SDKs are all Apache-2.0, with no open-core feature gating.
+Collect app events, build audiences, orchestrate journeys, and deliver mobile push from infrastructure you control. The platform source is available under Apache-2.0.
 
-**Open source. Easy to start — Safe Boot Preview.**
-You keep the transparency of open source — owning and auditing both the source and the data — while getting started stays a single `./nudgeon up`. The current Preview generates local secrets, boots the runtime safely, and shows an install-status screen. The first-Owner wizard and Test Inbox come next. A managed SaaS is also in preparation.
+**Start locally with Safe Boot Preview.**
+Run `./nudgeon up` to generate local secrets, start the runtime, and open the install-status screen. The first-Owner wizard and Test Inbox are still in development. A managed SaaS offering is also in preparation.
 
-> ⚠️ This is a Push-focused MVP under active development. The core paths exist in source, but delivery recovery, SDK contract wiring, and operational verification are unfinished. Recent fixes still need integration testing. APIs and schemas may change without notice.
+> ⚠️ NudgeOn is a push-focused MVP alpha. Event ingestion, audience rules, journey execution, and FCM/APNs delivery paths exist in source, but delivery recovery, SDK contract wiring, real-device and provider verification, and production operations remain unfinished. Recent fixes still need integration testing. APIs and schemas may change without notice.
 
-## Why NudgeOn
+## Current scope
 
-| | Braze / Airship | OneSignal / Firebase | Novu / Dittofeed | **NudgeOn** |
-|---|---|---|---|---|
-| KakaoTalk Alimtalk · Korean SMS | partner-dependent | ✗ | ✗ | **native** |
-| Self-hostable | ✗ | ✗ | ✓ | **✓** |
-| Segments + journey orchestration | ✓ | thin | varies | **✓** |
-| License | commercial | commercial | MIT / AGPL | **Apache-2.0, fully open** |
-
-Korean teams that need Alimtalk, regulatory compliance (advertising disclosure, night-time send restrictions, 080 opt-out routing), reasonable cost, and data sovereignty have had no self-hostable option. That gap is why NudgeOn exists.
+- Event ingestion and user/device records
+- Attribute- and event-based audience rules
+- Event-triggered journeys with wait and message nodes
+- Mobile push delivery paths for FCM and APNs
+- Local self-hosting through Safe Boot Preview
 
 ## Architecture
 

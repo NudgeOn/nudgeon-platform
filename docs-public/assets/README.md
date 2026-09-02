@@ -19,8 +19,3 @@
 rsvg-convert -w 1600 nudgeon-logo.svg -o nudgeon-logo.png   # 락업
 rsvg-convert -w 1024 -h 1024 nudgeon-mark.svg -o avatar.png  # 조직 아바타
 ```
-
-## 이력
-
-- 2026-08-30 — 초기 시안은 생성형 이미지 도구로 만든 전서구 락업이었습니다.
-- 2026-09-02 — 제품명이 Onda에서 NudgeOn으로 바뀌면서(국내 상표 선등록 회피) 심볼을 N 모노그램으로 교체하고 전서구 자산을 제거했습니다.
