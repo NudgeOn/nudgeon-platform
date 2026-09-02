@@ -1,0 +1,588 @@
+package mock
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/ondahq/onda/apps/worker/internal/channel"
+	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk"
+	"github.com/ondahq/onda/apps/worker/internal/channel/alimtalk/conformance"
+	"github.com/ondahq/onda/apps/worker/internal/clock"
+	"github.com/ondahq/onda/apps/worker/internal/connector"
+)
+
+// fixedClock — 결정적 테스트용 고정 시계. CLAUDE.md 규칙 3.
+func fixedClock() *clock.Fake {
+	return &clock.Fake{Current: time.Date(2026, 9, 2, 10, 0, 0, 0, time.UTC)}
+}
+
+func newVendor(t *testing.T) *Vendor {
+	t.Helper()
+	m, err := EmbeddedManifest()
+	if err != nil {
+		t.Fatalf("내장 manifest: %v", err)
+	}
+	v, err := NewWithClock(m, fixedClock())
+	if err != nil {
+		t.Fatalf("NewWithClock: %v", err)
+	}
+	return v
+}
+
+// TestConformance — 참조 구현이 계약 스위트 9종을 통과하는지.
+// 이 테스트가 초록이면 스위트 자체도 살아 있다는 뜻이라, NHN·알리고가 붙을 때
+// 실패의 원인이 벤더인지 스위트인지 구분할 수 있다.
+func TestConformance(t *testing.T) {
+	v := newVendor(t)
+	conformance.RunSuite(t, v, v.ConformanceEnv())
+}
+
+func TestEmbeddedManifestIsValid(t *testing.T) {
+	m, err := EmbeddedManifest()
+	if err != nil {
+		t.Fatalf("내장 manifest 파싱: %v", err)
+	}
+	if m.ID != ConnectorID {
+		t.Fatalf("id: want %q, got %q", ConnectorID, m.ID)
+	}
+	if m.Channel != alimtalk.ChannelID {
+		t.Fatalf("channel: want %q, got %q", alimtalk.ChannelID, m.Channel)
+	}
+	if m.SubstitutionMode() != connector.SubstitutionBoth {
+		t.Fatalf("substitution: want both, got %q", m.SubstitutionMode())
+	}
+	if m.Mode() != connector.LifecycleBoth {
+		t.Fatalf("lifecycle_mode: want both, got %q", m.Mode())
+	}
+	if !m.NeedsCallback() || !m.NeedsPolling() {
+		t.Fatal("both 모드는 콜백·폴링을 모두 요구해야 한다")
+	}
+	if !m.Capabilities.VendorFallback {
+		t.Fatal("vendor_fallback이 true여야 한다")
+	}
+	if m.Lifecycle.Callback == nil || m.Lifecycle.Callback.Path == "" || m.Lifecycle.Callback.Verify == "" {
+		t.Fatal("lifecycle.callback의 path·verify가 있어야 한다")
+	}
+	want := conformance.IDs()
+	if len(m.ContractTests) != len(want) {
+		t.Fatalf("contract_tests 개수: want %d, got %d", len(want), len(m.ContractTests))
+	}
+	have := map[string]bool{}
+	for _, id := range m.ContractTests {
+		have[id] = true
+	}
+	for _, id := range want {
+		if !have[id] {
+			t.Fatalf("contract_tests에 %q가 없다", id)
+		}
+	}
+}
+
+// TestRegisteredInRegistry — init()의 자기 등록과 레지스트리 해석이 이어지는지.
+func TestRegisteredInRegistry(t *testing.T) {
+	m, err := EmbeddedManifest()
+	if err != nil {
+		t.Fatalf("내장 manifest: %v", err)
+	}
+	reg, err := alimtalk.NewRegistry([]connector.Manifest{m})
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	v, err := reg.Get(ConnectorID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if v.Manifest().ID != ConnectorID {
+		t.Fatalf("Manifest().ID: got %q", v.Manifest().ID)
+	}
+	if got := reg.IDs(); len(got) != 1 || got[0] != ConnectorID {
+		t.Fatalf("IDs: got %v", got)
+	}
+}
+
+func TestSteeringTable(t *testing.T) {
+	v := newVendor(t)
+	ctx := context.Background()
+	base := func(id string) alimtalk.SendRequest {
+		return alimtalk.SendRequest{
+			MessageID:    id,
+			SenderKey:    "mock-sender-key",
+			TemplateCode: TemplateOrder,
+			Variables:    SampleVariables(TemplateOrder),
+		}
+	}
+	cases := []struct {
+		suffix    string
+		wantClass channel.FailureClass
+		accepted  bool
+	}{
+		{SuffixDelivered, channel.FailureNone, true},
+		{SuffixInvalidTarget, channel.FailureNone, true},
+		{SuffixFallback, channel.FailureNone, true},
+		{SuffixPermanentContent, channel.FailurePermanentContent, false},
+		{SuffixCredentialAuth, channel.FailureCredentialAuth, false},
+		{SuffixRateLimited, channel.FailureRateLimited, false},
+		{SuffixRetryable, channel.FailureRetryable, false},
+		{"7777", channel.FailureNone, true}, // 미지정 번호는 해피패스
+	}
+	for _, tc := range cases {
+		t.Run(tc.suffix, func(t *testing.T) {
+			req := base("steer-" + tc.suffix)
+			req.To = Number(tc.suffix)
+			r, err := v.Send(ctx, req)
+			if tc.accepted {
+				if err != nil {
+					t.Fatalf("접수돼야 하는데 실패했다: %v", err)
+				}
+				if r.AcceptedAt != v.clk.Now() {
+					t.Fatalf("AcceptedAt이 주입 시계와 다르다: %v", r.AcceptedAt)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("실패해야 하는데 접수됐다: %s", r.ProviderMessageID)
+			}
+			if got := v.Classify(err); got != tc.wantClass {
+				t.Fatalf("분류: want %s, got %s", tc.wantClass, got)
+			}
+		})
+	}
+}
+
+func TestRateLimitCarriesRetryAfter(t *testing.T) {
+	v := newVendor(t)
+	_, err := v.Send(context.Background(), alimtalk.SendRequest{
+		MessageID:    "rl",
+		SenderKey:    "mock-sender-key",
+		TemplateCode: TemplateOrder,
+		Variables:    SampleVariables(TemplateOrder),
+		To:           Number(SuffixRateLimited),
+	})
+	if got := channel.RetryAfterOf(err); got != RateLimitRetryAfter {
+		t.Fatalf("Retry-After: want %v, got %v", RateLimitRetryAfter, got)
+	}
+}
+
+func TestFallbackSteering(t *testing.T) {
+	v := newVendor(t)
+	ctx := context.Background()
+	req := alimtalk.SendRequest{
+		MessageID:    "fb",
+		SenderKey:    "mock-sender-key",
+		TemplateCode: TemplateOrder,
+		Variables:    SampleVariables(TemplateOrder),
+		To:           Number(SuffixFallback),
+	}
+	cred := alimtalk.Credential{ConnectorID: ConnectorID, JSON: ValidCredentialJSON()}
+
+	bare, err := v.Send(ctx, req)
+	if err != nil {
+		t.Fatalf("Fallback 없는 발송: %v", err)
+	}
+	evs, err := v.PollResults(ctx, cred, []alimtalk.Receipt{bare})
+	if err != nil || len(evs) != 1 {
+		t.Fatalf("PollResults: %v (%d건)", err, len(evs))
+	}
+	if evs[0].Status != "failed" || evs[0].FailureClass != channel.FailureInvalidTarget.String() {
+		t.Fatalf("Fallback 없으면 invalid_target으로 실패해야 한다: %+v", evs[0])
+	}
+
+	req.MessageID = "fb2"
+	req.Fallback = &alimtalk.Fallback{Type: "SMS", Text: "대체발송", SenderNo: "0212345678"}
+	saved, err := v.Send(ctx, req)
+	if err != nil {
+		t.Fatalf("Fallback 발송: %v", err)
+	}
+	evs, err = v.PollResults(ctx, cred, []alimtalk.Receipt{saved})
+	if err != nil || len(evs) != 1 {
+		t.Fatalf("PollResults: %v (%d건)", err, len(evs))
+	}
+	if evs[0].Status != "sent" || evs[0].FailureClass != "" {
+		t.Fatalf("Fallback이 실리면 대체발송으로 살아나야 한다: %+v", evs[0])
+	}
+	if evs[0].CostAmount <= 0 || evs[0].CostCurrency != "KRW" {
+		t.Fatalf("성공 종결은 원가를 실어야 한다: %+v", evs[0])
+	}
+}
+
+func TestValidateCredential(t *testing.T) {
+	v := newVendor(t)
+	ctx := context.Background()
+	cases := []struct {
+		name string
+		cred alimtalk.Credential
+		ok   bool
+	}{
+		{"정상", alimtalk.Credential{ConnectorID: ConnectorID, JSON: ValidCredentialJSON()}, true},
+		{"무효 키", alimtalk.Credential{JSON: InvalidCredentialJSON()}, false},
+		{"빈 크리덴셜", alimtalk.Credential{}, false},
+		{"api_key 누락", alimtalk.Credential{JSON: []byte(`{"sender_key":"s"}`)}, false},
+		{"sender_key 누락", alimtalk.Credential{JSON: []byte(`{"api_key":"k"}`)}, false},
+		{"JSON 깨짐", alimtalk.Credential{JSON: []byte(`{`)}, false},
+		{"다른 커넥터", alimtalk.Credential{ConnectorID: "kakao_alimtalk_nhn", JSON: ValidCredentialJSON()}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := v.Validate(ctx, tc.cred)
+			if tc.ok {
+				if err != nil {
+					t.Fatalf("통과해야 한다: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("실패해야 한다")
+			}
+			if got := v.Classify(err); got != channel.FailureCredentialAuth {
+				t.Fatalf("credential_auth여야 한다 (got %s): %v", got, err)
+			}
+		})
+	}
+}
+
+func TestParseCallback(t *testing.T) {
+	v := newVendor(t)
+	ctx := context.Background()
+	id := ProviderMessageID("cb-one", outcomeDelivered)
+
+	t.Run("단건", func(t *testing.T) {
+		body := []byte(`{"provider_message_id":"` + id + `","message_id":"cb-one","status":"delivered","occurred_at":"2026-09-02T11:00:00Z"}`)
+		evs, err := v.ParseCallback(ctx, alimtalk.RawCallback{ConnectorID: ConnectorID, Body: body})
+		if err != nil {
+			t.Fatalf("ParseCallback: %v", err)
+		}
+		if len(evs) != 1 {
+			t.Fatalf("1건이어야 한다 (got %d)", len(evs))
+		}
+		if !evs[0].Terminal || evs[0].Status != "delivered" {
+			t.Fatalf("delivered는 종결이어야 한다: %+v", evs[0])
+		}
+		if !evs[0].OccurredAt.Equal(time.Date(2026, 9, 2, 11, 0, 0, 0, time.UTC)) {
+			t.Fatalf("occurred_at을 그대로 써야 한다: %v", evs[0].OccurredAt)
+		}
+	})
+
+	t.Run("배열", func(t *testing.T) {
+		body := []byte(`[{"provider_message_id":"a","status":"sent"},{"provider_message_id":"b","status":"failed"}]`)
+		evs, err := v.ParseCallback(ctx, alimtalk.RawCallback{Body: body})
+		if err != nil {
+			t.Fatalf("ParseCallback: %v", err)
+		}
+		if len(evs) != 2 {
+			t.Fatalf("2건이어야 한다 (got %d)", len(evs))
+		}
+		if evs[0].Terminal {
+			t.Fatal("sent는 종결이 아니다")
+		}
+		if !evs[1].Terminal || evs[1].FailureClass != channel.FailureInvalidTarget.String() {
+			t.Fatalf("failed는 종결 + 분류가 있어야 한다: %+v", evs[1])
+		}
+		if !evs[0].OccurredAt.Equal(v.clk.Now()) {
+			t.Fatalf("occurred_at 누락 시 주입 시계를 써야 한다: %v", evs[0].OccurredAt)
+		}
+	})
+
+	t.Run("거부", func(t *testing.T) {
+		bad := []alimtalk.RawCallback{
+			{Body: []byte(``)},
+			{Body: []byte(`{`)},
+			{Body: []byte(`{"status":"delivered"}`)}, // provider_message_id 누락
+			{Body: []byte(`{"provider_message_id":"a","status":"read"}`)}, // 보고하지 않는 상태
+			{Body: []byte(`{"provider_message_id":"a","status":"sent","occurred_at":"어제"}`)},
+			{ConnectorID: "kakao_alimtalk_nhn", Body: []byte(`{"provider_message_id":"a","status":"sent"}`)},
+		}
+		for i, cb := range bad {
+			if _, err := v.ParseCallback(ctx, cb); err == nil {
+				t.Fatalf("%d번 콜백은 거부돼야 한다: %s", i, cb.Body)
+			}
+		}
+	})
+}
+
+func TestPollResultsSkipsForeignReceipts(t *testing.T) {
+	v := newVendor(t)
+	cred := alimtalk.Credential{JSON: ValidCredentialJSON()}
+	evs, err := v.PollResults(context.Background(), cred, []alimtalk.Receipt{
+		{ProviderMessageID: "nhn:req-1:0", MessageID: "x"},
+		{ProviderMessageID: ProviderMessageID("mine", outcomeDelivered), MessageID: "mine"},
+	})
+	if err != nil {
+		t.Fatalf("PollResults: %v", err)
+	}
+	if len(evs) != 1 || evs[0].MessageID != "mine" {
+		t.Fatalf("남의 접수는 건너뛰어야 한다: %+v", evs)
+	}
+}
+
+func TestPollResultsRejectsBadCredential(t *testing.T) {
+	v := newVendor(t)
+	_, err := v.PollResults(context.Background(), alimtalk.Credential{JSON: InvalidCredentialJSON()}, nil)
+	if got := v.Classify(err); got != channel.FailureCredentialAuth {
+		t.Fatalf("credential_auth여야 한다 (got %s): %v", got, err)
+	}
+}
+
+func TestListTemplates(t *testing.T) {
+	v := newVendor(t)
+	cred := alimtalk.Credential{JSON: ValidCredentialJSON()}
+	ts, err := v.ListTemplates(context.Background(), cred, "mock-sender-key")
+	if err != nil {
+		t.Fatalf("ListTemplates: %v", err)
+	}
+	if len(ts) != 3 {
+		t.Fatalf("픽스처 3건이어야 한다 (got %d)", len(ts))
+	}
+	byCode := map[string]alimtalk.Template{}
+	for _, tm := range ts {
+		byCode[tm.Code] = tm
+		if tm.Status != alimtalk.TemplateApproved {
+			t.Fatalf("%s: 승인 상태여야 한다", tm.Code)
+		}
+		if len(alimtalk.Variables(tm.Content)) == 0 {
+			t.Fatalf("%s: 치환자가 있어야 렌더 경로가 걸린다", tm.Code)
+		}
+		if err := alimtalk.ValidateButtons(tm.Buttons, tm.IsAd()); err != nil {
+			t.Fatalf("%s: 픽스처 버튼이 카카오 규칙을 어긴다: %v", tm.Code, err)
+		}
+	}
+	if got := byCode[TemplateOrder]; got.MessageType != "BA" || got.IsAd() || got.Category() != "transactional" {
+		t.Fatalf("%s는 정보성 BA여야 한다: %+v", TemplateOrder, got)
+	}
+	if got := byCode[TemplatePromo]; got.MessageType != "AD" || !got.IsAd() || got.Category() != "marketing" {
+		t.Fatalf("%s는 광고성 AD여야 한다: %+v", TemplatePromo, got)
+	}
+	if _, err := v.ListTemplates(context.Background(), cred, "다른키"); err == nil {
+		t.Fatal("등록되지 않은 발신프로필은 거부해야 한다")
+	}
+	if _, err := v.ListTemplates(context.Background(), alimtalk.Credential{JSON: InvalidCredentialJSON()}, ""); err == nil {
+		t.Fatal("무효 크리덴셜은 거부해야 한다")
+	}
+}
+
+func TestSampleHelpers(t *testing.T) {
+	vars := SampleVariables(TemplatePromo)
+	for _, name := range alimtalk.Variables(fixtures(time.Time{})[2].Content) {
+		if vars[name] == "" {
+			t.Fatalf("치환자 %q가 비었다", name)
+		}
+	}
+	if SampleVariables("없는코드") != nil {
+		t.Fatal("모르는 코드는 nil이어야 한다")
+	}
+	if SampleRendered(TemplateOrder) == "" {
+		t.Fatal("SampleRendered가 비었다")
+	}
+	if got := SampleRendered("없는코드"); got != "" {
+		t.Fatalf("모르는 코드는 빈 문자열이어야 한다: %q", got)
+	}
+}
+
+func TestUnsupportedCapabilitiesRejected(t *testing.T) {
+	v := newVendor(t)
+	ctx := context.Background()
+	base := alimtalk.SendRequest{
+		MessageID:    "caps",
+		SenderKey:    "mock-sender-key",
+		TemplateCode: TemplateOrder,
+		Variables:    SampleVariables(TemplateOrder),
+		To:           Number(SuffixDelivered),
+	}
+	at := time.Date(2026, 9, 3, 0, 0, 0, 0, time.UTC)
+
+	quick := base
+	quick.QuickReplies = []alimtalk.QuickReply{{Type: "WL", Name: "문의", LinkMo: "https://m.example.com"}}
+	if _, err := v.Send(ctx, quick); channel.Classify(err) != channel.FailurePermanentContent {
+		t.Fatalf("미선언 quick_replies는 permanent_content여야 한다: %v", err)
+	}
+
+	sched := base
+	sched.ScheduledAt = &at
+	if _, err := v.Send(ctx, sched); channel.Classify(err) != channel.FailurePermanentContent {
+		t.Fatalf("미선언 예약발송은 permanent_content여야 한다: %v", err)
+	}
+
+	unknown := base
+	unknown.TemplateCode = "NOPE"
+	if _, err := v.Send(ctx, unknown); channel.Classify(err) != channel.FailurePermanentContent {
+		t.Fatalf("미승인 템플릿은 permanent_content여야 한다: %v", err)
+	}
+
+	noMsgID := base
+	noMsgID.MessageID = ""
+	if _, err := v.Send(ctx, noMsgID); err == nil {
+		t.Fatal("message_id 없는 발송은 거부해야 한다")
+	}
+
+	missingVar := base
+	missingVar.Variables = map[string]string{"고객명": "홍길동"}
+	if _, err := v.Send(ctx, missingVar); channel.Classify(err) != channel.FailurePermanentContent {
+		t.Fatalf("치환자 누락은 permanent_content여야 한다: %v", err)
+	}
+}
+
+func TestProviderMessageIDIsDeterministic(t *testing.T) {
+	if a, b := ProviderMessageID("msg-ABC-123", outcomeDelivered), ProviderMessageID("msg-ABC-123", outcomeDelivered); a != b {
+		t.Fatalf("같은 입력에 다른 값: %q vs %q", a, b)
+	}
+	if got := ProviderMessageID("msg-ABC-123", outcomeDelivered); got != "mock_msgabc12_dl" {
+		t.Fatalf("형식이 바뀌었다: %q", got)
+	}
+	if got := ProviderMessageID("---", outcomeInvalidTarget); got != "mock_00000000_it" {
+		t.Fatalf("영숫자가 없으면 0으로 채워야 한다: %q", got)
+	}
+}
+
+func TestSuffix(t *testing.T) {
+	cases := map[string]string{
+		"+821000000001":  "0001",
+		"010-0000-0429":  "0429",
+		"":               "",
+		"12":             "",
+		"no-digits-here": "",
+	}
+	for in, want := range cases {
+		if got := Suffix(in); got != want {
+			t.Fatalf("Suffix(%q): want %q, got %q", in, want, got)
+		}
+	}
+}
+
+func TestNewWithClockRejectsWrongManifest(t *testing.T) {
+	if _, err := NewWithClock(connector.Manifest{}, nil); err == nil {
+		t.Fatal("nil 시계는 거부해야 한다")
+	}
+	if _, err := NewWithClock(connector.Manifest{ID: "other", Channel: alimtalk.ChannelID}, fixedClock()); err == nil {
+		t.Fatal("다른 id의 manifest는 거부해야 한다")
+	}
+	if _, err := NewWithClock(connector.Manifest{ID: ConnectorID, Channel: "email"}, fixedClock()); err == nil {
+		t.Fatal("다른 채널의 manifest는 거부해야 한다")
+	}
+	v, err := NewWithClock(connector.Manifest{}, fixedClock())
+	if err != nil || v.Manifest().ID != ConnectorID {
+		t.Fatalf("빈 manifest는 내장 manifest로 채워야 한다: %v", err)
+	}
+}
+
+func TestCredentialJSONMatchesSchema(t *testing.T) {
+	// manifest.credentials.schema의 required가 실제 파서와 어긋나면 콘솔 폼이 거짓말을 한다.
+	m, err := EmbeddedManifest()
+	if err != nil {
+		t.Fatalf("내장 manifest: %v", err)
+	}
+	var schema struct {
+		Required   []string                   `json:"required"`
+		Properties map[string]json.RawMessage `json:"properties"`
+	}
+	if err := json.Unmarshal(m.Credentials.Schema, &schema); err != nil {
+		t.Fatalf("credentials.schema 파싱: %v", err)
+	}
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(ValidCredentialJSON(), &got); err != nil {
+		t.Fatalf("크리덴셜 파싱: %v", err)
+	}
+	for _, name := range schema.Required {
+		if _, ok := got[name]; !ok {
+			t.Fatalf("schema가 요구하는 %q가 크리덴셜에 없다", name)
+		}
+		if _, ok := schema.Properties[name]; !ok {
+			t.Fatalf("schema.required의 %q가 properties에 없다", name)
+		}
+	}
+}
+
+// variant — 내장 manifest를 능력만 깎아 복제한다. 스위트의 skip 경로를 태우기 위한 것으로,
+// 실제 벤더(폴링 전용 NHN, 대체발송 없는 딜러사)가 붙을 때 그대로 걸리는 길이다.
+func variant(t *testing.T, mutate func(*connector.Manifest)) *Vendor {
+	t.Helper()
+	m, err := EmbeddedManifest()
+	if err != nil {
+		t.Fatalf("내장 manifest: %v", err)
+	}
+	mutate(&m)
+	if err := m.Validate(); err != nil {
+		t.Fatalf("변형 manifest가 무효다: %v", err)
+	}
+	v, err := NewWithClock(m, fixedClock())
+	if err != nil {
+		t.Fatalf("NewWithClock: %v", err)
+	}
+	return v
+}
+
+// TestConformanceSkipsForUnsupportedCapabilities — 미지원 능력의 케이스가 실패가 아니라
+// skip으로 빠지는지. 스위트가 "NHN 기준"으로만 통과하면 알리고에서 무너진다.
+func TestConformanceSkipsForUnsupportedCapabilities(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(*connector.Manifest)
+	}{
+		{"폴링 전용", func(m *connector.Manifest) {
+			m.Capabilities.LifecycleMode = connector.LifecyclePolling
+			m.Lifecycle.Callback = nil
+		}},
+		{"콜백 전용", func(m *connector.Manifest) {
+			m.Capabilities.LifecycleMode = connector.LifecycleCallback
+		}},
+		{"대체발송 미지원", func(m *connector.Manifest) {
+			m.Capabilities.VendorFallback = false
+		}},
+		{"content 전량 선언", func(m *connector.Manifest) {
+			m.Capabilities.Content = []string{"template", "buttons", "quick_replies"}
+		}},
+		{"완성본문 요구", func(m *connector.Manifest) {
+			m.Capabilities.Substitution = connector.SubstitutionRendered
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := variant(t, tc.mutate)
+			conformance.RunSuite(t, v, v.ConformanceEnv())
+		})
+	}
+}
+
+// TestUnsupportedLifecyclePathsReturnErrUnsupported — 선언하지 않은 수명주기 경로는
+// 조용한 no-op이 아니라 ErrUnsupported여야 한다. 폴러·콜백 라우터가 이걸로 분기한다.
+func TestUnsupportedLifecyclePathsReturnErrUnsupported(t *testing.T) {
+	ctx := context.Background()
+	pollOnly := variant(t, func(m *connector.Manifest) {
+		m.Capabilities.LifecycleMode = connector.LifecyclePolling
+		m.Lifecycle.Callback = nil
+	})
+	if _, err := pollOnly.ParseCallback(ctx, alimtalk.RawCallback{Body: []byte(`{}`)}); !errors.Is(err, alimtalk.ErrUnsupported) {
+		t.Fatalf("폴링 전용 벤더의 ParseCallback: want ErrUnsupported, got %v", err)
+	}
+	if _, ok := pollOnly.TerminalCallback(nil); ok {
+		t.Fatal("폴링 전용 벤더는 콜백 원문을 만들지 않아야 한다")
+	}
+
+	cbOnly := variant(t, func(m *connector.Manifest) {
+		m.Capabilities.LifecycleMode = connector.LifecycleCallback
+	})
+	if _, err := cbOnly.PollResults(ctx, alimtalk.Credential{JSON: ValidCredentialJSON()}, nil); !errors.Is(err, alimtalk.ErrUnsupported) {
+		t.Fatalf("콜백 전용 벤더의 PollResults: want ErrUnsupported, got %v", err)
+	}
+}
+
+// TestRenderedOnlyVendorRequiresRenderedText — substitution=rendered 벤더는
+// 완성 본문 없이 접수하면 안 된다(알리고 message_N 계열).
+func TestRenderedOnlyVendorRequiresRenderedText(t *testing.T) {
+	v := variant(t, func(m *connector.Manifest) { m.Capabilities.Substitution = connector.SubstitutionRendered })
+	req := alimtalk.SendRequest{
+		MessageID:    "rendered",
+		SenderKey:    "mock-sender-key",
+		TemplateCode: TemplateOrder,
+		Variables:    SampleVariables(TemplateOrder),
+		To:           Number(SuffixDelivered),
+	}
+	if _, err := v.Send(context.Background(), req); channel.Classify(err) != channel.FailurePermanentContent {
+		t.Fatalf("완성 본문 없는 발송은 permanent_content여야 한다: %v", err)
+	}
+	req.RenderedText = SampleRendered(TemplateOrder)
+	if _, err := v.Send(context.Background(), req); err != nil {
+		t.Fatalf("완성 본문이 있으면 접수돼야 한다: %v", err)
+	}
+}
