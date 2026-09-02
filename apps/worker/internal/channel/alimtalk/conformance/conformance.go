@@ -35,7 +35,7 @@ const (
 
 // Env — 하네스가 공급해야 하는 벤더별 재료.
 type Env struct {
-	// Valid — 실제로 통과해야 하는 크리덴셜.
+	// Valid — 실제로 통과해야 하는 크리덴셜. 모든 케이스의 SendRequest.Credential에 실린다.
 	Valid alimtalk.Credential
 	// Invalid — 반드시 credential_auth로 떨어져야 하는 크리덴셜.
 	Invalid alimtalk.Credential
@@ -138,6 +138,7 @@ func (e Env) request(caseID string, m connector.Manifest) alimtalk.SendRequest {
 	req := alimtalk.SendRequest{
 		MessageID:      "conf-" + caseID,
 		IdempotencyKey: "conf-" + caseID,
+		Credential:     e.Valid,
 		SenderKey:      e.SenderKey,
 		TemplateCode:   e.TemplateCode,
 		Variables:      e.Variables,

@@ -162,11 +162,16 @@ func (v *Vendor) Classify(err error) channel.FailureClass { return channel.Class
 
 // Send — 단건 발송(접수). 검증 → 조종표 순으로 판정한다.
 //
-// 검증을 조종보다 먼저 하는 이유: 잘못된 요청은 어떤 번호로 보내든 실패해야 하고,
-// unsupported_content 계약 테스트가 그 순서에 의존한다.
+// 순서는 크리덴셜 → 템플릿 → 능력 → 본문 → 조종표다. 잘못된 요청은 어떤 번호로 보내든
+// 실패해야 하고, unsupported_content 계약 테스트가 그 순서에 의존한다.
 func (v *Vendor) Send(_ context.Context, req alimtalk.SendRequest) (alimtalk.Receipt, error) {
 	if req.MessageID == "" {
 		return alimtalk.Receipt{}, channel.NewSendError(channel.FailurePermanentContent, "message_id 누락")
+	}
+	// 크리덴셜을 본문보다 먼저 본다. 실제 공급자가 400보다 401을 먼저 주고,
+	// 무엇보다 틀린 키로 보낸 발송이 "본문 오류"로 분류되면 크리덴셜 정지가 걸리지 않는다.
+	if _, err := parseCredential(req.Credential); err != nil {
+		return alimtalk.Receipt{}, err
 	}
 	tmpl, ok := v.template(req.TemplateCode)
 	if !ok {
@@ -176,14 +181,9 @@ func (v *Vendor) Send(_ context.Context, req alimtalk.SendRequest) (alimtalk.Rec
 	if err := v.checkCapabilities(req); err != nil {
 		return alimtalk.Receipt{}, err
 	}
-	if err := alimtalk.ValidateSend(tmpl, req); err != nil {
+	if err := alimtalk.ValidateSend(tmpl, req, v.Manifest().SubstitutionMode()); err != nil {
 		return alimtalk.Receipt{}, channel.NewSendError(channel.FailurePermanentContent, "%s", err)
 	}
-	if v.manifest.SubstitutionMode() == connector.SubstitutionRendered && req.RenderedText == "" {
-		return alimtalk.Receipt{}, channel.NewSendError(channel.FailurePermanentContent,
-			"이 벤더는 완성 본문(rendered_text)을 요구합니다")
-	}
-
 	switch Suffix(req.To) {
 	case SuffixCredentialAuth:
 		return alimtalk.Receipt{}, channel.NewSendError(channel.FailureCredentialAuth,

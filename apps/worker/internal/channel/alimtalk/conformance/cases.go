@@ -26,6 +26,21 @@ func caseValidateCredentials(t *testing.T, v alimtalk.Vendor, env Env) {
 	if got := v.Classify(err); got != channel.FailureCredentialAuth {
 		t.Fatalf("무효한 키는 credential_auth로 분류돼야 한다 (got %s): %v", got, err)
 	}
+
+	// 발송 경로도 같은 결론이어야 한다. Validate만 막고 Send가 통과하면,
+	// 크리덴셜이 만료된 앱의 발송이 "본문 오류"로 분류돼 크리덴셜 정지가 걸리지 않는다.
+	to, ok := env.Target(OutcomeDelivered)
+	if !ok || to == "" {
+		return
+	}
+	req := env.request("validate-credentials", v.Manifest())
+	req.Credential = env.Invalid
+	req.To = to
+	if r, err := v.Send(ctx, req); err == nil {
+		t.Fatalf("무효한 크리덴셜로 발송이 접수됐다 (provider_message_id=%s)", r.ProviderMessageID)
+	} else if got := v.Classify(err); got != channel.FailureCredentialAuth {
+		t.Fatalf("무효한 크리덴셜의 발송 실패는 credential_auth여야 한다 (got %s): %v", got, err)
+	}
 }
 
 // caseSendOK — 접수 성공의 최소 계약: 공급자 식별자·message_id 왕복·접수 시각.

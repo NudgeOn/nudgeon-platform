@@ -19,6 +19,13 @@ func fixedClock() *clock.Fake {
 	return &clock.Fake{Current: time.Date(2026, 9, 2, 10, 0, 0, 0, time.UTC)}
 }
 
+// validCred — 손으로 만드는 SendRequest에 실을 유효 크리덴셜.
+// Send가 크리덴셜을 검사하므로(무효 키가 permanent_content로 새면 크리덴셜 정지가 안 걸린다)
+// 발송 테스트는 전부 이걸 싣는다.
+func validCred() alimtalk.Credential {
+	return alimtalk.Credential{ConnectorID: ConnectorID, JSON: ValidCredentialJSON()}
+}
+
 func newVendor(t *testing.T) *Vendor {
 	t.Helper()
 	m, err := EmbeddedManifest()
@@ -109,6 +116,7 @@ func TestSteeringTable(t *testing.T) {
 	base := func(id string) alimtalk.SendRequest {
 		return alimtalk.SendRequest{
 			MessageID:    id,
+			Credential:   validCred(),
 			SenderKey:    "mock-sender-key",
 			TemplateCode: TemplateOrder,
 			Variables:    SampleVariables(TemplateOrder),
@@ -156,6 +164,7 @@ func TestRateLimitCarriesRetryAfter(t *testing.T) {
 	v := newVendor(t)
 	_, err := v.Send(context.Background(), alimtalk.SendRequest{
 		MessageID:    "rl",
+		Credential:   validCred(),
 		SenderKey:    "mock-sender-key",
 		TemplateCode: TemplateOrder,
 		Variables:    SampleVariables(TemplateOrder),
@@ -171,6 +180,7 @@ func TestFallbackSteering(t *testing.T) {
 	ctx := context.Background()
 	req := alimtalk.SendRequest{
 		MessageID:    "fb",
+		Credential:   validCred(),
 		SenderKey:    "mock-sender-key",
 		TemplateCode: TemplateOrder,
 		Variables:    SampleVariables(TemplateOrder),
@@ -385,6 +395,7 @@ func TestUnsupportedCapabilitiesRejected(t *testing.T) {
 	ctx := context.Background()
 	base := alimtalk.SendRequest{
 		MessageID:    "caps",
+		Credential:   validCred(),
 		SenderKey:    "mock-sender-key",
 		TemplateCode: TemplateOrder,
 		Variables:    SampleVariables(TemplateOrder),
@@ -573,6 +584,7 @@ func TestRenderedOnlyVendorRequiresRenderedText(t *testing.T) {
 	v := variant(t, func(m *connector.Manifest) { m.Capabilities.Substitution = connector.SubstitutionRendered })
 	req := alimtalk.SendRequest{
 		MessageID:    "rendered",
+		Credential:   validCred(),
 		SenderKey:    "mock-sender-key",
 		TemplateCode: TemplateOrder,
 		Variables:    SampleVariables(TemplateOrder),
@@ -584,5 +596,35 @@ func TestRenderedOnlyVendorRequiresRenderedText(t *testing.T) {
 	req.RenderedText = SampleRendered(TemplateOrder)
 	if _, err := v.Send(context.Background(), req); err != nil {
 		t.Fatalf("완성 본문이 있으면 접수돼야 한다: %v", err)
+	}
+}
+
+// TestSendRejectsBadCredential — 조종표가 성공을 가리켜도 크리덴셜이 틀리면 접수되면 안 된다.
+// 분류가 credential_auth여야 워커가 크리덴셜을 error로 전환하고 앱 발송을 멈춘다.
+func TestSendRejectsBadCredential(t *testing.T) {
+	v := newVendor(t)
+	base := alimtalk.SendRequest{
+		MessageID:    "badcred",
+		SenderKey:    "mock-sender-key",
+		TemplateCode: TemplateOrder,
+		Variables:    SampleVariables(TemplateOrder),
+		To:           Number(SuffixDelivered),
+	}
+	for name, cred := range map[string]alimtalk.Credential{
+		"누락":     {},
+		"무효 키":   {JSON: InvalidCredentialJSON()},
+		"다른 커넥터": {ConnectorID: "kakao_alimtalk_nhn", JSON: ValidCredentialJSON()},
+	} {
+		t.Run(name, func(t *testing.T) {
+			req := base
+			req.Credential = cred
+			r, err := v.Send(context.Background(), req)
+			if err == nil {
+				t.Fatalf("접수되면 안 된다: %s", r.ProviderMessageID)
+			}
+			if got := v.Classify(err); got != channel.FailureCredentialAuth {
+				t.Fatalf("credential_auth여야 한다 (got %s): %v", got, err)
+			}
+		})
 	}
 }
