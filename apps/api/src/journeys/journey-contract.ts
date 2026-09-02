@@ -16,7 +16,7 @@ const nodeSchema = z.discriminatedUnion("type", [
     }).optional(),
     email: z.object({
       subject: z.string().min(1).max(998), html: z.string().min(1).max(1_000_000),
-      provider: z.enum(["email_smtp", "email_nhn"]).optional(),
+      provider: z.enum(["email_smtp", "email_nhn", "email_resend"]).optional(),
     }).optional(),
   }).strict(),
   z.object({ ...identity, type: z.literal("delay"), duration_seconds: z.number().int() }).strict(),

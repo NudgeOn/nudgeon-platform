@@ -104,7 +104,7 @@
     "ConnectorId": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]{1,63}$",
-      "description": "예: push_fcm, push_apns, email_smtp, email_nhn, kakao_alimtalk_nhn, sms_nhn, webhook_http"
+      "description": "예: push_fcm, push_apns, email_smtp, email_nhn, email_resend, kakao_alimtalk_nhn, sms_nhn, webhook_http"
     },
     "Target": {
       "type": "object",

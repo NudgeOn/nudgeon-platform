@@ -297,13 +297,13 @@ export class OndaClient {
         "GET",
         `/v1/apps/${appId}/credentials`,
       ),
-    upsert: (appId: string, input: FcmCredentialInput | ApnsCredentialInput | EmailSmtpCredentialInput | EmailNhnCredentialInput) =>
+    upsert: (appId: string, input: CredentialInput) =>
       this.request<{ id: string; kind: string; status: string }>(
         "PUT",
         `/v1/apps/${appId}/credentials`,
         input,
       ),
-    remove: (appId: string, kind: "push_fcm" | "push_apns" | "email_smtp" | "email_nhn") =>
+    remove: (appId: string, kind: CredentialKind) =>
       this.request<{ ok: true }>("DELETE", `/v1/apps/${appId}/credentials/${kind}`),
   };
 
@@ -333,7 +333,7 @@ export class OndaClient {
         template_id?: string;
         subject?: string;
         html?: string;
-        provider?: "email_smtp" | "email_nhn";
+        provider?: EmailProvider;
         variables?: Record<string, unknown>;
       },
     ) => this.request<{ queued: number; test_run_id: string }>("POST", `/v1/apps/${appId}/test-email`, input),
@@ -363,9 +363,27 @@ export interface IngestStatus {
   last_event_at: string | null;
 }
 
+/** 크리덴셜 종류 (credentials.kind = PG channel_kind enum) */
+export type CredentialKind = "push_fcm" | "push_apns" | EmailProvider;
+/** 이메일 발송기(provider) — 저니 이메일 노드·테스트 발송의 provider 값 */
+export type EmailProvider = "email_smtp" | "email_nhn" | "email_resend";
+export const EMAIL_PROVIDERS: readonly EmailProvider[] = ["email_smtp", "email_nhn", "email_resend"];
+/** 콘솔 표시용 발송기 라벨 */
+export const EMAIL_PROVIDER_LABELS: Record<EmailProvider, string> = {
+  email_smtp: "SMTP",
+  email_nhn: "NHN Cloud",
+  email_resend: "Resend",
+};
+export type CredentialInput =
+  | FcmCredentialInput
+  | ApnsCredentialInput
+  | EmailSmtpCredentialInput
+  | EmailNhnCredentialInput
+  | EmailResendCredentialInput;
+
 export interface CredentialSummary {
   id: string;
-  kind: "push_fcm" | "push_apns" | "email_smtp" | "email_nhn";
+  kind: CredentialKind;
   status: "unverified" | "verified" | "error";
   status_detail: string | null;
   last_verified_at: string | null;
@@ -476,11 +494,17 @@ export interface UsageData {
   sends_30d: Array<{ channel: string; sent: number }>;
 }
 
-/** 도달·오픈 리포트 (R-15): sent=공급자 접수(실도달 아님), delivered/opened=SDK 이벤트 message_id 조인·중복제거 */
+/**
+ * 도달·오픈 리포트 (R-15): sent=공급자 접수(실도달 아님).
+ * delivered/opened = SDK 이벤트($push_delivered/$push_opened) ∪ message_lifecycle(공급자 콜백 — 예: Resend 웹훅)을
+ * sent된 message_id로 조인·중복 제거. clicked/bounced는 message_lifecycle(이메일 콜백)에서만 집계.
+ */
 export interface DeliveryReport {
   sent: number;
   delivered: number;
   opened: number;
+  clicked: number;
+  bounced: number;
   delivery_rate: number;
   open_rate: number;
 }
@@ -585,6 +609,19 @@ export interface EmailNhnCredentialInput {
   secret_key: string;
   from_email: string;
   from_name?: string;
+}
+
+/**
+ * Resend Email API 크리덴셜. webhook_secret = Resend 웹훅(Svix) 서명 비밀(whsec_…) —
+ * `POST {API_URL}/v1/webhooks/resend/{appId}` 서명 검증에 사용. base_url은 테스트용.
+ */
+export interface EmailResendCredentialInput {
+  kind: "email_resend";
+  api_key: string;
+  from_email: string;
+  from_name?: string;
+  webhook_secret?: string;
+  base_url?: string;
 }
 
 export interface EmailTemplateSummary {

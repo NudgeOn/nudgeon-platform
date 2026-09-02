@@ -91,7 +91,8 @@
       "type": "string",
       "enum": [
         "email_smtp",
-        "email_nhn"
+        "email_nhn",
+        "email_resend"
       ]
     }
   },

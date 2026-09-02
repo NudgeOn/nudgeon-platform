@@ -157,33 +157,51 @@ export class AnalyticsController {
     });
     const sent = Number(((await sentRes.json()) as Array<{ sent: string }>)[0]?.sent ?? 0);
 
-    // SDK 이벤트를 sent된 message_id로만 조인, 도달/오픈 각각 uniqExact로 중복 제거.
+    // 도달/오픈 = SDK 이벤트($push_delivered/$push_opened) ∪ message_lifecycle(공급자 콜백 — Resend 웹훅 등).
+    // 두 소스를 (message_id, kind)로 UNION ALL한 뒤 uniqExactIf로 한 번에 중복 제거해야 정확한 합집합이 된다
+    // (쿼리를 나누면 uniqExact를 병합할 수 없음). 모두 sent된 message_id로만 조인.
     const doRes = await this.ch.query({
       query: `SELECT
-                uniqExactIf(JSONExtractString(properties, 'message_id'), event_name = '$push_delivered') AS delivered,
-                uniqExactIf(JSONExtractString(properties, 'message_id'), event_name = '$push_opened') AS opened
-              FROM events
-              WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
-                AND event_name IN ('$push_delivered', '$push_opened')
-                AND JSONExtractString(properties, 'message_id') IN (
-                  SELECT toString(message_id) FROM message_log
-                   WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
-                     AND journey_id = {jid:UUID} AND status = 'sent')`,
+                uniqExactIf(mid, kind = 'delivered') AS delivered,
+                uniqExactIf(mid, kind = 'opened') AS opened,
+                uniqExactIf(mid, kind = 'clicked') AS clicked,
+                uniqExactIf(mid, kind = 'bounced') AS bounced
+              FROM (
+                SELECT JSONExtractString(properties, 'message_id') AS mid,
+                       if(event_name = '$push_delivered', 'delivered', 'opened') AS kind
+                  FROM events
+                 WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
+                   AND event_name IN ('$push_delivered', '$push_opened')
+                   AND JSONExtractString(properties, 'message_id') IN (
+                     SELECT toString(message_id) FROM message_log
+                      WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
+                        AND journey_id = {jid:UUID} AND status = 'sent')
+                UNION ALL
+                SELECT toString(message_id) AS mid, status AS kind
+                  FROM message_lifecycle
+                 WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
+                   AND status IN ('delivered', 'opened', 'clicked', 'bounced')
+                   AND message_id IN (
+                     SELECT message_id FROM message_log
+                      WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
+                        AND journey_id = {jid:UUID} AND status = 'sent')
+              )`,
       query_params: p,
       format: "JSONEachRow",
     });
-    const row = ((await doRes.json()) as Array<{ delivered: string; opened: string }>)[0] ?? {
-      delivered: "0",
-      opened: "0",
-    };
-    const delivered = Number(row.delivered ?? 0);
-    const opened = Number(row.opened ?? 0);
+    const row = ((await doRes.json()) as Array<{ delivered: string; opened: string; clicked: string; bounced: string }>)[0];
+    const delivered = Number(row?.delivered ?? 0);
+    const opened = Number(row?.opened ?? 0);
+    const clicked = Number(row?.clicked ?? 0);
+    const bounced = Number(row?.bounced ?? 0);
     const rate = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 1000 : 0);
 
     return {
       sent, // 공급자 접수(실도달 아님) — 분모
-      delivered, // SDK $push_delivered (실도달), message_id 중복 제거
-      opened, // SDK $push_opened, 중복 제거
+      delivered, // SDK $push_delivered ∪ lifecycle delivered (실도달), message_id 중복 제거
+      opened, // SDK $push_opened ∪ lifecycle opened, 중복 제거
+      clicked, // lifecycle clicked (이메일 링크 클릭 등), 중복 제거
+      bounced, // lifecycle bounced (반송), 중복 제거
       delivery_rate: rate(delivered, sent), // 도달/발송
       open_rate: rate(opened, delivered), // 오픈/도달 (분모=도달)
     };

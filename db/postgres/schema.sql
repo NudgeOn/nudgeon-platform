@@ -15,7 +15,7 @@ CREATE TYPE device_platform AS ENUM ('ios', 'android');
 CREATE TYPE token_status AS ENUM ('active', 'invalid', 'expired');
 CREATE TYPE os_permission AS ENUM ('granted', 'denied', 'undetermined');
 CREATE TYPE attr_type AS ENUM ('string', 'number', 'boolean', 'datetime', 'string_array');
-CREATE TYPE channel_kind AS ENUM ('push_fcm', 'push_apns', 'email_smtp', 'email_nhn');  -- v1.5: alimtalk, sms
+CREATE TYPE channel_kind AS ENUM ('push_fcm', 'push_apns', 'email_smtp', 'email_nhn', 'email_resend');  -- v1.5: alimtalk, sms
 CREATE TYPE credential_status AS ENUM ('unverified', 'verified', 'error');
 
 -- ---------------------------------------------------------------------------

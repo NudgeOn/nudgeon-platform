@@ -451,12 +451,39 @@ Management API의 모든 앱 경로는 세션의 테넌트에 묶입니다. 다�
 | `GET` | `/v1/apps/{appId}/ingest-status` | Session | `200` | 누적 이벤트 수·최근 이벤트 시각 |
 | `GET` | `/v1/apps/{appId}/settings` | Session | `200` | 시간대·조용시간·빈도 제한 설정 |
 | `PUT` | `/v1/apps/{appId}/settings` | Admin+ | `200` | 발송 설정 변경 |
-| `GET` | `/v1/apps/{appId}/credentials` | Session | `200` | FCM/APNs credential 상태·메타데이터 |
-| `PUT` | `/v1/apps/{appId}/credentials` | Admin+ | `200` | FCM/APNs credential 등록·교체 |
+| `GET` | `/v1/apps/{appId}/credentials` | Session | `200` | 채널 credential 상태·메타데이터 (푸시·이메일) |
+| `PUT` | `/v1/apps/{appId}/credentials` | Admin+ | `200` | 채널 credential 등록·교체 |
 | `DELETE` | `/v1/apps/{appId}/credentials/{kind}` | Admin+ | `200` | credential 삭제 |
 | `POST` | `/v1/apps/{appId}/test-push` | Editor+ | `202` | 고객의 발송 가능 디바이스에 테스트 푸시 큐잉 |
+| `POST` | `/v1/apps/{appId}/test-email` | Editor+ | `202` | 템플릿/인라인 HTML을 치환 후 테스트 이메일 큐잉 (`provider` 선택 가능) |
+| `POST` | `/v1/webhooks/resend/{appId}` | Svix 서명 | `200` | Resend 이벤트 웹훅 → 발송 수명주기(message.lifecycle) 반영 |
 
-Credential 원문은 목록 API에서 반환하지 않습니다. 등록 직후 상태는 `unverified`이며 channel worker가 비동기로 검증합니다. `kind`는 `push_fcm` 또는 `push_apns`입니다.
+Credential 원문은 목록 API에서 반환하지 않습니다. 등록 직후 상태는 `unverified`이며 channel worker가 비동기로 검증합니다. `kind`는 `push_fcm`, `push_apns`, `email_smtp`, `email_nhn`, `email_resend` 중 하나이며, 이메일 `kind`는 저니 이메일 노드·테스트 이메일의 `provider` 값과 같습니다 (미지정 시 최근 검증된 이메일 발송기로 발송).
+
+Resend(API) credential 등록 본문:
+
+```json
+{
+  "kind": "email_resend",
+  "api_key": "re_xxxxxxxx",
+  "from_email": "noreply@yourdomain.com",
+  "from_name": "Onda",
+  "webhook_secret": "whsec_xxxxxxxx"
+}
+```
+
+- `webhook_secret`(선택)은 Resend 대시보드 → Webhooks에서 엔드포인트를 만들 때 발급되는 Signing secret입니다. 등록하지 않으면 웹훅은 `401`로 거부됩니다.
+- Resend를 SMTP로 쓰려면 `email_smtp`에 `host: smtp.resend.com`, `port: 465`, `security: tls`, `username: resend`, `password: <API 키>`를 등록하면 됩니다 (이 경우 웹훅 리포트는 연결되지 않습니다).
+
+#### Resend 웹훅 (`POST /v1/webhooks/resend/{appId}`)
+
+Resend 대시보드에 `{API_URL}/v1/webhooks/resend/{appId}`를 엔드포인트로 등록하고 `email.sent`, `email.delivered`, `email.opened`, `email.clicked`, `email.bounced`, `email.complained`, `email.failed` 이벤트를 켜세요.
+
+- **인증**: 세션·API 키가 아니라 Svix 서명입니다. `svix-id`, `svix-timestamp`, `svix-signature` 헤더와 요청 본문 원문으로 HMAC-SHA256을 검증하며, 타임스탬프가 현재 시각과 300초 이상 차이 나면 거부합니다. 서명 실패·credential 없음·`webhook_secret` 미등록은 `401`입니다.
+- **message_id 해석**: 발송 시 실은 태그 `onda_message_id`(객체·배열 형식 모두 허용)를 우선 사용하고, 없으면 `message_log.provider_message_id`(Resend email id)로 역조회합니다. 해석 실패는 `200 {"accepted": false, "reason": "message_id_unresolved"}`로 응답합니다 (4xx면 Resend가 무한 재시도).
+- **이벤트 매핑**: `email.sent→sent`, `email.delivered→delivered`, `email.opened→opened`, `email.clicked→clicked`(`click_ref`=링크), `email.bounced→bounced`(`failure_class=invalid_target`), `email.complained→unsubscribed`(`failure_detail=complained`), `email.failed→failed`(`failure_class=permanent_content`). `email.delivery_delayed` 등 그 외 타입은 `200 {"accepted": false, "ignored": "<type>"}`.
+- **멱등성**: Resend가 재시도해 같은 이벤트가 여러 번 도착해도 ClickHouse `message_lifecycle`(ReplacingMergeTree)이 `(message_id, status, occurred_at)` 기준으로 중복을 제거합니다.
+- 반영된 수명주기는 `GET /v1/apps/{appId}/journeys/{id}/delivery`의 `delivered`/`opened`/`clicked`/`bounced`에 SDK 이벤트와 합산(중복 제거)되어 나타납니다.
 
 테스트 푸시 요청:
 

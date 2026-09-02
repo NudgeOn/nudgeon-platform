@@ -75,7 +75,7 @@ function Wizard({ appId, appName }: { appId: string; appName: string }) {
           <KeysStep appId={appId} />
         </Step>
 
-        <Step n={2} title="푸시 크리덴셜 등록" done={step2Done}>
+        <Step n={2} title="채널 크리덴셜 등록 (푸시 · 이메일)" done={step2Done}>
           <CredentialsStep appId={appId} />
         </Step>
 

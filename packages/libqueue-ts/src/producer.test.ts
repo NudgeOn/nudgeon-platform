@@ -91,6 +91,43 @@ describe("QueueProducer.publish", () => {
     expect(xadd).not.toHaveBeenCalled();
   });
 
+  it("message.lifecycle payload는 v1 스키마로 검증한다 (공급자 콜백 경로)", async () => {
+    const { producer, xadd } = makeProducer();
+    const payload = {
+      message_id: INSERT,
+      status: "delivered",
+      occurred_at: "2026-09-02T11:00:01.000Z",
+      source: "provider_callback",
+      channel: "email",
+      connector_id: "email_resend",
+      provider_message_id: "re_abc",
+      user_id: null,
+      endpoint_id: null,
+      failure_class: null,
+      failure_detail: null,
+      fallback_index: 0,
+      attempt: null,
+      cost: null,
+      click_ref: null,
+    };
+    const envelope = await producer.publish(STREAMS.messageLifecycle, {
+      type: "message.lifecycle",
+      tenantId: TENANT,
+      appId: APP,
+      payload,
+    });
+    expect(envelope.type).toBe("message.lifecycle");
+    expect(xadd.mock.calls[0]![0]).toBe("stream:message.lifecycle");
+    await expect(
+      producer.publish(STREAMS.messageLifecycle, {
+        type: "message.lifecycle",
+        tenantId: TENANT,
+        appId: APP,
+        payload: { ...payload, status: "exploded" },
+      }),
+    ).rejects.toThrow(EnvelopeValidationError);
+  });
+
   it("이벤트 배치 100건 초과는 거부한다", async () => {
     const { producer } = makeProducer();
     const events = Array.from({ length: 101 }, (_, i) => ({
