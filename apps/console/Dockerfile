@@ -23,6 +23,8 @@ ENV NODE_ENV=production
 COPY --from=build /repo/apps/console/.next/standalone ./
 COPY --from=build /repo/apps/console/.next/static ./apps/console/.next/static
 COPY --from=build /repo/apps/console/public ./apps/console/public
+COPY LICENSE NOTICE TRADEMARKS.md THIRD_PARTY_NOTICES.md /licenses/onda/
+COPY docs-public/LICENSING.md /licenses/onda/LICENSING.md
 EXPOSE 3000
 USER node
 CMD ["node", "apps/console/server.js"]

@@ -19,6 +19,8 @@ FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app /app
+COPY LICENSE NOTICE TRADEMARKS.md THIRD_PARTY_NOTICES.md /licenses/onda/
+COPY docs-public/LICENSING.md /licenses/onda/LICENSING.md
 EXPOSE 8080
 USER node
 CMD ["node", "dist/main.js"]

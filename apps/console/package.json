@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Onda 어드민 콘솔 (Next.js 15)",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "next dev --turbopack -p 3000",
     "build": "next build",

@@ -1,8 +1,8 @@
 # Onda
 
 <p align="center">
-  <a href="https://github.com/marvinkim-photo/onda/actions/workflows/ci.yml"><img src="https://github.com/marvinkim-photo/onda/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-black.svg" alt="License: MIT" /></a>
+  <a href="https://github.com/ondahq/onda-platform/actions/workflows/ci.yml"><img src="https://github.com/ondahq/onda-platform/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache-2.0" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange.svg" alt="status: alpha" />
 </p>
 
@@ -196,4 +196,6 @@ node tests/isolation/run.mjs                                                  # 
 
 ## 라이선스
 
-MIT
+별도 표시가 없는 Onda 플랫폼의 소스 코드와 문서는 [Apache License 2.0](LICENSE)으로 제공됩니다. Onda 이름·워드마크·로고와 `docs-public/assets/onda-logo-pigeon.png`는 Apache-2.0 허여 대상이 아닙니다.
+
+범위와 재배포 안내는 [라이선싱 가이드](docs-public/LICENSING.md), 브랜드 사용 조건은 [상표 정책](TRADEMARKS.md), 제3자 구성요소 경계는 [제3자 고지](THIRD_PARTY_NOTICES.md)를 확인하세요.

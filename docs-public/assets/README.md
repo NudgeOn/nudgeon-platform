@@ -5,6 +5,7 @@
 - 용도: 저장소 README의 초기 브랜드 시안. 흰 배경의 PNG 원본이며 SVG가 아닙니다.
 - 생성: 2026-08-30, Codex 내장 `image_gen` 도구. CLI/API 키 경로는 사용하지 않았습니다.
 - 상표·유사 로고 검토 및 최종 브랜드 확정은 별도입니다.
+- 라이선스: 이 PNG 로고 시안과 Onda 브랜드 요소는 저장소의 Apache-2.0 허여 대상이 아닙니다. 사용 조건은 [`TRADEMARKS.md`](../../TRADEMARKS.md)와 [`docs-public/LICENSING.md`](../LICENSING.md)를 따릅니다. `architecture.svg` 등 별도 제외 표시가 없는 프로젝트 문서 자산은 Apache-2.0 범위에 포함됩니다.
 
 ## 생성 프롬프트
 
