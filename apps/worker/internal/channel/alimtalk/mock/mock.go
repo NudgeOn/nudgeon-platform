@@ -8,8 +8,11 @@
 //
 //	0001  접수 성공 → 종결 delivered
 //	0002  접수 성공 → 종결 failed / invalid_target (카카오톡 미가입·채널 차단)
-//	0010  대체발송 분기. Fallback이 실려 있으면 접수 성공 → 종결 sent(SMS 대체발송),
-//	      실려 있지 않으면 0002와 같다. fallback_trigger 계약 테스트가 이 쌍을 대조한다.
+//	0010  대체발송 분기. Fallback이 실려 있으면 접수 성공 → 종결 sent + DeliveredVia("sms"|"lms",
+//	      Fallback.Type을 따른다), 실려 있지 않으면 0002와 같다.
+//	      fallback_trigger 계약 테스트가 이 쌍을 대조한다.
+//	0410  접수 성공 → 조회 보존 기간 초과(Expired). 결과를 끝내 알 수 없는 건으로,
+//	      폴러가 이벤트 없이 대기 목록에서만 지워야 한다.
 //	0400  Send 즉시 실패 — permanent_content (공급자가 본문을 반려)
 //	0401  Send 즉시 실패 — credential_auth (키 무효·권한 없음)
 //	0429  Send 즉시 실패 — rate_limited, Retry-After 3s
@@ -46,6 +49,7 @@ const (
 	SuffixDelivered        = "0001"
 	SuffixInvalidTarget    = "0002"
 	SuffixFallback         = "0010"
+	SuffixExpired          = "0410"
 	SuffixPermanentContent = "0400"
 	SuffixCredentialAuth   = "0401"
 	SuffixRateLimited      = "0429"
@@ -62,7 +66,22 @@ const InvalidAPIKey = "invalid"
 const (
 	outcomeDelivered     = "dl"
 	outcomeInvalidTarget = "it"
-	outcomeFallback      = "fb"
+	outcomeFallbackSMS   = "fs"
+	outcomeFallbackLMS   = "fl"
+	outcomeExpired       = "xp"
+)
+
+// 대체발송 단가. 알림톡(manifest.cost)과 다르므로 DeliveredVia와 함께 실어야
+// 채널별 원가 집계가 맞는다. 대체발송이 원 채널 단가로 잡히면 SMS 전환이 공짜로 보인다.
+const (
+	FallbackCostSMS = 20.0
+	FallbackCostLMS = 50.0
+)
+
+// 대체발송 채널 이름. Event.DeliveredVia와 message.lifecycle.v1의 channel 값이다.
+const (
+	ChannelSMS = "sms"
+	ChannelLMS = "lms"
 )
 
 //go:embed manifest.json
@@ -203,11 +222,16 @@ func (v *Vendor) Send(_ context.Context, req alimtalk.SendRequest) (alimtalk.Rec
 	switch Suffix(req.To) {
 	case SuffixInvalidTarget:
 		outcome = outcomeInvalidTarget
+	case SuffixExpired:
+		outcome = outcomeExpired
 	case SuffixFallback:
-		if req.Fallback != nil {
-			outcome = outcomeFallback
-		} else {
+		switch {
+		case req.Fallback == nil:
 			outcome = outcomeInvalidTarget
+		case strings.EqualFold(req.Fallback.Type, "LMS"):
+			outcome = outcomeFallbackLMS
+		default:
+			outcome = outcomeFallbackSMS
 		}
 	}
 	return alimtalk.Receipt{
@@ -287,7 +311,7 @@ func outcomeOf(providerMessageID string) (string, bool) {
 		return "", false
 	}
 	switch parts[2] {
-	case outcomeDelivered, outcomeInvalidTarget, outcomeFallback:
+	case outcomeDelivered, outcomeInvalidTarget, outcomeFallbackSMS, outcomeFallbackLMS, outcomeExpired:
 		return parts[2], true
 	}
 	return "", false
@@ -301,6 +325,8 @@ type callbackPayload struct {
 	OccurredAt        string `json:"occurred_at,omitempty"`
 	FailureClass      string `json:"failure_class,omitempty"`
 	FailureDetail     string `json:"failure_detail,omitempty"`
+	// DeliveredVia — 대체발송으로 채널이 바뀌었을 때만 채워진다.
+	DeliveredVia string `json:"delivered_via,omitempty"`
 }
 
 // ParseCallback — 웹훅 원문을 수명주기 이벤트로 바꾼다.
@@ -351,26 +377,48 @@ func (v *Vendor) ParseCallback(_ context.Context, cb alimtalk.RawCallback) ([]al
 			OccurredAt:        at,
 			FailureClass:      it.FailureClass,
 			FailureDetail:     it.FailureDetail,
-			Terminal:          isTerminal(it.Status),
+			DeliveredVia:      it.DeliveredVia,
+			Terminal:          isTerminal(it.Status, it.DeliveredVia),
 		}
 		if ev.Status == "failed" && ev.FailureClass == "" {
 			ev.FailureClass = channel.FailureInvalidTarget.String()
 		}
 		if ev.Terminal && ev.Status != "failed" {
-			ev.CostCurrency, ev.CostAmount = v.unitCost()
+			ev.CostCurrency, ev.CostAmount = v.costFor(ev.DeliveredVia)
 		}
 		out = append(out, ev)
 	}
 	return out, nil
 }
 
-func isTerminal(status string) bool { return status == "delivered" || status == "failed" }
+// isTerminal — 더 이상 상태가 바뀌지 않는가.
+//
+// delivered·failed는 자명하다. sent는 보통 중간 상태지만, 대체발송으로 채널이 바뀐 건
+// (DeliveredVia)은 알림톡 쪽에서 더 올 소식이 없으므로 거기서 끝난다. 이 판정이 폴링과
+// 어긋나면 같은 발송이 경로에 따라 종결되기도 하고 영원히 대기하기도 한다.
+func isTerminal(status, deliveredVia string) bool {
+	switch status {
+	case "delivered", "failed":
+		return true
+	case "sent":
+		return deliveredVia != ""
+	}
+	return false
+}
 
-func (v *Vendor) unitCost() (string, float64) {
+// costFor — 실제 도달 채널의 건당 원가. via가 비면 원 채널(알림톡, manifest.cost)이다.
+func (v *Vendor) costFor(via string) (string, float64) {
 	if v.manifest.Cost == nil {
 		return "", 0
 	}
-	return v.manifest.Cost.Currency, v.manifest.Cost.PerMessage
+	switch via {
+	case ChannelSMS:
+		return v.manifest.Cost.Currency, FallbackCostSMS
+	case ChannelLMS:
+		return v.manifest.Cost.Currency, FallbackCostLMS
+	default:
+		return v.manifest.Cost.Currency, v.manifest.Cost.PerMessage
+	}
 }
 
 // PollResults — 미종결 접수의 결과를 조회한다.
@@ -408,13 +456,22 @@ func (v *Vendor) terminalEvent(r alimtalk.Receipt, outcome string) alimtalk.Even
 		ev.Status = "failed"
 		ev.FailureClass = channel.FailureInvalidTarget.String()
 		ev.FailureDetail = "카카오톡 미가입이거나 채널을 차단한 수신자입니다"
-	case outcomeFallback:
+	case outcomeExpired:
+		// 결과를 확정하지 못했다. Terminal이 아니라 Expired다 — 폴러가 이벤트 없이 정리한다.
+		ev.Terminal = false
+		ev.Expired = true
+	case outcomeFallbackSMS, outcomeFallbackLMS:
+		// 알림톡은 실패했지만 대체발송이 살렸다. 어느 채널로 나갔는지는 사유 문자열이 아니라
+		// DeliveredVia로 밝힌다. 안 그러면 SMS 도달이 알림톡 도달률·원가에 잡힌다.
 		ev.Status = "sent"
-		ev.FailureDetail = "알림톡 실패 — SMS 대체발송으로 전환했습니다"
-		ev.CostCurrency, ev.CostAmount = v.unitCost()
+		ev.DeliveredVia = ChannelSMS
+		if outcome == outcomeFallbackLMS {
+			ev.DeliveredVia = ChannelLMS
+		}
+		ev.CostCurrency, ev.CostAmount = v.costFor(ev.DeliveredVia)
 	default:
 		ev.Status = "delivered"
-		ev.CostCurrency, ev.CostAmount = v.unitCost()
+		ev.CostCurrency, ev.CostAmount = v.costFor("")
 	}
 	return ev
 }
@@ -432,6 +489,10 @@ func (v *Vendor) TerminalCallback(receipts []alimtalk.Receipt) (alimtalk.RawCall
 			continue
 		}
 		ev := v.terminalEvent(r, outcome)
+		if ev.Expired {
+			// 공급자가 "결과를 잊었다"를 웹훅으로 밀어주는 일은 없다. 조회에서만 드러난다.
+			continue
+		}
 		items = append(items, callbackPayload{
 			ProviderMessageID: ev.ProviderMessageID,
 			MessageID:         ev.MessageID,
@@ -439,6 +500,7 @@ func (v *Vendor) TerminalCallback(receipts []alimtalk.Receipt) (alimtalk.RawCall
 			OccurredAt:        ev.OccurredAt.Format(time.RFC3339),
 			FailureClass:      ev.FailureClass,
 			FailureDetail:     ev.FailureDetail,
+			DeliveredVia:      ev.DeliveredVia,
 		})
 	}
 	if len(items) == 0 {

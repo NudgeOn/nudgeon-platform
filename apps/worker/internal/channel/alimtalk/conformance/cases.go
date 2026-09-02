@@ -280,6 +280,14 @@ func caseFallbackTrigger(t *testing.T, v alimtalk.Vendor, env Env) {
 	if !m.Reports(ev.Status) {
 		t.Fatalf("manifest.lifecycle.reports에 없는 상태를 보고했다: %q", ev.Status)
 	}
+	// 어느 채널로 나갔는지 밝혀야 한다. 사유 문자열에만 남기면 엔진이 파싱할 수 없고,
+	// SMS로 도달한 건이 알림톡 도달률·원가에 잡혀 집계가 조용히 틀어진다.
+	if ev.DeliveredVia == "" {
+		t.Fatal("대체발송으로 도달했는데 Event.DeliveredVia가 비었다 — 채널별 도달률·원가가 틀어진다")
+	}
+	if ev.DeliveredVia == m.Channel {
+		t.Fatalf("DeliveredVia가 원 채널(%s)과 같다 — 대체발송이면 실제 도달 채널이어야 한다", m.Channel)
+	}
 
 	// 같은 대상을 Fallback 없이 보내면 실패해야 한다. 그래야 위 성공이
 	// "이 번호는 원래 잘 간다"가 아니라 "대체발송이 살렸다"임이 증명된다.

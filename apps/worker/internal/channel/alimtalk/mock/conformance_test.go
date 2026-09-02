@@ -213,8 +213,62 @@ func TestFallbackSteering(t *testing.T) {
 	if evs[0].Status != "sent" || evs[0].FailureClass != "" {
 		t.Fatalf("Fallback이 실리면 대체발송으로 살아나야 한다: %+v", evs[0])
 	}
-	if evs[0].CostAmount <= 0 || evs[0].CostCurrency != "KRW" {
-		t.Fatalf("성공 종결은 원가를 실어야 한다: %+v", evs[0])
+	if evs[0].DeliveredVia != ChannelSMS {
+		t.Fatalf("SMS 대체발송은 DeliveredVia가 %q여야 한다: %+v", ChannelSMS, evs[0])
+	}
+	if evs[0].CostCurrency != "KRW" || evs[0].CostAmount != FallbackCostSMS {
+		t.Fatalf("대체발송은 SMS 단가로 잡혀야 한다: %+v", evs[0])
+	}
+
+	// LMS로 대체하면 도달 채널과 단가가 함께 바뀐다.
+	req.MessageID = "fb3"
+	req.Fallback = &alimtalk.Fallback{Type: "LMS", Title: "주문", Text: "주문이 접수되었습니다.", SenderNo: "0212345678"}
+	long, err := v.Send(ctx, req)
+	if err != nil {
+		t.Fatalf("LMS 대체발송: %v", err)
+	}
+	evs, err = v.PollResults(ctx, cred, []alimtalk.Receipt{long})
+	if err != nil || len(evs) != 1 {
+		t.Fatalf("PollResults: %v (%d건)", err, len(evs))
+	}
+	if evs[0].DeliveredVia != ChannelLMS || evs[0].CostAmount != FallbackCostLMS {
+		t.Fatalf("LMS 대체발송은 채널·단가가 모두 LMS여야 한다: %+v", evs[0])
+	}
+}
+
+// TestExpiredSteering — 조회 보존 기간을 넘긴 접수는 Terminal이 아니라 Expired다.
+// 폴러가 이 둘을 섞으면 결과를 모르는 건이 성공이나 실패로 집계된다.
+func TestExpiredSteering(t *testing.T) {
+	v := newVendor(t)
+	ctx := context.Background()
+	r, err := v.Send(ctx, alimtalk.SendRequest{
+		MessageID:    "expired",
+		Credential:   validCred(),
+		SenderKey:    "mock-sender-key",
+		TemplateCode: TemplateOrder,
+		Variables:    SampleVariables(TemplateOrder),
+		To:           Number(SuffixExpired),
+	})
+	if err != nil {
+		t.Fatalf("접수돼야 한다: %v", err)
+	}
+	evs, err := v.PollResults(ctx, alimtalk.Credential{JSON: ValidCredentialJSON()}, []alimtalk.Receipt{r})
+	if err != nil || len(evs) != 1 {
+		t.Fatalf("PollResults: %v (%d건)", err, len(evs))
+	}
+	ev := evs[0]
+	if !ev.Expired {
+		t.Fatalf("Expired여야 한다: %+v", ev)
+	}
+	if ev.Terminal {
+		t.Fatalf("Expired는 Terminal이 아니다 — 결과가 확정된 게 아니라 못 알아낸 것이다: %+v", ev)
+	}
+	if ev.Status != "" || ev.CostAmount != 0 {
+		t.Fatalf("결과를 모르는 건에 상태·원가를 붙이면 집계가 오염된다: %+v", ev)
+	}
+	// 공급자가 "결과를 잊었다"를 웹훅으로 밀어주는 일은 없다.
+	if _, ok := v.TerminalCallback([]alimtalk.Receipt{r}); ok {
+		t.Fatal("Expired 접수는 콜백 원문에 실리면 안 된다")
 	}
 }
 
@@ -624,6 +678,76 @@ func TestSendRejectsBadCredential(t *testing.T) {
 			}
 			if got := v.Classify(err); got != channel.FailureCredentialAuth {
 				t.Fatalf("credential_auth여야 한다 (got %s): %v", got, err)
+			}
+		})
+	}
+}
+
+// TestPollAndCallbackAgree — 같은 접수를 폴링으로 받든 콜백으로 받든 결론이 같아야 한다.
+// 갈리면 lifecycle_mode=both 벤더에서 한 발송이 경로에 따라 다르게 집계된다.
+func TestPollAndCallbackAgree(t *testing.T) {
+	v := newVendor(t)
+	ctx := context.Background()
+	cred := alimtalk.Credential{JSON: ValidCredentialJSON()}
+
+	send := func(id, suffix string, fb *alimtalk.Fallback) alimtalk.Receipt {
+		t.Helper()
+		r, err := v.Send(ctx, alimtalk.SendRequest{
+			MessageID:    id,
+			Credential:   validCred(),
+			SenderKey:    "mock-sender-key",
+			TemplateCode: TemplateOrder,
+			Variables:    SampleVariables(TemplateOrder),
+			To:           Number(suffix),
+			Fallback:     fb,
+		})
+		if err != nil {
+			t.Fatalf("%s 발송: %v", id, err)
+		}
+		return r
+	}
+
+	cases := []struct {
+		name     string
+		receipt  alimtalk.Receipt
+		wantVia  string
+		wantStat string
+	}{
+		{"도달", send("agree-dl", SuffixDelivered, nil), "", "delivered"},
+		{"차단", send("agree-it", SuffixInvalidTarget, nil), "", "failed"},
+		{"SMS 대체발송", send("agree-fs", SuffixFallback, &alimtalk.Fallback{Type: "SMS", Text: "x", SenderNo: "021"}), ChannelSMS, "sent"},
+		{"LMS 대체발송", send("agree-fl", SuffixFallback, &alimtalk.Fallback{Type: "LMS", Text: "x", SenderNo: "021"}), ChannelLMS, "sent"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			polled, err := v.PollResults(ctx, cred, []alimtalk.Receipt{tc.receipt})
+			if err != nil || len(polled) != 1 {
+				t.Fatalf("PollResults: %v (%d건)", err, len(polled))
+			}
+			cb, ok := v.TerminalCallback([]alimtalk.Receipt{tc.receipt})
+			if !ok {
+				t.Fatal("콜백 원문을 만들지 못했다")
+			}
+			pushed, err := v.ParseCallback(ctx, cb)
+			if err != nil || len(pushed) != 1 {
+				t.Fatalf("ParseCallback: %v (%d건)", err, len(pushed))
+			}
+			a, b := polled[0], pushed[0]
+			if a.Status != tc.wantStat || b.Status != tc.wantStat {
+				t.Fatalf("status: want %q, poll=%q callback=%q", tc.wantStat, a.Status, b.Status)
+			}
+			if a.DeliveredVia != tc.wantVia || b.DeliveredVia != tc.wantVia {
+				t.Fatalf("delivered_via: want %q, poll=%q callback=%q", tc.wantVia, a.DeliveredVia, b.DeliveredVia)
+			}
+			if !a.Terminal || !b.Terminal {
+				t.Fatalf("양쪽 다 종결이어야 한다: poll=%v callback=%v", a.Terminal, b.Terminal)
+			}
+			if a.CostAmount != b.CostAmount || a.CostCurrency != b.CostCurrency {
+				t.Fatalf("원가가 경로에 따라 다르다: poll=%v%s callback=%v%s",
+					a.CostAmount, a.CostCurrency, b.CostAmount, b.CostCurrency)
+			}
+			if a.FailureClass != b.FailureClass {
+				t.Fatalf("실패 분류가 경로에 따라 다르다: poll=%q callback=%q", a.FailureClass, b.FailureClass)
 			}
 		})
 	}

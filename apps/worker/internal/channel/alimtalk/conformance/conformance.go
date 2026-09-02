@@ -202,6 +202,11 @@ func terminalOf(ctx context.Context, t *testing.T, v alimtalk.Vendor, env Env, r
 			t.Fatalf("ParseCallback 실패: %v", err)
 		}
 		if ev, ok := pick(evs, r.ProviderMessageID); ok {
+			// 폴링 경로와 같은 기준으로 본다. 같은 발송이 경로에 따라 종결되기도 하고
+			// 영원히 대기하기도 하면 미종결 접수가 조용히 쌓인다.
+			if !ev.Terminal {
+				t.Fatalf("종결 콜백인데 %s를 종결로 표시하지 않았다 (status=%s)", r.ProviderMessageID, ev.Status)
+			}
 			return ev
 		}
 		t.Fatalf("ParseCallback이 %s의 이벤트를 주지 않았다 (%d건)", r.ProviderMessageID, len(evs))
