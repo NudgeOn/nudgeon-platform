@@ -324,6 +324,18 @@ export class OndaClient {
       this.request<{ subject?: string; html: string }>("POST", `/v1/apps/${appId}/email-templates/preview`, input),
   };
 
+  /**
+   * 발송기 카탈로그 — 이 배포에서 고를 수 있는 커넥터.
+   * 콘솔의 "벤더 선택 → 설정 입력"이 이 응답만으로 그려진다(폼은 credentials_schema로 렌더).
+   */
+  readonly connectors = {
+    catalog: (channel?: string) =>
+      this.request<{ connectors: ConnectorCatalogEntry[] }>(
+        "GET",
+        `/v1/connectors${channel ? `?channel=${encodeURIComponent(channel)}` : ""}`,
+      ),
+  };
+
   readonly alimtalk = {
     /** 채널 → 커넥터 배선 조회 (Owner/Admin) — 미배선이면 404 */
     connector: {
@@ -706,6 +718,35 @@ export interface AlimtalkCredentialInput {
 }
 
 /** 앱별 채널 → 커넥터 배선. config는 비밀이 아닌 설정만(비밀은 credentials에). */
+/**
+ * 커넥터 매니페스트의 콘솔용 투영. 단일 출처는 배포의 매니페스트 디렉터리이고,
+ * API와 워커가 같은 디렉터리를 읽는다.
+ *
+ * 여기 있다고 발송이 되는 것은 아니다 — in_process_go 커넥터는 워커 바이너리에 구현이
+ * 포함돼 있어야 하며, 없으면 워커가 기동에서 실패한다.
+ */
+export interface ConnectorCatalogEntry {
+  id: string;
+  name: string;
+  description?: string;
+  version: string;
+  channel: string;
+  vendor: { name: string; url?: string; support?: string };
+  tier?: string;
+  runtime: "in_process_go" | "remote_http";
+  /** 크리덴셜 입력 폼을 그리는 JSON Schema. 벤더마다 필드가 달라 폼을 손으로 짤 수 없다. */
+  credentials_schema: unknown;
+  /** 비밀이 아닌 앱 단위 설정 폼 (발신번호·기본 발신프로필 등) */
+  config_schema?: unknown;
+  capabilities: Record<string, unknown>;
+  /** 이 커넥터가 보고할 수 있는 상태. 리포트가 "미지원"과 "0"을 구분하는 근거. */
+  reports: string[];
+  /** 웹훅형이면 등록할 경로 조각. 없으면 폴링형이라 등록할 것이 없다. */
+  callback_path?: string;
+  compliance?: Record<string, unknown>;
+  cost?: Record<string, unknown>;
+}
+
 export interface ChannelConnector {
   id: string;
   channel: string;
