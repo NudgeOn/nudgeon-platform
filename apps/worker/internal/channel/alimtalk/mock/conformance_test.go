@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -750,5 +753,75 @@ func TestPollAndCallbackAgree(t *testing.T) {
 				t.Fatalf("실패 분류가 경로에 따라 다르다: poll=%q callback=%q", a.FailureClass, b.FailureClass)
 			}
 		})
+	}
+}
+
+// repoRoot — go.work를 찾아 저장소 루트를 올라간다. 상대 경로 하드코딩보다 덜 깨진다.
+func repoRoot() (string, bool) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", false
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := os.Stat(filepath.Join(dir, "go.work")); err == nil {
+			return dir, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "", false
+}
+
+// TestDeployManifestMatchesEmbedded — deploy/connectors의 배포용 사본이 내장 manifest와
+// 어긋나지 않는지.
+//
+// 사본이 둘이라 한쪽만 고치는 사고가 난다. 레지스트리는 id와 channel만 보고 받아주므로
+// (NewWithClock), 배포 사본의 capabilities가 다르면 목이 계약 테스트가 검증한 것과 다르게
+// 동작하고 E2E는 원인이 보이지 않는 실패를 낸다. 형식 차이는 무시하고 동작을 정하는
+// 필드만 비교한다.
+func TestDeployManifestMatchesEmbedded(t *testing.T) {
+	root, ok := repoRoot()
+	if !ok {
+		t.Skip("저장소 루트를 찾지 못했다 — 배포 사본 대조를 건너뛴다")
+	}
+	path := filepath.Join(root, "deploy", "connectors", "alimtalk_mock.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			t.Skipf("배포 사본이 없다: %s", path)
+		}
+		t.Fatalf("배포 사본 읽기: %v", err)
+	}
+	deployed, err := connector.Parse(raw)
+	if err != nil {
+		t.Fatalf("배포 사본이 connector.Parse를 통과하지 못한다 (%s): %v", path, err)
+	}
+	embedded, err := EmbeddedManifest()
+	if err != nil {
+		t.Fatalf("내장 manifest: %v", err)
+	}
+
+	if deployed.ID != embedded.ID || deployed.Channel != embedded.Channel {
+		t.Fatalf("id·channel 불일치: 배포 %s/%s, 내장 %s/%s",
+			deployed.ID, deployed.Channel, embedded.ID, embedded.Channel)
+	}
+	if deployed.Runtime.Type != embedded.Runtime.Type {
+		t.Fatalf("runtime.type 불일치: 배포 %q, 내장 %q", deployed.Runtime.Type, embedded.Runtime.Type)
+	}
+	if !reflect.DeepEqual(deployed.Capabilities, embedded.Capabilities) {
+		t.Fatalf("capabilities 불일치 — 목이 계약 테스트와 다르게 동작한다\n배포: %+v\n내장: %+v",
+			deployed.Capabilities, embedded.Capabilities)
+	}
+	if !reflect.DeepEqual(deployed.Lifecycle, embedded.Lifecycle) {
+		t.Fatalf("lifecycle 불일치\n배포: %+v\n내장: %+v", deployed.Lifecycle, embedded.Lifecycle)
+	}
+	if !reflect.DeepEqual(deployed.ContractTests, embedded.ContractTests) {
+		t.Fatalf("contract_tests 불일치\n배포: %v\n내장: %v", deployed.ContractTests, embedded.ContractTests)
+	}
+	if !reflect.DeepEqual(deployed.Cost, embedded.Cost) {
+		t.Fatalf("cost 불일치 — 원가 집계가 갈린다\n배포: %+v\n내장: %+v", deployed.Cost, embedded.Cost)
 	}
 }
