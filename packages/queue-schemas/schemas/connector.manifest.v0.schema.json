@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onda.dev/schemas/connector/manifest.v0.json",
+  "title": "ConnectorManifestV0",
+  "description": "커넥터 manifest v0 — 채널 커넥터가 자신을 선언하는 파일(onda.connector.json). 엔진은 이 선언만 보고 설치·크리덴셜 폼·capability 검증·정책 렌더·수명주기 매핑을 결정한다. v0는 in-process Go 커넥터와 remote HTTP 커넥터를 지원하며, 서명·SBOM·샌드박스·정산 필드는 Registry 단계(v1)에서 추가된다.",
+  "type": "object",
+  "required": ["manifest_version", "id", "name", "version", "channel", "vendor", "license", "runtime", "target_types", "capabilities", "credentials", "lifecycle"],
+  "properties": {
+    "manifest_version": { "const": 0 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$", "description": "전역 유일 커넥터 ID. send.message.v1의 connector.id와 일치." },
+    "name": { "type": "string", "maxLength": 80 },
+    "description": { "type": "string", "maxLength": 500 },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$" },
+    "channel": {
+      "type": "string",
+      "enum": ["push", "email", "sms", "lms", "mms", "kakao_alimtalk", "kakao_brand_message", "line", "whatsapp", "webhook", "in_app"]
+    },
+    "vendor": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "support": { "type": "string", "description": "이슈·지원 연락처(URL 또는 이메일)" }
+      },
+      "additionalProperties": false
+    },
+    "license": { "type": "string", "description": "SPDX 식별자. Certified 등급은 Apache-2.0/MIT/BSD만 허용." },
+    "tier": { "type": "string", "enum": ["core", "certified", "community"], "default": "community" },
+    "runtime": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["in_process_go", "remote_http"] },
+        "go_package": { "type": "string", "description": "in_process_go: 등록 패키지 경로" },
+        "endpoint": { "type": "string", "description": "remote_http: 기본 URL. validate/send/callback 경로는 아래 고정 규약" },
+        "auth": { "type": "string", "enum": ["hmac_sha256", "bearer"], "description": "엔진→커넥터 호출 서명 방식(remote_http 필수)" },
+        "timeout_ms": { "type": "integer", "minimum": 100, "maximum": 30000, "default": 5000 }
+      },
+      "additionalProperties": false,
+      "if": { "properties": { "type": { "const": "remote_http" } } },
+      "then": { "required": ["endpoint", "auth"] }
+    },
+    "target_types": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["device_token", "phone", "email", "kakao_user", "line_user", "http_url", "in_app_user"] }
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["content"],
+      "properties": {
+        "content": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["push", "email", "text", "template", "buttons", "webhook", "in_app"] },
+          "description": "지원하는 send.message.v1 content 종류. 이외가 오면 unsupported."
+        },
+        "silent": { "type": "boolean", "default": false },
+        "fallback_source": { "type": "boolean", "default": true, "description": "이 커넥터 실패 시 fallback 체인 진행 허용" },
+        "scheduled_send": { "type": "boolean", "default": false },
+        "batch_max": { "type": "integer", "minimum": 1, "default": 1, "description": "공급자 배치 API 지원 시 1회 최대 건수" },
+        "async_receipt": { "type": "boolean", "default": false, "description": "발송 결과가 콜백/폴링으로 나중에 오는 채널(알림톡·SMS)" },
+        "test_send": { "type": "boolean", "default": true }
+      },
+      "additionalProperties": false
+    },
+    "credentials": {
+      "type": "object",
+      "description": "테넌트가 콘솔에서 입력하는 크리덴셜 폼. 값은 봉투 암호화로 저장되고 커넥터 런타임에서만 복호화된다.",
+      "required": ["schema"],
+      "properties": {
+        "schema": { "type": "object", "description": "JSON Schema (draft 2020-12). secret 필드는 x-secret: true 로 표시." },
+        "validate": { "type": "boolean", "default": true, "description": "등록 시 ValidateCredentials 실호출 여부" }
+      },
+      "additionalProperties": false
+    },
+    "config": {
+      "type": "object",
+      "description": "크리덴셜이 아닌 앱 단위 설정(발신번호, 발신프로필, 기본 템플릿 등) JSON Schema",
+      "properties": { "schema": { "type": "object" } },
+      "additionalProperties": false
+    },
+    "lifecycle": {
+      "type": "object",
+      "description": "이 커넥터가 실제로 보고할 수 있는 message.lifecycle 상태. 리포트는 여기 없는 상태를 '미지원'으로 표시한다(빈 값과 0을 구분).",
+      "required": ["reports"],
+      "properties": {
+        "reports": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["accepted", "sent", "delivered", "opened", "clicked", "failed", "unsubscribed", "bounced"] }
+        },
+        "callback": {
+          "type": "object",
+          "description": "공급자 → Onda 콜백 수신 규약(async_receipt=true 시 필수)",
+          "required": ["path"],
+          "properties": {
+            "path": { "type": "string", "description": "/v1/connectors/{id}/callback 하위 경로" },
+            "verify": { "type": "string", "enum": ["hmac_sha256", "ip_allowlist", "token", "none"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "rps": { "type": "integer", "minimum": 1, "description": "공급자 계약 기준 초당 발송 상한(테넌트별)" },
+        "daily": { "type": "integer", "minimum": 1 },
+        "retry": {
+          "type": "object",
+          "properties": {
+            "max_attempts": { "type": "integer", "minimum": 0, "maximum": 10, "default": 5 },
+            "base_backoff_ms": { "type": "integer", "minimum": 100, "default": 1000 },
+            "circuit_breaker": { "type": "boolean", "default": true }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "compliance": {
+      "type": "object",
+      "description": "채널 규제 특성. 정책 엔진이 send.message.v1.policy를 채울 때 참조한다.",
+      "properties": {
+        "regions": { "type": "array", "items": { "type": "string", "pattern": "^[A-Z]{2}$" } },
+        "marketing_allowed": { "type": "boolean", "default": true },
+        "requires_template_approval": { "type": "boolean", "default": false },
+        "ad_label": { "type": "string", "enum": ["none", "prefix_광고", "provider_managed"], "default": "none", "description": "정보통신망법 (광고) 표기 방식" },
+        "unsubscribe": { "type": "string", "enum": ["none", "080_number", "url", "provider_managed"], "default": "none" },
+        "quiet_hours_default": { "type": ["string", "null"], "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$", "description": "야간 광고 제한 기본값(예: 21:00-08:00)" },
+        "pii_in_transit": { "type": "array", "items": { "type": "string", "enum": ["phone", "email", "kakao_id", "line_id", "device_token"] } }
+      },
+      "additionalProperties": false
+    },
+    "cost": {
+      "type": "object",
+      "description": "원가 원장용 단가 선언(선택). 실제 청구는 공급자 명세가 우선.",
+      "properties": {
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "per_message": { "type": "number", "minimum": 0 },
+        "per_message_by_content": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } }
+      },
+      "additionalProperties": false
+    },
+    "contract_tests": {
+      "type": "array",
+      "description": "커넥터가 통과해야 하는 표준 계약 테스트 ID. Certified 등급 필수.",
+      "items": { "type": "string", "enum": ["validate_credentials", "send_ok", "send_invalid_target", "send_rate_limited", "send_permanent_content", "callback_parse", "idempotent_resend", "unsupported_content", "fallback_trigger"] }
+    }
+  },
+  "additionalProperties": false
+}

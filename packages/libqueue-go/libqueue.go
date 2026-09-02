@@ -24,6 +24,8 @@ const (
 	StreamDispatch     = "stream:dispatch"
 	StreamSendPush     = "stream:send.push"
 	StreamSendEmail    = "stream:send.email"
+	StreamSendMessage  = "stream:send.message"      // 채널 중립 발송 (send.message.v1)
+	StreamLifecycle    = "stream:message.lifecycle" // 발송 수명주기 (message.lifecycle.v1)
 	StreamFeedback     = "stream:feedback"
 )
 
@@ -35,6 +37,8 @@ const (
 	GroupFanout         = "cg:fanout"
 	GroupChannel        = "cg:channel"
 	GroupChannelEmail   = "cg:channel.email"
+	GroupChannelMessage = "cg:channel.message"
+	GroupLifecycle      = "cg:lifecycle"
 	GroupFeedback       = "cg:feedback"
 )
 

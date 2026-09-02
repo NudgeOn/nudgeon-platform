@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onda.dev/schemas/queue/send.message.v1.json",
+  "title": "SendMessageV1Payload",
+  "description": "send.message 스트림 payload v1 — 채널 중립 발송 계약. 모든 채널(push·email·alimtalk·sms·brand_message·webhook·in_app…)이 이 하나의 형태로 커넥터에 전달된다. 기존 send.push / send.email은 v1 호환을 위해 유지하며, 신규 채널은 send.message.v1만 구현한다. idempotency_key는 (journey_id, version, user_id, node_index, device_id 또는 endpoint_id) — CLAUDE.md 규칙 6.",
+  "type": "object",
+  "required": ["idempotency_key", "message_id", "channel", "connector", "user_id", "target", "content", "category", "consent"],
+  "properties": {
+    "idempotency_key": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "message_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "발송 시점 1회 생성하는 안정 ID. message_log·공급자 영수증·SDK 도달/오픈 이벤트·lifecycle 이벤트를 잇는 조인 키."
+    },
+    "channel": {
+      "$ref": "#/$defs/ChannelId",
+      "description": "논리 채널. 커넥터 manifest의 channel과 일치해야 한다."
+    },
+    "connector": {
+      "type": "object",
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "$ref": "#/$defs/ConnectorId" },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$", "description": "설치된 커넥터 SemVer" },
+        "credential_ref": { "type": "string", "description": "테넌트 크리덴셜 저장소 키. 복호화된 값은 절대 큐에 싣지 않는다." }
+      },
+      "additionalProperties": false
+    },
+    "user_id": { "type": "string", "format": "uuid" },
+    "target": { "$ref": "#/$defs/Target" },
+    "content": { "$ref": "#/$defs/Content" },
+    "category": { "type": "string", "enum": ["marketing", "transactional"] },
+    "consent": {
+      "type": "object",
+      "description": "발송 근거. 정보통신망법·개인정보보호법 증빙을 위해 커넥터가 아닌 엔진이 채운다.",
+      "required": ["basis"],
+      "properties": {
+        "basis": { "type": "string", "enum": ["opt_in", "transactional", "legitimate_interest", "test"] },
+        "opted_in_at": { "type": ["string", "null"], "format": "date-time" },
+        "source": { "type": ["string", "null"], "description": "동의 수집 출처(sdk, import, console…)" }
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "description": "엔진이 이미 판정한 정책 결과. 커넥터는 이를 신뢰하고 재판정하지 않는다.",
+      "properties": {
+        "quiet_hours": { "type": "string", "enum": ["allowed", "deferred", "bypassed_transactional"] },
+        "frequency_cap": { "type": "string", "enum": ["allowed", "bypassed_transactional"] },
+        "ad_label_required": { "type": "boolean", "description": "(광고) 표기·수신거부 안내 삽입 필요 여부 — 커넥터가 채널 규칙에 맞게 렌더" },
+        "unsubscribe_ref": { "type": ["string", "null"], "description": "080 수신거부 번호 또는 수신거부 URL" }
+      },
+      "additionalProperties": false
+    },
+    "locale": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+    "options": {
+      "type": "object",
+      "properties": {
+        "ttl_seconds": { "type": "integer", "minimum": 0 },
+        "collapse_key": { "type": "string", "maxLength": 128 },
+        "priority": { "type": "string", "enum": ["high", "normal"] },
+        "scheduled_for": { "type": ["string", "null"], "format": "date-time", "description": "공급자 예약 발송 지원 시 사용. 미지원 커넥터는 즉시 발송." }
+      },
+      "additionalProperties": false
+    },
+    "fallback": {
+      "type": "array",
+      "description": "실패 시 순서대로 시도할 대체 발송. 각 항목은 독립된 send.message.v1 하위 집합. 예: 알림톡 실패(invalid_target·permanent_content) → SMS.",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["channel", "connector", "target", "content", "on"],
+        "properties": {
+          "channel": { "$ref": "#/$defs/ChannelId" },
+          "connector": { "$ref": "#/properties/connector" },
+          "target": { "$ref": "#/$defs/Target" },
+          "content": { "$ref": "#/$defs/Content" },
+          "on": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "enum": ["invalid_target", "permanent_content", "rate_limited", "retry_exhausted", "credential_auth", "unsupported"] }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "journey_id": { "type": ["string", "null"], "format": "uuid" },
+    "journey_version": { "type": ["integer", "null"] },
+    "node_index": { "type": ["integer", "null"] },
+    "campaign_ref": { "type": ["string", "null"] },
+    "metadata": {
+      "type": "object",
+      "description": "리포트용 자유 속성(문자열만). 커넥터 동작에 영향을 주지 않는다.",
+      "additionalProperties": { "type": "string" },
+      "maxProperties": 32
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "ChannelId": {
+      "type": "string",
+      "enum": ["push", "email", "sms", "lms", "mms", "kakao_alimtalk", "kakao_brand_message", "line", "whatsapp", "webhook", "in_app"]
+    },
+    "ConnectorId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,63}$",
+      "description": "예: push_fcm, push_apns, email_smtp, email_nhn, kakao_alimtalk_nhn, sms_nhn, webhook_http"
+    },
+    "Target": {
+      "type": "object",
+      "description": "수신 엔드포인트. type별로 필수 필드가 다르다. 개인정보(전화·이메일)는 큐에 평문으로 실리므로 스트림 보존 기간과 접근 통제는 sub-07 규칙을 따른다.",
+      "required": ["type", "endpoint_id"],
+      "properties": {
+        "type": { "type": "string", "enum": ["device_token", "phone", "email", "kakao_user", "line_user", "http_url", "in_app_user"] },
+        "endpoint_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "엔드포인트 레지스트리 ID(device_id 또는 identity endpoint id). 멱등 키의 마지막 요소이며 device_id 누락 금지 규칙(CLAUDE.md 6)의 채널 중립 확장."
+        },
+        "value": { "type": "string", "minLength": 1, "maxLength": 2048, "description": "토큰·E.164 전화·이메일·URL 등 실제 주소" },
+        "platform": { "type": ["string", "null"], "enum": ["ios", "android", "web", null] },
+        "country": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$" }
+      },
+      "additionalProperties": false
+    },
+    "Content": {
+      "type": "object",
+      "description": "채널 capability별 렌더 완료 본문. 하나 이상 존재해야 하며, 커넥터 manifest.capabilities.content에 없는 종류가 오면 커넥터는 unsupported로 실패 분류한다.",
+      "minProperties": 1,
+      "properties": {
+        "push": {
+          "type": "object",
+          "required": ["title", "body"],
+          "properties": {
+            "title": { "type": "string", "maxLength": 256 },
+            "body": { "type": "string", "maxLength": 2048 },
+            "image_url": { "type": "string" },
+            "deep_link": { "type": "string" },
+            "data": { "type": "object", "additionalProperties": { "type": "string" } },
+            "silent": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "email": {
+          "type": "object",
+          "required": ["subject", "html"],
+          "properties": {
+            "subject": { "type": "string", "maxLength": 998 },
+            "html": { "type": "string" },
+            "text": { "type": "string" },
+            "from": { "type": "string" },
+            "reply_to": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "text": {
+          "type": "object",
+          "description": "SMS/LMS/MMS·브랜드메시지 자유형 등 평문 채널",
+          "required": ["body"],
+          "properties": {
+            "title": { "type": "string", "maxLength": 64 },
+            "body": { "type": "string", "maxLength": 4000 },
+            "sender": { "type": "string", "description": "발신번호(사전 등록)" },
+            "image_url": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "template": {
+          "type": "object",
+          "description": "사전 승인 템플릿 채널(알림톡 등). 변수만 전달하고 렌더는 공급자가 한다.",
+          "required": ["code", "variables"],
+          "properties": {
+            "code": { "type": "string", "maxLength": 128 },
+            "variables": { "type": "object", "additionalProperties": { "type": "string" } },
+            "sender_key": { "type": "string", "description": "카카오 발신프로필 키" },
+            "rendered_preview": { "type": "string", "description": "미리보기·로그용 치환 결과(선택)" }
+          },
+          "additionalProperties": false
+        },
+        "buttons": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "required": ["type", "name"],
+            "properties": {
+              "type": { "type": "string", "enum": ["web_link", "app_link", "bot_keyword", "message_delivery", "add_channel"] },
+              "name": { "type": "string", "maxLength": 28 },
+              "url_mobile": { "type": "string" },
+              "url_pc": { "type": "string" },
+              "scheme_ios": { "type": "string" },
+              "scheme_android": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "webhook": {
+          "type": "object",
+          "required": ["body"],
+          "properties": {
+            "method": { "type": "string", "enum": ["POST", "PUT"] },
+            "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+            "body": { "type": "object" }
+          },
+          "additionalProperties": false
+        },
+        "in_app": {
+          "type": "object",
+          "required": ["template_id", "payload"],
+          "properties": {
+            "template_id": { "type": "string" },
+            "payload": { "type": "object" },
+            "display": { "type": "string", "enum": ["modal", "slide_up", "fullscreen", "launch_takeover", "html"] },
+            "expires_at": { "type": ["string", "null"], "format": "date-time" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

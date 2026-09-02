@@ -17,6 +17,10 @@ export const STREAMS = {
   dispatch: "stream:dispatch",
   sendPush: "stream:send.push",
   sendEmail: "stream:send.email",
+  /** 채널 중립 발송 (send.message.v1) — 신규 커넥터는 이 스트림만 구독 */
+  sendMessage: "stream:send.message",
+  /** 발송 수명주기 (message.lifecycle.v1) — 커넥터·콜백·SDK가 수렴 */
+  messageLifecycle: "stream:message.lifecycle",
   feedback: "stream:feedback",
 } as const;
 
@@ -30,6 +34,8 @@ export const CONSUMER_GROUPS = {
   fanout: "cg:fanout",
   channel: "cg:channel",
   channelEmail: "cg:channel.email",
+  channelMessage: "cg:channel.message",
+  lifecycle: "cg:lifecycle",
   feedback: "cg:feedback",
 } as const;
 
@@ -56,6 +62,8 @@ export type MessageType =
   | "dispatch.fanout"
   | "send.push"
   | "send.email"
+  | "send.message"
+  | "message.lifecycle"
   | "feedback.token";
 
 /** 모든 큐 메시지의 공통 envelope (DEV-MAIN §5) */

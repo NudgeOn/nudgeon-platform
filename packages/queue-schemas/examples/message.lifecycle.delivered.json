@@ -1,0 +1,18 @@
+{
+  "message_id": "b3f2a1c0-9e8d-4c7b-a6f5-4e3d2c1b0a99",
+  "idempotency_key": "j:0d6f1c1e-2a5b-4c8e-9f10-2b3c4d5e6f70:v3:u:7b1e8a2c-5d4f-4a6b-8c9d-0e1f2a3b4c5d:n:4:e:9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+  "status": "delivered",
+  "occurred_at": "2026-09-02T03:14:15.926Z",
+  "source": "provider_callback",
+  "channel": "kakao_alimtalk",
+  "connector_id": "kakao_alimtalk_nhn",
+  "provider_message_id": "20260902031410ABCDEF",
+  "user_id": "7b1e8a2c-5d4f-4a6b-8c9d-0e1f2a3b4c5d",
+  "endpoint_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+  "failure_class": null,
+  "failure_detail": null,
+  "fallback_index": 0,
+  "attempt": 1,
+  "cost": { "currency": "KRW", "amount": 8.0 },
+  "click_ref": null
+}
