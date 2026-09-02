@@ -183,36 +183,58 @@ func (p *ResultPoller) pollGroup(ctx context.Context, key groupKey, rs []receipt
 	byID := indexReceipts(rs)
 	terminal := make([]string, 0, len(events))
 	for _, ev := range events {
-		r, ok := byID[ev.MessageID]
-		if !ok {
-			p.logger.Warn("모르는 접수의 결과 — 무시", "message_id", ev.MessageID, "connector_id", key.connectorID)
-			continue
-		}
-		// Expired는 "결과가 확정됐다"가 아니라 "더는 알아낼 수 없다"이다.
-		// 이벤트를 발행하면 알 수 없는 건이 성공/실패로 집계되므로, 대기 목록에서만 뺀다.
-		if ev.Expired {
+		r, known := byID[ev.MessageID]
+		switch decidePollEvent(ev, known) {
+		case pollIgnore:
+			p.logger.Warn("해석할 수 없는 폴링 결과 — 무시",
+				"message_id", ev.MessageID, "status", ev.Status, "known", known, "connector_id", key.connectorID)
+		case pollDrop:
 			p.logger.Warn("공급자 조회 보존 기간 초과 — 결과 미확정으로 정리",
 				"message_id", r.MessageID, "connector_id", key.connectorID)
 			terminal = append(terminal, r.MessageID)
-			continue
-		}
-		if !validLifecycleStatus[ev.Status] {
-			p.logger.Warn("수명주기 상태 불명 — 무시", "status", ev.Status, "connector_id", key.connectorID)
-			continue
-		}
-		if !m.Reports(ev.Status) {
-			// 선언하지 않은 상태를 보고했다. 버리지는 않되 manifest 불일치로 남긴다.
-			p.logger.Warn("manifest 미선언 상태 보고", "status", ev.Status, "connector_id", key.connectorID)
-		}
-		src := &libqueue.Envelope{TenantID: r.TenantID, AppID: r.AppID, TraceID: uuid.NewString()}
-		p.emit.emit(ctx, src, buildPollEvent(r, ev, m.Channel), ev.OccurredAt)
-		metrics.LifecycleEvents.WithLabelValues(ev.Status).Inc()
-		if ev.Terminal {
-			terminal = append(terminal, r.MessageID)
+		case pollEmit:
+			if !m.Reports(ev.Status) {
+				// 선언하지 않은 상태를 보고했다. 버리지는 않되 manifest 불일치로 남긴다.
+				p.logger.Warn("manifest 미선언 상태 보고", "status", ev.Status, "connector_id", key.connectorID)
+			}
+			src := &libqueue.Envelope{TenantID: r.TenantID, AppID: r.AppID, TraceID: uuid.NewString()}
+			p.emit.emit(ctx, src, buildPollEvent(r, ev, m.Channel), ev.OccurredAt)
+			metrics.LifecycleEvents.WithLabelValues(ev.Status).Inc()
+			// 종결 여부는 벤더가 정한다. 상태에서 유추하면 폴링과 콜백이 갈린다:
+			// 대체발송된 sent는 종결이지만 원 채널의 sent는 아니고, 그 차이는 벤더만 안다.
+			if ev.Terminal {
+				terminal = append(terminal, r.MessageID)
+			}
 		}
 	}
 	p.drop(ctx, key.tenantID, terminal)
 	p.backoff(ctx, key.tenantID, remaining(rs, terminal))
+}
+
+// pollAction — 폴링 결과 한 건을 어떻게 처리할지.
+type pollAction int
+
+const (
+	pollIgnore pollAction = iota // 우리 접수가 아니거나 상태를 해석할 수 없다 — 그대로 둔다
+	pollDrop                     // 이벤트 없이 대기 목록에서만 뺀다
+	pollEmit                     // lifecycle 발행 (종결 여부는 ev.Terminal이 정한다)
+)
+
+// decidePollEvent — 판단부를 순수 함수로 뺀다. 폴링 결과 처리의 오답은
+// 조용히 집계를 틀어놓기만 하고 아무 데도 티가 나지 않아서, 표로 굳혀 둔다.
+func decidePollEvent(ev alimtalk.Event, known bool) pollAction {
+	switch {
+	case !known:
+		return pollIgnore
+	case ev.Expired:
+		// "결과가 확정됐다"가 아니라 "더는 알아낼 수 없다"이다. 이벤트를 발행하면
+		// 알 수 없는 건이 성공이나 실패로 집계된다.
+		return pollDrop
+	case !validLifecycleStatus[ev.Status]:
+		return pollIgnore
+	default:
+		return pollEmit
+	}
 }
 
 var validLifecycleStatus = map[string]bool{
