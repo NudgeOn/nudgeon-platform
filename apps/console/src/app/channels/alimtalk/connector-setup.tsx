@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import type { AlimtalkCredentialInput, ChannelConnector, ConnectorCatalogEntry } from "@onda/api-client";
+import type { ChannelConnector, ConnectorCatalogEntry } from "@onda/api-client";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,10 +79,8 @@ export function ConnectorSetup({
         // 이름이 다른 벤더(NHN의 app_key)가 "필드 누락"으로 검증에서 떨어진다.
         extra: plan.extra,
         // 슬롯은 흔한 이름을 위한 호환이라 매핑되는 필드가 없으면 아예 보내지 않는다.
-        // 서버는 api_key를 선택으로 받지만 AlimtalkCredentialInput은 아직 필수라 단언이 필요하다.
-        // api_key?: string으로 고쳐지면 이 단언을 지운다.
         ...plan.credential,
-      } as AlimtalkCredentialInput);
+      });
       await api.alimtalk.connector.put(appId, ALIMTALK_CHANNEL, {
         connector_id: connector.id,
         config: planConfig(configFields, configValues),

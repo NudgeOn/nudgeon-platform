@@ -724,10 +724,22 @@ export interface EmailTemplate {
 export interface AlimtalkCredentialInput {
   kind: "alimtalk";
   connector_id: string;
-  api_key: string;
+  /**
+   * 흔한 이름일 뿐 모든 벤더가 쓰는 이름이 아니다. 이 슬롯에 대응하는 필드가 없는
+   * 벤더도 있으므로 선택이며, 서버는 "슬롯이든 extra든 비밀이 하나라도 있으면 된다"까지만 강제한다.
+   */
+  api_key?: string;
   secret_key?: string;
   sender_key?: string;
   base_url?: string;
+  /**
+   * 매니페스트가 선언한 필드를 **이름 그대로** 담는다. 벤더가 실제로 읽는 값이다
+   * (NHN은 app_key, 다른 딜러사는 또 다르다). 저장 시 펼쳐지며 이름 있는 슬롯이 이긴다.
+   *
+   * 슬롯 넷만으로는 제3자 벤더가 다섯 번째 비밀을 선언하는 순간 저장할 방법이 없어져
+   * "매니페스트만 있으면 벤더가 들어온다"는 계약이 닫히지 않는다.
+   */
+  extra?: Record<string, string>;
 }
 
 /** 앱별 채널 → 커넥터 배선. config는 비밀이 아닌 설정만(비밀은 credentials에). */
