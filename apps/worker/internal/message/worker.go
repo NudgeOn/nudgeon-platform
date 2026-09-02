@@ -85,18 +85,29 @@ func (w *Worker) Resolve(ctx context.Context, env *libqueue.Envelope, job *Job) 
 		job.Note = note
 		return channel.Credentials{}, false, nil
 	}
-	// payload가 커넥터를 못박았는데 앱 배선이 다르면, 다른 벤더의 설정·비밀로 보내게 된다.
-	// 조용히 바꿔 보내느니 종결하고 사유를 남긴다(콘솔에서 배선을 고치면 다음 발송부터 정상).
-	if job.P.Connector.ID != "" && job.P.Connector.ID != b.ConnectorID {
-		job.Note = fmt.Sprintf("커넥터 불일치: 배선=%s, 발송 지정=%s", b.ConnectorID, job.P.Connector.ID)
-		return channel.Credentials{}, false, nil
+	// 커넥터 선택: 저니가 발행 시점에 못박은 payload의 connector.id가 우선이고,
+	// 비어 있거나 그 커넥터가 사라졌을 때만 앱 배선으로 되돌아간다.
+	//
+	// 주의: config와 크리덴셜은 (app, channel) 배선 행 하나뿐이라 커넥터가 어긋나도
+	// 그 행의 것을 쓴다. 즉 배선을 바꾼 뒤 구(舊) 커넥터를 못박은 인플라이트 발송은
+	// 새 벤더의 설정·비밀로 나간다. 그래서 어긋나면 경고를 남긴다.
+	connectorID := b.ConnectorID
+	if pinned := job.P.Connector.ID; pinned != "" && pinned != b.ConnectorID {
+		if _, perr := w.reg.Get(pinned); perr == nil {
+			w.logger.Warn("커넥터 불일치 — 발송이 못박은 커넥터를 쓴다",
+				"pinned", pinned, "binding", b.ConnectorID, "app_id", env.AppID)
+			connectorID = pinned
+		} else {
+			w.logger.Warn("발송이 못박은 커넥터가 없어 배선으로 되돌린다",
+				"pinned", pinned, "binding", b.ConnectorID, "app_id", env.AppID)
+		}
 	}
-	v, verr := w.reg.Get(b.ConnectorID)
+	v, verr := w.reg.Get(connectorID)
 	if verr != nil {
 		job.Note = verr.Error()
 		return channel.Credentials{}, false, nil
 	}
-	job.ConnectorID = b.ConnectorID
+	job.ConnectorID = connectorID
 	job.Config = b.Config
 	job.Vendor = v
 	job.Manifest = v.Manifest()

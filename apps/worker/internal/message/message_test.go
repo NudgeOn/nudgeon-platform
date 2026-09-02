@@ -512,23 +512,54 @@ func TestResolveCredentialMissing(t *testing.T) {
 	}
 }
 
-// 배선과 발송 지정이 어긋나면 다른 벤더의 비밀·설정으로 보내게 된다. 조용히 바꿔 보내지 않는다.
-func TestResolveRejectsConnectorMismatch(t *testing.T) {
-	reg := testRegistry(t, manifest("t_variables", nil))
+// 커넥터는 저니가 못박은 payload의 connector.id가 우선이다.
+// 배선은 못박힌 커넥터가 없거나 사라졌을 때의 되돌림 경로다.
+func TestResolvePrefersPinnedConnector(t *testing.T) {
+	reg := testRegistry(t, manifest("t_variables", nil), manifest("t_rendered", nil))
 	w, _ := newTestWorker(t, reg)
 	env := testEnv()
-	p := validPayload()
-	p.Connector.ID = "t_rendered"
-	w.res.seed(env.TenantID, env.AppID, p.Channel, binding{ConnectorID: "t_variables", Credential: []byte("{}")}, true, "")
 
-	job := &Job{P: &p}
-	_, found, err := w.Resolve(context.Background(), env, job)
-	if err != nil || found {
-		t.Fatalf("불일치는 종결(found=false) 기대, got found=%v err=%v", found, err)
-	}
-	if job.Note == "" {
-		t.Fatal("불일치 사유가 남아야 한다")
-	}
+	t.Run("못박힌 커넥터를 쓴다", func(t *testing.T) {
+		p := validPayload()
+		p.Connector.ID = "t_rendered"
+		w.res.seed(env.TenantID, env.AppID, p.Channel,
+			binding{ConnectorID: "t_variables", Credential: []byte("{}")}, true, "")
+		job := &Job{P: &p}
+		if _, found, err := w.Resolve(context.Background(), env, job); err != nil || !found {
+			t.Fatalf("해석 성공 기대, got found=%v err=%v", found, err)
+		}
+		if job.ConnectorID != "t_rendered" || job.Manifest.ID != "t_rendered" {
+			t.Fatalf("못박힌 t_rendered 기대, got %q", job.ConnectorID)
+		}
+	})
+
+	t.Run("못박힌 커넥터가 없으면 배선으로 되돌린다", func(t *testing.T) {
+		p := validPayload()
+		p.Connector.ID = "t_polling" // 레지스트리에 없다
+		w.res.seed(env.TenantID, env.AppID, p.Channel,
+			binding{ConnectorID: "t_variables", Credential: []byte("{}")}, true, "")
+		job := &Job{P: &p}
+		if _, found, err := w.Resolve(context.Background(), env, job); err != nil || !found {
+			t.Fatalf("배선으로 되돌아가 성공해야 한다, got found=%v err=%v", found, err)
+		}
+		if job.ConnectorID != "t_variables" {
+			t.Fatalf("배선 t_variables 기대, got %q", job.ConnectorID)
+		}
+	})
+
+	t.Run("둘 다 없으면 종결", func(t *testing.T) {
+		p := validPayload()
+		p.Connector.ID = "t_polling"
+		w.res.seed(env.TenantID, env.AppID, p.Channel,
+			binding{ConnectorID: "t_both", Credential: []byte("{}")}, true, "")
+		job := &Job{P: &p}
+		if _, found, _ := w.Resolve(context.Background(), env, job); found {
+			t.Fatal("해석할 벤더가 없으면 found=false여야 한다")
+		}
+		if job.Note == "" {
+			t.Fatal("사유가 남아야 한다")
+		}
+	})
 }
 
 func TestResolveSuccess(t *testing.T) {
