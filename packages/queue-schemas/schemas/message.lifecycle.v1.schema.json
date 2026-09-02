@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onda.dev/schemas/queue/message.lifecycle.v1.json",
+  "title": "MessageLifecycleV1Payload",
+  "description": "message.lifecycle 스트림 payload v1 — 채널·공급자 중립 발송 수명주기 이벤트. 커넥터(동기 결과·비동기 콜백)와 SDK($push_delivered/$push_opened 등)가 모두 이 형태로 수렴하며, message_log 롤업과 채널 간 성과 비교의 유일한 기준이다.",
+  "type": "object",
+  "required": ["message_id", "status", "occurred_at", "source", "channel", "connector_id"],
+  "properties": {
+    "message_id": { "type": "string", "format": "uuid" },
+    "idempotency_key": { "type": "string", "maxLength": 512 },
+    "status": {
+      "type": "string",
+      "enum": ["accepted", "sent", "delivered", "opened", "clicked", "failed", "unsubscribed", "bounced"],
+      "description": "accepted=엔진이 큐에 실음, sent=공급자가 수락, delivered=단말/수신함 도달, opened/clicked=사용자 상호작용, failed=최종 실패(failure_class 필수), unsubscribed/bounced=수신 거부·반송"
+    },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "enum": ["engine", "connector", "provider_callback", "sdk"] },
+    "channel": { "type": "string" },
+    "connector_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" },
+    "provider_message_id": { "type": ["string", "null"], "description": "공급자 측 ID(FCM name, apns-id, 알림톡 msg key 등)" },
+    "user_id": { "type": ["string", "null"], "format": "uuid" },
+    "endpoint_id": { "type": ["string", "null"], "format": "uuid" },
+    "failure_class": {
+      "type": ["string", "null"],
+      "enum": ["retryable", "rate_limited", "permanent_content", "invalid_target", "credential_auth", "unsupported", "retry_exhausted", null]
+    },
+    "failure_detail": { "type": ["string", "null"], "maxLength": 1024 },
+    "fallback_index": { "type": ["integer", "null"], "minimum": 0, "description": "fallback 체인의 몇 번째 시도에서 발생했는지(0=원 발송)" },
+    "attempt": { "type": ["integer", "null"], "minimum": 1 },
+    "cost": {
+      "type": ["object", "null"],
+      "properties": {
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "amount": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "click_ref": { "type": ["string", "null"], "description": "clicked 시 버튼/링크 식별자" }
+  },
+  "additionalProperties": false
+}
