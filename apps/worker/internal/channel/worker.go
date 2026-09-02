@@ -169,7 +169,11 @@ func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) ([]any, boo
 	}
 	now := w.clk.Now()
 	base := func(status, class, detail string) []any {
-		return w.logRow(env.TenantID, env.AppID, &p, messageID, status, class, detail, now)
+		return w.logRow(env.TenantID, env.AppID, &p, messageID, status, class, detail, "", now)
+	}
+	// sentRow — 전송 성공(및 재전달 시 재기록) 행. provider_message_id로 공급자 콜백과 조인.
+	sentRow := func(providerID, detail string) []any {
+		return w.logRow(env.TenantID, env.AppID, &p, messageID, "sent", "", detail, providerID, now)
 	}
 
 	idemKey := fmt.Sprintf("send:idem:%s:%s", env.TenantID, p.IdempotencyKey)
@@ -221,7 +225,7 @@ func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) ([]any, boo
 		case strings.HasPrefix(val, statusSent+"|"):
 			providerID := strings.TrimPrefix(val, statusSent+"|")
 			metrics.ChannelSends.WithLabelValues("duplicate").Inc()
-			return base("sent", "", "provider_id="+providerID), false
+			return sentRow(providerID, "provider_id="+providerID), false
 		case strings.HasPrefix(val, statusFailed+"|"):
 			return base("failed", strings.TrimPrefix(val, statusFailed+"|"), ""), false
 		default: // processing — 처리 중이거나 크래시 리스(만료 후 reclaim이 재획득). 이번 전달은 중복.
@@ -257,7 +261,7 @@ func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) ([]any, boo
 		w.rdb.Set(ctx, idemKey, statusSent+"|"+res.ProviderID, idemCommitTTL)
 		w.rdb.Del(ctx, attemptsKey, retryAtKey)
 		metrics.ChannelSends.WithLabelValues("sent").Inc()
-		return base("sent", "", ""), false
+		return sentRow(res.ProviderID, ""), false
 	}
 
 	class := w.plugin.ClassifyError(sendErr)
@@ -382,7 +386,8 @@ func (w *Worker) invalidateCredCache(appID, kind string) {
 	w.credMu.Unlock()
 }
 
-func (w *Worker) logRow(tenantID, appID string, p *SendPushPayload, messageID, status, class, detail string, at time.Time) []any {
+// logRow — message_log 행. providerID는 sent 행에서만 채운다(그 외 ”).
+func (w *Worker) logRow(tenantID, appID string, p *SendPushPayload, messageID, status, class, detail, providerID string, at time.Time) []any {
 	channel := "push_fcm"
 	if p.Platform == "ios" {
 		channel = "push_apns"
@@ -405,7 +410,7 @@ func (w *Worker) logRow(tenantID, appID string, p *SendPushPayload, messageID, s
 	return []any{
 		tenantID, appID, messageID, p.IdempotencyKey,
 		journeyID, version, node, campaignRef,
-		p.UserID, p.DeviceID, channel, status, class, detail, at,
+		p.UserID, p.DeviceID, channel, status, class, detail, at, providerID,
 	}
 }
 
@@ -436,7 +441,8 @@ func (w *Worker) flushLog(ctx context.Context, rows [][]any) error {
 	batch, err := w.ch.PrepareBatch(ctx, `
 		INSERT INTO message_log (tenant_id, app_id, message_id, idempotency_key,
 			journey_id, journey_version, node_index, campaign_ref,
-			user_id, device_id, channel, status, failure_class, failure_detail, sent_at)`)
+			user_id, device_id, channel, status, failure_class, failure_detail, sent_at,
+			provider_message_id)`)
 	if err != nil {
 		return err
 	}

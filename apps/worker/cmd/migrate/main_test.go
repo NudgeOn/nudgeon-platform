@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -56,5 +58,27 @@ func TestClickHouseAlreadyExistsCompatibility(t *testing.T) {
 		if ignorableClickHouseErr(err) {
 			t.Fatalf("unrelated ClickHouse error should fail migration: %v", err)
 		}
+	}
+}
+
+// 0008_message_lifecycle.sql — 인라인 '--' 주석이 섞인 CREATE TABLE과 ALTER가 정확히 2개 문으로 분리되어야 한다.
+func TestSplitSQLMessageLifecycleMigration(t *testing.T) {
+	raw, err := os.ReadFile("../../../../db/clickhouse/0008_message_lifecycle.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmts := splitSQL(string(raw))
+	if len(stmts) != 2 {
+		t.Fatalf("2개 문 기대, got %d: %q", len(stmts), stmts)
+	}
+	if !strings.HasPrefix(stmts[0], "CREATE TABLE IF NOT EXISTS onda.message_lifecycle") ||
+		!strings.Contains(stmts[0], "ENGINE = ReplacingMergeTree(received_at)") {
+		t.Errorf("CREATE 문 불일치: %q", stmts[0])
+	}
+	if strings.Contains(stmts[0], "--") {
+		t.Errorf("주석이 제거되지 않음: %q", stmts[0])
+	}
+	if stmts[1] != "ALTER TABLE onda.message_log ADD COLUMN IF NOT EXISTS provider_message_id String DEFAULT ''" {
+		t.Errorf("ALTER 문 불일치: %q", stmts[1])
 	}
 }

@@ -174,6 +174,10 @@ func TestHandleOneSentThenReemitSent(t *testing.T) {
 	if v, _ := mr.Get("send:idem:t1:idem-1"); v != statusSent+"|prov-1" {
 		t.Fatalf("상태 sent|prov-1 기대, got %q", v)
 	}
+	// sent 행은 provider_message_id(row[15])에 공급자 ID를 싣는다(콜백 조인 키)
+	if row[15] != "prov-1" {
+		t.Errorf("provider_message_id=prov-1 기대, got %v", row[15])
+	}
 
 	// 재전달 → 재전송 없이 sent 재기록(provider_id 보존), duplicate 아님
 	row2, retry2 := w.handleOne(ctx, m)
@@ -183,8 +187,8 @@ func TestHandleOneSentThenReemitSent(t *testing.T) {
 	if mp.sends != 1 {
 		t.Fatalf("재전달 시 재전송 없어야 함, sends=%d", mp.sends)
 	}
-	if row2[13] != "provider_id=prov-1" {
-		t.Errorf("provider_id 보존 기대, got %v", row2[13])
+	if row2[13] != "provider_id=prov-1" || row2[15] != "prov-1" {
+		t.Errorf("provider_id 보존 기대, got detail=%v provider_message_id=%v", row2[13], row2[15])
 	}
 }
 
@@ -242,5 +246,8 @@ func TestHandleOnePermanentTerminal(t *testing.T) {
 	}
 	if row == nil || row[11] != "failed" || row[12] != "permanent_content" {
 		t.Fatalf("failed/permanent_content 기대, got %v", row)
+	}
+	if row[15] != "" {
+		t.Errorf("실패 행의 provider_message_id는 '' 기대, got %v", row[15])
 	}
 }
