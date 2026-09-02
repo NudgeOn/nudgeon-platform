@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "세그먼트 DSL 스키마 + 컴파일러(TS) + 언어 중립 골든 케이스. Go 컴파일러와 골든으로 정합 검증.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

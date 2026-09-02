@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "저니 정의 타입 + 검증. API·콘솔 공유. Go scheduler와 동형 구조.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

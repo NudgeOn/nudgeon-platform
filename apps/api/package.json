@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Onda 관리 API + Ingestion API (NestJS)",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "commonjs",
   "main": "dist/main.js",
   "scripts": {

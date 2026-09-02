@@ -21,5 +21,7 @@ COPY --from=build /out/onda-seed /onda-seed
 COPY --from=build /out/onda-dlq /onda-dlq
 # 마이그레이터가 참조할 SQL (migrator는 /db 인자로 실행)
 COPY db /db
+COPY LICENSE NOTICE TRADEMARKS.md THIRD_PARTY_NOTICES.md /licenses/onda/
+COPY docs-public/LICENSING.md /licenses/onda/LICENSING.md
 USER nonroot:nonroot
 ENTRYPOINT ["/onda-worker"]
