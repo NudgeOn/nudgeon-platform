@@ -775,10 +775,20 @@ func repoRoot() (string, bool) {
 	return "", false
 }
 
-// TestDeployManifestMatchesEmbedded — deploy/connectors의 배포용 사본이 내장 manifest와
-// 어긋나지 않는지.
+// deployManifestPaths — 배포용 사본 후보. 켜진 이름과 꺼진 이름 둘 다 본다.
 //
-// 사본이 둘이라 한쪽만 고치는 사고가 난다. 레지스트리는 id와 channel만 보고 받아주므로
+// 저장소에 커밋된 것은 .disabled 쪽이고(운영자가 확장자를 바꿔 켠다), 확장자를 뗀 이름은
+// E2E를 돌리는 동안에만 존재한다. 켜진 이름만 보면 깨끗한 체크아웃과 CI에서 늘 skip돼
+// 가드가 있는 척만 하게 된다.
+var deployManifestPaths = []string{
+	filepath.Join("deploy", "connectors", "alimtalk_mock.json.disabled"),
+	filepath.Join("deploy", "connectors", "alimtalk_mock.json"),
+}
+
+// TestDeployManifestMatchesEmbedded — deploy/connectors의 배포용 사본이 내장 manifest와
+// 어긋나지 않는지. 존재하는 사본은 모두 검사한다.
+//
+// 사본이 여럿이라 한쪽만 고치는 사고가 난다. 레지스트리는 id와 channel만 보고 받아주므로
 // (NewWithClock), 배포 사본의 capabilities가 다르면 목이 계약 테스트가 검증한 것과 다르게
 // 동작하고 E2E는 원인이 보이지 않는 실패를 낸다. 형식 차이는 무시하고 동작을 정하는
 // 필드만 비교한다.
@@ -787,23 +797,35 @@ func TestDeployManifestMatchesEmbedded(t *testing.T) {
 	if !ok {
 		t.Skip("저장소 루트를 찾지 못했다 — 배포 사본 대조를 건너뛴다")
 	}
-	path := filepath.Join(root, "deploy", "connectors", "alimtalk_mock.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			t.Skipf("배포 사본이 없다: %s", path)
-		}
-		t.Fatalf("배포 사본 읽기: %v", err)
-	}
-	deployed, err := connector.Parse(raw)
-	if err != nil {
-		t.Fatalf("배포 사본이 connector.Parse를 통과하지 못한다 (%s): %v", path, err)
-	}
 	embedded, err := EmbeddedManifest()
 	if err != nil {
 		t.Fatalf("내장 manifest: %v", err)
 	}
 
+	checked := 0
+	for _, rel := range deployManifestPaths {
+		path := filepath.Join(root, rel)
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			t.Fatalf("%s 읽기: %v", rel, err)
+		}
+		checked++
+		t.Run(rel, func(t *testing.T) { compareToEmbedded(t, rel, raw, embedded) })
+	}
+	if checked == 0 {
+		t.Skipf("배포 사본이 하나도 없다 (%v) — 대조를 건너뛴다", deployManifestPaths)
+	}
+}
+
+func compareToEmbedded(t *testing.T, rel string, raw []byte, embedded connector.Manifest) {
+	t.Helper()
+	deployed, err := connector.Parse(raw)
+	if err != nil {
+		t.Fatalf("%s가 connector.Parse를 통과하지 못한다: %v", rel, err)
+	}
 	if deployed.ID != embedded.ID || deployed.Channel != embedded.Channel {
 		t.Fatalf("id·channel 불일치: 배포 %s/%s, 내장 %s/%s",
 			deployed.ID, deployed.Channel, embedded.ID, embedded.Channel)
