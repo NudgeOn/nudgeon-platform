@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import type { ChannelConnector, ConnectorCatalogEntry } from "@onda/api-client";
+import type { AlimtalkCredentialInput, ChannelConnector, ConnectorCatalogEntry } from "@onda/api-client";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,18 +72,17 @@ export function ConnectorSetup({
   const save = useMutation({
     mutationFn: async () => {
       if (!appId) throw new Error("앱을 찾을 수 없습니다");
-      if (!plan.credential.api_key) throw new Error("API 키에 해당하는 값이 없습니다");
       await api.credentials.upsert(appId, {
         kind: "alimtalk",
         connector_id: connector.id,
         // 벤더가 실제로 읽는 이름은 매니페스트가 정한다 — 슬롯 이름으로만 보내면
         // 이름이 다른 벤더(NHN의 app_key)가 "필드 누락"으로 검증에서 떨어진다.
         extra: plan.extra,
-        api_key: plan.credential.api_key,
-        ...(plan.credential.secret_key ? { secret_key: plan.credential.secret_key } : {}),
-        ...(plan.credential.sender_key ? { sender_key: plan.credential.sender_key } : {}),
-        ...(plan.credential.base_url ? { base_url: plan.credential.base_url } : {}),
-      });
+        // 슬롯은 흔한 이름을 위한 호환이라 매핑되는 필드가 없으면 아예 보내지 않는다.
+        // 서버는 api_key를 선택으로 받지만 AlimtalkCredentialInput은 아직 필수라 단언이 필요하다.
+        // api_key?: string으로 고쳐지면 이 단언을 지운다.
+        ...plan.credential,
+      } as AlimtalkCredentialInput);
       await api.alimtalk.connector.put(appId, ALIMTALK_CHANNEL, {
         connector_id: connector.id,
         config: planConfig(configFields, configValues),
@@ -155,16 +154,8 @@ export function ConnectorSetup({
           </div>
         )}
 
-        {plan.missingApiKey && !plan.missingRequired.length && (
-          <p className="text-xs text-destructive">
-            저장할 값이 하나도 없습니다. 위 필드를 채워 주세요.
-          </p>
-        )}
-        {plan.apiKeyBorrowedFrom && (
-          <p className="text-xs text-muted-foreground">
-            이 벤더에는 API 키에 해당하는 필드가 없어, 서버의 필수 슬롯을 &lsquo;{plan.apiKeyBorrowedFrom}&rsquo;
-            값으로 채웁니다. 벤더는 매니페스트가 선언한 이름만 읽으므로 발송 동작에는 영향이 없습니다.
-          </p>
+        {plan.empty && plan.missingRequired.length === 0 && (
+          <p className="text-xs text-destructive">저장할 값이 하나도 없습니다. 위 필드를 채워 주세요.</p>
         )}
         {plan.missingRequired.length > 0 && (
           <p className="text-xs text-muted-foreground">필수 입력: {plan.missingRequired.join(" · ")}</p>

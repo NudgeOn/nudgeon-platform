@@ -195,25 +195,38 @@ describe("planCredential", () => {
     expect(plan.extra).toEqual({ api_key: "ak", user_id: "onda" });
   });
 
-  it("api_key에 매핑되는 필드가 없으면 첫 필수 필드로 서버의 필수 슬롯을 채우고 그 사실을 밝힌다", () => {
+  it("api_key에 매핑되는 필드가 없어도 저장한다 — 무엇이 필요한지는 매니페스트가 정한다", () => {
     const odd = schemaFields({
       type: "object", required: ["user_id"], properties: { user_id: { type: "string", title: "계정" } },
     });
     const plan = planCredential(odd, { user_id: "onda" });
-    expect(plan.credential.api_key).toBe("onda");
-    expect(plan.apiKeyBorrowedFrom).toBe("계정");
     expect(plan.extra).toEqual({ user_id: "onda" });
     expect(canSubmit(plan)).toBe(true);
   });
 
-  it("슬롯이 제대로 매핑되면 빌려 오지 않는다", () => {
-    expect(planCredential(fields, { app_key: "AK", secret_key: "SK" }).apiKeyBorrowedFrom).toBeNull();
+  it("매핑되는 필드가 없으면 슬롯을 아무 값으로도 채우지 않는다 (콘솔이 서버 제약을 우회하지 않는다)", () => {
+    const odd = schemaFields({
+      type: "object", required: ["user_id"], properties: { user_id: { type: "string" } },
+    });
+    expect(planCredential(odd, { user_id: "onda" }).credential).toEqual({});
   });
 
-  it("아무 값도 없으면 저장할 수 없다", () => {
+  it("아무 값도 없으면 저장할 수 없다 — 서버가 빈 크리덴셜을 거절한다", () => {
     const plan = planCredential(fields, {});
-    expect(plan.missingApiKey).toBe(true);
+    expect(plan.empty).toBe(true);
     expect(canSubmit(plan)).toBe(false);
+  });
+
+  it("비밀이 secret_key 슬롯에만 있어도 저장할 수 있다 (서버는 하나만 있으면 받는다)", () => {
+    const odd = schemaFields({
+      type: "object",
+      required: ["user_id", "password"],
+      properties: { user_id: { type: "string" }, password: { type: "string", "x-secret": true } },
+    });
+    const plan = planCredential(odd, { user_id: "onda", password: "pw" });
+    expect(plan.credential).toEqual({ secret_key: "pw" });
+    expect(plan.credential.api_key).toBeUndefined();
+    expect(canSubmit(plan)).toBe(true);
   });
 });
 

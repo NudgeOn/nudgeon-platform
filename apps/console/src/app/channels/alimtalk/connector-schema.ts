@@ -151,18 +151,15 @@ export interface CredentialPlan {
   /** 값이 비어 있는 필수 필드 */
   missingRequired: string[];
   /**
-   * api_key 슬롯에 매핑되는 필드가 없어 첫 필수 필드 값을 대신 채웠다.
-   * 서버가 api_key를 필수로 받기 때문이고, 벤더는 extra의 제 이름만 읽으므로 발송에는 영향이 없다.
-   * 화면에 밝혀 두는 이유: 저장된 값이 그 이름으로도 남는다는 사실을 감추지 않기 위해서다.
+   * 보낼 값이 하나도 없다. 서버는 "슬롯이든 extra든 비밀이 하나는 있어야 한다"까지만 강제하므로
+   * 특정 슬롯이 비었는지는 따지지 않는다 — 무엇이 필요한지는 매니페스트가 정한다.
    */
-  apiKeyBorrowedFrom: string | null;
-  /** 어떤 값도 넣지 않아 api_key를 채울 수 없다 — 저장하면 400이 난다. */
-  missingApiKey: boolean;
+  empty: boolean;
 }
 
 /** 저장 가능한 계획인가 — 버튼 활성화 조건. */
 export function canSubmit(plan: CredentialPlan): boolean {
-  return plan.missingRequired.length === 0 && !plan.missingApiKey;
+  return plan.missingRequired.length === 0 && !plan.empty;
 }
 
 /**
@@ -191,24 +188,7 @@ export function planCredential(fields: SchemaField[], values: Record<string, str
     if (slot) credential[slot] = value;
   }
 
-  // 서버는 api_key를 필수로 받는다. 매핑되는 필드가 없는 벤더도 저장할 수 있어야
-  // "매니페스트만 있으면 벤더가 들어온다"는 계약이 닫힌다.
-  let apiKeyBorrowedFrom: string | null = null;
-  if (!credential.api_key) {
-    const donor = fields.find((f) => f.required && extra[f.name]) ?? fields.find((f) => extra[f.name]);
-    if (donor) {
-      credential.api_key = extra[donor.name]!;
-      apiKeyBorrowedFrom = donor.label;
-    }
-  }
-
-  return {
-    extra,
-    credential,
-    missingRequired,
-    apiKeyBorrowedFrom,
-    missingApiKey: !credential.api_key,
-  };
+  return { extra, credential, missingRequired, empty: Object.keys(extra).length === 0 };
 }
 
 /** 이 필드의 값이 어디에 저장되는지 — 화면에 그대로 밝힌다(조용히 버리지 않는다는 원칙). */
