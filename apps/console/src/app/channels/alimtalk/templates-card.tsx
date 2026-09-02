@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AD_TEMPLATE_NOTICE,
-  errorStatus,
+  MISSING_IN_VENDOR_NOTICE,
   isAdMessageType,
+  isMissingInVendor,
   messageTypeLabel,
   serverMessage,
-  templateStatusLabel,
+  templateStateLabel,
 } from "./alimtalk-labels";
 
 /** 동기화는 워커가 비동기로 한다 — 202 직후에는 아직 목록이 그대로다. */
@@ -52,17 +53,9 @@ export function TemplatesCard({
       onSynced?.();
       setTimeout(() => void templates.refetch(), SYNC_REFETCH_DELAY_MS);
     },
-    onError: (e) => {
-      const status = errorStatus(e);
-      setMsg(
-        serverMessage(
-          e,
-          status === 501
-            ? "이 배포에서는 템플릿 동기화가 아직 제공되지 않습니다."
-            : "동기화 요청에 실패했습니다.",
-        ),
-      );
-    },
+    // 400은 서버가 무엇이 없는지 한국어로 지목한다(발신프로필·배선·검증된 크리덴셜).
+    // 아무것도 못 하는 상태에서 202를 주지 않으려고 일부러 막아둔 것이라 문구를 그대로 보여 준다.
+    onError: (e) => setMsg(serverMessage(e, "동기화 요청에 실패했습니다.")),
   });
 
   const rows = templates.data?.templates ?? [];
@@ -135,6 +128,12 @@ export function TemplatesCard({
         {rows.some((t) => isAdMessageType(t.message_type)) && (
           <p className="rounded-md border border-border bg-muted/40 p-2 text-xs">{AD_TEMPLATE_NOTICE}</p>
         )}
+        {rows.some((t) => isMissingInVendor(t.vendor_status)) && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs">
+            {MISSING_IN_VENDOR_NOTICE} 목록에서 지우지 않는 이유는, 미동기화 템플릿이 발송 전 검증을 건너뛰기
+            때문입니다 — 지우면 가드가 조용히 꺼집니다. 저니가 이 템플릿을 참조하고 있는지 확인하세요.
+          </p>
+        )}
         {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
       </CardContent>
     </Card>
@@ -143,6 +142,7 @@ export function TemplatesCard({
 
 function TemplateRow({ template }: { template: AlimtalkTemplate }) {
   const ad = isAdMessageType(template.message_type);
+  const missing = isMissingInVendor(template.vendor_status);
   return (
     <tr className={`border-b border-border align-top ${ad ? "bg-amber-50/60" : ""}`}>
       <td className="p-2">
@@ -158,10 +158,15 @@ function TemplateRow({ template }: { template: AlimtalkTemplate }) {
         )}
       </td>
       <td className="p-2">
-        <span className={template.status === "approved" ? "text-primary" : "text-muted-foreground"}>
-          {templateStatusLabel(template.status)}
+        <span
+          className={
+            missing ? "text-destructive" : template.status === "approved" ? "text-primary" : "text-muted-foreground"
+          }
+          title={missing ? MISSING_IN_VENDOR_NOTICE : undefined}
+        >
+          {templateStateLabel(template.status, template.vendor_status)}
         </span>
-        {template.vendor_status && (
+        {template.vendor_status && !missing && (
           <span className="block text-[10px] text-muted-foreground">벤더 {template.vendor_status}</span>
         )}
       </td>

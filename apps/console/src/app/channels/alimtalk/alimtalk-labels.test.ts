@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  VENDOR_STATUS_MISSING,
   connectorWebhookUrl,
-  errorStatus,
   isAdMessageType,
+  isMissingInVendor,
   isTemplateApproved,
   messageTypeLabel,
   reportSummary,
   reportSupport,
   serverMessage,
   templateBlockReason,
+  templateStateLabel,
   templateStatusLabel,
 } from "./alimtalk-labels";
 
@@ -100,6 +102,25 @@ describe("템플릿 상태", () => {
   });
 });
 
+describe("벤더에서 사라진 템플릿", () => {
+  it("워커가 쓰는 표식과 같은 문자열을 본다 (templatesync/store.go)", () => {
+    expect(VENDOR_STATUS_MISSING).toBe("ONDA_MISSING_IN_VENDOR");
+    expect(isMissingInVendor("ONDA_MISSING_IN_VENDOR")).toBe(true);
+    expect(isMissingInVendor("REJ_02")).toBe(false);
+    expect(isMissingInVendor(undefined)).toBe(false);
+  });
+
+  it("소실을 반려와 구분해 보여 준다 — 심사 결과가 아니라 벤더 쪽 삭제다", () => {
+    expect(templateStateLabel("rejected", VENDOR_STATUS_MISSING)).toBe("벤더에서 사라짐");
+    expect(templateStateLabel("rejected", "REJ_02")).toBe("반려");
+    expect(templateStateLabel("approved")).toBe("승인");
+  });
+
+  it("저니 select의 사유도 소실로 적는다 (반려 문구를 쓰면 대응이 달라진다)", () => {
+    expect(templateBlockReason("rejected", VENDOR_STATUS_MISSING)).toBe("벤더에서 사라짐");
+  });
+});
+
 describe("serverMessage", () => {
   it("서버가 보낸 한국어 문구를 그대로 쓴다 (ApiError.message는 'API 501'이라 쓸모없다)", () => {
     const err = { status: 501, body: { statusCode: 501, message: "이 벤더는 템플릿 동기화를 지원하지 않습니다" } };
@@ -114,12 +135,5 @@ describe("serverMessage", () => {
     expect(serverMessage(new Error("boom"), "대체 문구")).toBe("대체 문구");
     expect(serverMessage(null, "대체 문구")).toBe("대체 문구");
     expect(serverMessage({ body: { message: "   " } }, "대체 문구")).toBe("대체 문구");
-  });
-});
-
-describe("errorStatus", () => {
-  it("상태 코드를 꺼내 미배선(404)·미구현(501)을 실패와 구분하게 한다", () => {
-    expect(errorStatus({ status: 404 })).toBe(404);
-    expect(errorStatus(new Error("no"))).toBeNull();
   });
 });

@@ -7,7 +7,9 @@ import { api } from "@/lib/api";
 import { useAppId } from "../use-app-id";
 import {
   AD_TEMPLATE_NOTICE,
+  MISSING_IN_VENDOR_NOTICE,
   isAdMessageType,
+  isMissingInVendor,
   messageTypeLabel,
   templateBlockReason,
 } from "../channels/alimtalk/alimtalk-labels";
@@ -60,6 +62,9 @@ export function AlimtalkMessageFields({
   const senderList = senders.data?.senders ?? [];
   const templateList = templates.data?.templates ?? [];
   const template = templateList.find((t) => t.template_code === content.template_code) ?? null;
+  // 저장된 템플릿 코드가 캐시에 없다 — 벤더에서 지워졌거나 발신프로필이 바뀐 저니다.
+  const orphaned = !!content.template_code && !template && !templates.isPending && templateList.length > 0;
+  const blockReason = template ? templateBlockReason(template.status, template.vendor_status) : null;
   const variables = templateVariables(template);
   const missing = unmappedVariables(variables, content.variables);
   const stale = staleVariables(variables, content.variables);
@@ -150,6 +155,21 @@ export function AlimtalkMessageFields({
         <InspectorNote>
           이 발신프로필에 캐시된 템플릿이 없습니다 — &lsquo;알림톡 설정 &gt; 승인 템플릿&rsquo;에서 동기화하세요.
         </InspectorNote>
+      )}
+      {orphaned && (
+        <InspectorNote warning>
+          이 저니가 참조하는 템플릿 <code>{content.template_code}</code>이(가) 이 발신프로필의 캐시에 없습니다.
+          벤더에서 사라졌거나 다른 발신프로필의 템플릿입니다 — 이대로면 발송되지 않습니다.
+        </InspectorNote>
+      )}
+      {template && isMissingInVendor(template.vendor_status) ? (
+        <InspectorNote warning>{MISSING_IN_VENDOR_NOTICE}</InspectorNote>
+      ) : (
+        blockReason && (
+          <InspectorNote warning>
+            고른 템플릿이 승인 상태가 아닙니다 ({blockReason}) — 승인된 템플릿으로 바꾸세요.
+          </InspectorNote>
+        )
       )}
       {template && isAdMessageType(template.message_type) && (
         <InspectorNote warning>{AD_TEMPLATE_NOTICE}</InspectorNote>

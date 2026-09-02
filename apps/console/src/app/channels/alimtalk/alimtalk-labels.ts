@@ -88,12 +88,36 @@ export function isTemplateApproved(status: string): boolean {
   return status === "approved";
 }
 
+/**
+ * 벤더 목록에서 사라진 템플릿에 워커가 찍는 표식 (templatesync/store.go: VendorStatusMissing).
+ * 행을 지우지 않는 이유: 미동기화 템플릿은 발송 전 검증을 건너뛰므로, 삭제가 곧 가드를
+ * 조용히 끄는 일이 된다. 저니가 아직 참조하고 있을 수도 있어 눈에 보여야 한다.
+ */
+export const VENDOR_STATUS_MISSING = "ONDA_MISSING_IN_VENDOR";
+
+export function isMissingInVendor(vendorStatus: string | undefined): boolean {
+  return vendorStatus === VENDOR_STATUS_MISSING;
+}
+
+/**
+ * 템플릿의 사용 가능 상태를 한 마디로. 벤더에서 사라진 것은 반려와 구분한다 —
+ * 반려는 심사 결과이고, 소실은 벤더 쪽에서 없어진 것이라 대응이 다르다.
+ */
+export function templateStateLabel(status: string, vendorStatus?: string): string {
+  if (isMissingInVendor(vendorStatus)) return "벤더에서 사라짐";
+  return templateStatusLabel(status);
+}
+
 /** 승인되지 않은 템플릿을 저니에서 고를 수 없는 이유 — 노드 select의 disabled 사유로 쓴다. */
 export function templateBlockReason(status: string, vendorStatus?: string): string | null {
   if (isTemplateApproved(status)) return null;
+  if (isMissingInVendor(vendorStatus)) return "벤더에서 사라짐";
   const label = templateStatusLabel(status);
   return vendorStatus ? `${label} (벤더 상태 ${vendorStatus})` : label;
 }
+
+export const MISSING_IN_VENDOR_NOTICE =
+  "벤더 템플릿 목록에서 사라졌습니다 — 벤더 쪽에서 삭제됐거나 발신프로필이 바뀐 것입니다. 이 템플릿으로는 발송할 수 없습니다.";
 
 /**
  * 서버가 보낸 한국어 메시지를 그대로 꺼낸다.
@@ -111,10 +135,4 @@ export function serverMessage(error: unknown, fallback: string): string {
     if (joined) return joined;
   }
   return fallback;
-}
-
-/** 미배선·미구현을 "실패"로 오인하지 않도록 상태 코드를 구분한다. */
-export function errorStatus(error: unknown): number | null {
-  const status = (error as { status?: unknown } | null)?.status;
-  return typeof status === "number" ? status : null;
 }
