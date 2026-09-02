@@ -2,13 +2,22 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import type { CredentialSummary } from "@onda/api-client";
+import { EMAIL_PROVIDER_LABELS, type CredentialKind, type CredentialSummary } from "@onda/api-client";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EmailProviderCard } from "../email-templates/email-provider-card";
 
-/** 위저드 2단계 — 푸시 크리덴셜 등록 (PRD-05 3.1). 검증 상태는 5s 폴링. */
+const KIND_LABELS: Record<CredentialKind, string> = {
+  push_fcm: "FCM",
+  push_apns: "APNs",
+  email_smtp: `이메일 · ${EMAIL_PROVIDER_LABELS.email_smtp}`,
+  email_nhn: `이메일 · ${EMAIL_PROVIDER_LABELS.email_nhn}`,
+  email_resend: `이메일 · ${EMAIL_PROVIDER_LABELS.email_resend}`,
+};
+
+/** 위저드 2단계 — 채널 크리덴셜 등록: 푸시(FCM/APNs) + 이메일 발송기(SMTP/SES/Resend/NHN) (PRD-05 3.1). 검증 상태는 5s 폴링. */
 export function CredentialsStep({ appId }: { appId: string }) {
   const queryClient = useQueryClient();
   const creds = useQuery({
@@ -27,6 +36,12 @@ export function CredentialsStep({ appId }: { appId: string }) {
         <ApnsForm appId={appId} onDone={invalidate} />
       </div>
       <div className="flex flex-col gap-2">
+        <p className="text-sm text-muted-foreground">
+          이메일 채널(선택) — SMTP·AWS SES·Resend(SMTP/API)·NHN Cloud 중 하나를 등록하면 저니 이메일 노드를 쓸 수 있습니다.
+        </p>
+        <EmailProviderCard appId={appId} onSaved={invalidate} />
+      </div>
+      <div className="flex flex-col gap-2">
         {creds.data?.credentials.map((c) => <CredentialBadge key={c.id} cred={c} />)}
         {creds.data?.credentials.length === 0 && (
           <p className="text-sm text-muted-foreground">아직 등록된 크리덴셜이 없습니다.</p>
@@ -37,7 +52,7 @@ export function CredentialsStep({ appId }: { appId: string }) {
 }
 
 function CredentialBadge({ cred }: { cred: CredentialSummary }) {
-  const label = cred.kind === "push_fcm" ? "FCM" : "APNs";
+  const label = KIND_LABELS[cred.kind] ?? cred.kind;
   const color =
     cred.status === "verified"
       ? "text-primary"

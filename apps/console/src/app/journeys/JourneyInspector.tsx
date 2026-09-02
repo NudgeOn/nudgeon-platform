@@ -2,10 +2,11 @@
 
 import { useId, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { SegmentSummary } from "@onda/api-client";
+import { EMAIL_PROVIDER_LABELS, type EmailProvider, type SegmentSummary } from "@onda/api-client";
 import type { MessageNode, DelayNode, JourneyNode } from "@onda/journey-model";
 import { api } from "@/lib/api";
 import { useAppId } from "../use-app-id";
+import { isEmailProvider } from "../email-templates/email-provider-card";
 import { ABSplitSettings, EventWaitSettings, JourneyConditionEditor, RouteSettings } from "./JourneyDecisionSettings";
 import { canMoveNode, outgoingEdges, type GraphDefinition, type PublishedABNodes } from "./journey-graph";
 import { DURATION_UNITS, durationUnit, formatDuration } from "./journey-editor-model";
@@ -451,11 +452,11 @@ function EmailMessageFields({ node, index, editable, onUpdate, id }: {
     queryFn: () => api.credentials.list(appId!),
     enabled: !!appId,
   });
-  const verified = (creds.data?.credentials ?? []).filter(
-    (c) => (c.kind === "email_smtp" || c.kind === "email_nhn") && c.status === "verified",
+  const verified = (creds.data?.credentials ?? []).flatMap((c) =>
+    isEmailProvider(c.kind) && c.status === "verified" ? [c.kind] : [],
   );
 
-  function change(patch: Partial<{ subject: string; html: string; provider: "email_smtp" | "email_nhn" | undefined }>) {
+  function change(patch: Partial<{ subject: string; html: string; provider: EmailProvider | undefined }>) {
     onUpdate((draft) => {
       const current = draft.nodes[index];
       if (current?.type === "message") {
@@ -478,9 +479,9 @@ function EmailMessageFields({ node, index, editable, onUpdate, id }: {
       </Field>
       <Field id={`${id}-email-provider`} label="발송기">
         <select id={`${id}-email-provider`} value={provider} disabled={!editable}
-          onChange={(e) => change({ provider: (e.currentTarget.value || undefined) as "email_smtp" | "email_nhn" | undefined })}>
+          onChange={(e) => change({ provider: (e.currentTarget.value || undefined) as EmailProvider | undefined })}>
           <option value="">자동(활성 발송기)</option>
-          {verified.map((c) => <option key={c.kind} value={c.kind}>{c.kind}</option>)}
+          {verified.map((kind) => <option key={kind} value={kind}>{EMAIL_PROVIDER_LABELS[kind]}</option>)}
         </select>
       </Field>
       {verified.length === 0 && (
