@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -845,5 +846,69 @@ func compareToEmbedded(t *testing.T, rel string, raw []byte, embedded connector.
 	}
 	if !reflect.DeepEqual(deployed.Cost, embedded.Cost) {
 		t.Fatalf("cost 불일치 — 원가 집계가 갈린다\n배포: %+v\n내장: %+v", deployed.Cost, embedded.Cost)
+	}
+}
+
+// e2eScriptPath — 알림톡 P0 E2E 스크립트. 이 목의 픽스처를 seed 데이터로 되풀이해 적는다.
+var e2eScriptPath = filepath.Join("tests", "e2e", "alimtalk.mjs")
+
+// jsStringLiteral — Go 문자열을 JS 큰따옴표 리터럴 표기로 바꾼다.
+//
+// 픽스처의 Content에는 진짜 개행이 들어 있지만 E2E는 소스에 "\n" 두 글자로 적는다.
+// 이 변환 없이 그대로 부분문자열을 찾으면 본문이 같아도 늘 실패한다.
+func jsStringLiteral(s string) string {
+	return strings.NewReplacer(
+		`\`, `\\`,
+		`"`, `\"`,
+		"\n", `\n`,
+		"\r", `\r`,
+		"\t", `\t`,
+	).Replace(s)
+}
+
+// TestE2ETemplateBodiesMatchFixtures — E2E가 DB에 심는 승인 본문이 목 픽스처와 같은지.
+//
+// ValidateSend는 저장된 content에서 필수 치환자를 도출하므로, 한 글자만 어긋나도
+// "치환자 값 누락"으로 거절되고 원인은 전혀 다른 곳을 가리킨다. 게다가 이 스크립트는
+// CI에서 돌지 않고 사람이 docker를 띄워야 도는 것이라, 여기서 잡지 않으면 드리프트가
+// 누군가 손으로 돌릴 때까지 드러나지 않는다.
+func TestE2ETemplateBodiesMatchFixtures(t *testing.T) {
+	root, ok := repoRoot()
+	if !ok {
+		t.Skip("저장소 루트를 찾지 못했다 — E2E 대조를 건너뛴다")
+	}
+	raw, err := os.ReadFile(filepath.Join(root, e2eScriptPath))
+	if err != nil {
+		if os.IsNotExist(err) {
+			t.Skipf("E2E 스크립트가 없다: %s", e2eScriptPath)
+		}
+		t.Fatalf("%s 읽기: %v", e2eScriptPath, err)
+	}
+	script := string(raw)
+	v := newVendor(t)
+
+	for _, code := range []string{TemplateOrder, TemplatePromo} {
+		t.Run(code, func(t *testing.T) {
+			tmpl, ok := v.template(code)
+			if !ok {
+				t.Fatalf("픽스처에 %s가 없다", code)
+			}
+			if !strings.Contains(script, code) {
+				t.Fatalf("%s가 %s에 없다 — E2E가 다른 템플릿을 심고 있다", code, e2eScriptPath)
+			}
+			if want := jsStringLiteral(tmpl.Content); !strings.Contains(script, want) {
+				t.Fatalf("%s의 승인 본문이 %s와 어긋난다.\n"+
+					"픽스처(templates.go)의 본문을 JS 리터럴로 적으면:\n  %s\n"+
+					"양쪽을 같게 맞춰야 한다 — 안 그러면 E2E가 치환자 누락으로 거절되고 원인이 보이지 않는다.",
+					code, e2eScriptPath, want)
+			}
+			// 치환자 배열도 같은 본문에서 나온다. ARRAY[...] 서식에 기대지 않도록
+			// 이름이 따옴표로 감싸여 등장하는지만 본다.
+			for _, name := range alimtalk.Variables(tmpl.Content) {
+				if !strings.Contains(script, "'"+name+"'") {
+					t.Fatalf("%s의 치환자 %q가 %s의 variables 배열에 없다", code, name, e2eScriptPath)
+				}
+			}
+		})
 	}
 }
