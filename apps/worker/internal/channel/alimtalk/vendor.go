@@ -53,6 +53,10 @@ type Vendor interface {
 	Send(ctx context.Context, req SendRequest) (Receipt, error)
 
 	// Classify — 오류를 재시도·폴백·크리덴셜 정지 판단 근거로 환원한다.
+	//
+	// 대부분 channel.Classify 한 줄 위임이지만 인터페이스에 남긴다. 실제 딜러사는 HTTP 상태가
+	// 아니라 본문의 결과 코드로 성패를 알린다(NHN resultCode MRC01/MRC02, 알리고 code 0/-99/509).
+	// 공급자 코드를 재시도 정책으로 옮기는 일은 벤더만 할 수 있다.
 	Classify(err error) channel.FailureClass
 
 	// ParseCallback — 공급자 웹훅 원문을 수명주기 이벤트로 바꾼다.
@@ -79,9 +83,23 @@ type Credential struct {
 
 // SendRequest — 벤더 중립 발송 요청. NHN 스펙이 기준이다.
 type SendRequest struct {
-	// MessageID — Onda 안정 ID. 벤더 멱등 헤더·태그로 실어 보내 콜백 조인에 쓴다.
+	// MessageID — Onda 안정 발송 ID(UUID). 재시도·재전달에도 불변이다.
+	//
+	// **멱등의 기준은 MessageID다.** 벤더는 공급자 멱등 헤더(NHN X-NC-API-IDEMPOTENCY-KEY 등)에
+	// 이 값을 싣고, 같은 MessageID로 두 번 발송되면 같은 Receipt.ProviderMessageID를 돌려줘야 한다
+	// (conformance idempotent_resend가 검증한다).
+	//
+	// IdempotencyKey는 엔진 내부의 중복 방지 키
+	// (journey_id, version, user_id, node_index, endpoint_id — CLAUDE.md 규칙 6)로,
+	// 사람이 읽는 계보 문자열이다. 길이·문자 제약이 공급자마다 달라 신뢰할 수 없으니
+	// 벤더는 공급자에 넘기지 말고 로깅·추적에만 쓴다.
 	MessageID      string
 	IdempotencyKey string
+
+	// Credential — 복호화된 벤더 크리덴셜. 벤더 인스턴스는 manifest만으로 만들어지는
+	// 무상태 싱글턴이므로(Registry.Get), 앱별 비밀은 요청마다 실어 넘긴다.
+	// Validate·PollResults가 Credential을 인자로 받는 것과 같은 이유다.
+	Credential Credential
 
 	SenderKey    string // 발신프로필 키 (NHN senderKey / Solapi pfId / 알리고 senderkey)
 	TemplateCode string
@@ -158,6 +176,18 @@ type Event struct {
 	CostAmount   float64
 	// Terminal — 더 이상 상태가 바뀌지 않는다. 폴러가 이 접수를 대기 목록에서 지운다.
 	Terminal bool
+
+	// DeliveredVia — 실제로 어느 채널로 나갔는가. 벤더 대체발송(vendor_fallback)이 동작하면
+	// 알림톡이 아니라 SMS/LMS로 도달하는데, 이걸 문자열 사유에만 남기면 채널별 도달률과
+	// 원가 집계가 조용히 틀어진다. 대체발송이 아니면 빈 문자열(= 원 채널).
+	// 예: "sms" · "lms"
+	DeliveredVia string
+
+	// Expired — 공급자 조회 보존 기간이 지나 결과를 더 이상 알 수 없다.
+	// Terminal과 구분한다: Terminal은 "결과가 확정됐다", Expired는 "결과를 못 알아냈다"이다.
+	// 둘을 섞으면 알 수 없는 건이 성공/실패로 집계되거나 폴러가 영원히 물어본다.
+	// 폴러는 대기 목록에서 지우되 도달 집계에는 넣지 않는다.
+	Expired bool
 }
 
 // RawCallback — 공급자 웹훅 원문. API는 서명 검증만 하고 파싱은 벤더가 한다.

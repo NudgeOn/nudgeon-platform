@@ -20,7 +20,6 @@ apps/worker/internal/channel/worker.go::7d8537a05f0e   # credentials by app_id+k
 apps/worker/internal/channel/worker.go::9a03cfeef80d   # credentials by app_id+kind (발송 워커, app_id 스코프)
 apps/worker/internal/channel/email_worker.go::d642033bdbb9   # credentials by app_id+email kind(smtp/nhn/resend 폴백) (이메일 발송 워커, app_id 스코프)
 apps/worker/internal/channel/email_worker.go::f53a74bd0975   # credentials by app_id+지정 provider kind (발송별 발송기 선택, app_id 스코프)
-apps/worker/internal/message/resolver.go::195f52c5caae   # channel_connectors by app_id+channel (채널 중립 발송 워커, app_id 스코프)
 apps/worker/internal/message/resolver.go::9a03cfeef80d   # credentials by app_id+kind (채널 중립 발송 워커, app_id 스코프)
 apps/worker/internal/message/worker.go::7d8537a05f0e   # credentials error 전이 by app_id+kind (채널 중립 발송 워커, app_id 스코프)
 
