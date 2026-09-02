@@ -11,6 +11,14 @@
 //     한 건을 특정할 수 있다. Receipt.ProviderMessageID 한 문자열에 "requestId:recipientSeq"로
 //     접어 넣고 PollResults가 되편다(EncodeReceiptID/DecodeReceiptID).
 //
+// # 검증되지 않았다 — ASSUMPTIONS.md를 먼저 읽어라
+//
+// 이 구현은 공식 문서만 보고 작성됐고 실 계정으로 호출해 검증한 적이 없다. 문서가 말하지 않아
+// 우리가 고른 지점이 22개 있고, 각각 틀렸을 때 어떤 증상으로 드러나는지까지 같은 디렉터리의
+// ASSUMPTIONS.md에 적어 두었다. 실 계정이 생기면 그 순서대로 확인하고, 이 벤더에서 원인을
+// 모를 증상(전량 미종결·도달률이 조용히 어긋남·틀린 키가 verified로 남음)을 만나면 거기서
+// 역으로 찾아라. 테스트가 초록인 것은 우리 해석 안에서 일관되다는 뜻일 뿐이다.
+//
 // # 인증
 //
 // AppKey는 URL 경로에, SecretKey는 X-Secret-Key 헤더에 싣는다.
