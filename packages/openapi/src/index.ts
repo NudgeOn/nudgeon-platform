@@ -380,9 +380,22 @@ export class OndaClient {
           "GET",
           `/v1/apps/${appId}/alimtalk/templates${params?.sender_id ? `?sender_id=${params.sender_id}` : ""}`,
         ),
-      /** P1 미구현 — 현재는 501을 반환한다 (콘솔은 안내 문구로 처리) */
-      sync: (appId: string) =>
-        this.request<{ queued: true }>("POST", `/v1/apps/${appId}/alimtalk/templates/sync`),
+      /**
+       * 벤더 승인 템플릿 동기화 요청 (journeys:write). 202 + 워커가 비동기 수행.
+       *
+       * 발신프로필·커넥터 배선·검증된 크리덴셜이 모두 있어야 202가 나온다. 하나라도 없으면
+       * 400과 함께 무엇이 없는지 한국어로 지목한다 — 워커가 아무것도 못 하는 상태에서
+       * 202를 주면 "요청됐다"는 거짓 신호가 되기 때문이다.
+       *
+       * sender_id 생략 시: 기본 발신프로필, 없고 하나뿐이면 그 하나. 여러 개인데 기본이
+       * 없으면 400으로 되묻는다.
+       */
+      sync: (appId: string, body?: { sender_id?: string }) =>
+        this.request<{ accepted: true; sender_id: string }>(
+          "POST",
+          `/v1/apps/${appId}/alimtalk/templates/sync`,
+          body,
+        ),
     },
   };
 
