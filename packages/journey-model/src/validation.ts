@@ -1,5 +1,5 @@
 import type { SegmentDSL } from "@onda/segment-dsl";
-import { outputPorts, type JourneyDefinition, type JourneyNode, type ValidationIssue } from "./index";
+import { EMAIL_PROVIDERS, outputPorts, type JourneyDefinition, type JourneyNode, type ValidationIssue } from "./index";
 
 const ATTRIBUTE_OPS = new Set([
   "eq", "neq", "gt", "gte", "lt", "lte", "in", "exists", "not_exists", "contains",
@@ -80,6 +80,9 @@ export function validateJourney(def: JourneyDefinition): ValidationIssue[] {
         // 채널: push 또는 email 중 하나. 각 채널의 필수 내용이 비면 오류.
         if (node.email) {
           if (!node.email.subject?.trim() || !node.email.html?.trim()) fail("빈 이메일 노드입니다", "email");
+          if (node.email.provider !== undefined && !(EMAIL_PROVIDERS as readonly string[]).includes(node.email.provider)) {
+            fail("지원하지 않는 이메일 발송기입니다", "email");
+          }
         } else if (!node.push?.title?.trim() || !node.push?.body?.trim()) {
           fail("빈 메시지 노드입니다", "push");
         }

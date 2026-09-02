@@ -36,6 +36,16 @@ describe("validateJourney", () => {
     expect(issues.some((i) => i.level === "error" && i.node_index === 0)).toBe(true);
   });
 
+  it("이메일 노드 발송기(provider)는 email_smtp/email_nhn/email_resend만 허용", () => {
+    const email = { subject: "제목", html: "<p>본문</p>" };
+    for (const provider of ["email_smtp", "email_nhn", "email_resend"] as const) {
+      const d: JourneyDefinition = { ...valid, nodes: [{ type: "message", email: { ...email, provider } }] };
+      expect(hasErrors(validateJourney(d))).toBe(false);
+    }
+    const bad = { ...valid, nodes: [{ type: "message", email: { ...email, provider: "email_sendgrid" } }] } as unknown as JourneyDefinition;
+    expect(validateJourney(bad).some((i) => i.level === "error" && i.field === "email")).toBe(true);
+  });
+
   it("메시지 노드 없이 delay만 → error", () => {
     const d: JourneyDefinition = {
       ...valid,

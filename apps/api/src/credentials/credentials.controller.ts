@@ -64,11 +64,25 @@ const emailNhnPayloadSchema = z.object({
   from_name: z.string().max(128).default(""),
 });
 
+/**
+ * Resend Email API: API 키 + 발신자. webhook_secret = Resend(Svix) 서명 비밀(whsec_…) —
+ * POST /v1/webhooks/resend/:appId 서명 검증에 사용. base_url은 테스트용 엔드포인트 오버라이드.
+ */
+const emailResendPayloadSchema = z.object({
+  kind: z.literal("email_resend"),
+  api_key: z.string().min(1).max(256),
+  from_email: z.string().email(),
+  from_name: z.string().max(128).default(""),
+  webhook_secret: z.string().max(256).optional(),
+  base_url: z.string().url().optional(),
+});
+
 const credentialSchema = z.discriminatedUnion("kind", [
   fcmPayloadSchema,
   apnsPayloadSchema,
   emailSmtpPayloadSchema,
   emailNhnPayloadSchema,
+  emailResendPayloadSchema,
 ]);
 
 /** 크리덴셜 관리 (세션 인증 — 콘솔 온보딩 위저드의 백엔드) */
