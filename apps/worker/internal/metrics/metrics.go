@@ -31,6 +31,12 @@ var (
 		Help: "채널 워커 발송 결과",
 	}, []string{"status"})
 
+	// LifecycleEvents — message.lifecycle 소비 결과 (status 라벨 = 수명주기 상태 | invalid=불량 payload)
+	LifecycleEvents = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "onda_lifecycle_events_total",
+		Help: "lifecycle 소비자가 message_lifecycle에 적재한 이벤트 수 (status별, invalid=스킵)",
+	}, []string{"status"})
+
 	// BatchErrors — 배치 처리 실패 (재시도)
 	BatchErrors = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "onda_worker_batch_errors_total",

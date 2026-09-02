@@ -22,7 +22,7 @@ SCOPED = {
     # 신규 테이블(receipt/cursor·저니 노드 실행) — 재검증 R-20
     "event_receipts", "event_customer_cursors", "journey_node_executions",
     # ClickHouse
-    "events", "message_log", "ingestion_errors", "raw_ingestions",
+    "events", "message_log", "message_lifecycle", "ingestion_errors", "raw_ingestions",
     "attr_changes", "profiles_mirror",
 }
 

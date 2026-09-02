@@ -25,6 +25,7 @@ import (
 	"github.com/ondahq/onda/apps/worker/internal/config"
 	"github.com/ondahq/onda/apps/worker/internal/ingest"
 	"github.com/ondahq/onda/apps/worker/internal/journey"
+	"github.com/ondahq/onda/apps/worker/internal/lifecycle"
 	"github.com/ondahq/onda/apps/worker/internal/segment"
 	"github.com/ondahq/onda/apps/worker/internal/trigger"
 	libqueue "github.com/ondahq/onda/packages/libqueue-go"
@@ -105,6 +106,13 @@ func run(role string, logger *slog.Logger) error {
 	}
 
 	if has("channel") {
+		// 발송 수명주기 소비자 — 마스터키 불필요(복호화 없음). 커넥터·콜백·SDK 이벤트 → message_lifecycle.
+		lc := lifecycle.NewConsumer(
+			libqueue.NewConsumer(rdb, libqueue.StreamLifecycle, libqueue.GroupLifecycle, "lifecycle-"+hostname),
+			ch, clk, logger.With("component", "lifecycle"),
+		)
+		g.Go(func() error { return lc.Run(gctx) })
+
 		masterKey, err := channel.LoadMasterKey()
 		if err != nil {
 			if role == "channel" {
@@ -114,12 +122,13 @@ func run(role string, logger *slog.Logger) error {
 		} else {
 			plugin := channel.NewPushPlugin(clk)
 			emailPlugin := channel.NewEmailPlugin(clk)
-			// 크리덴셜 kind → 검증 플러그인 (push_fcm/push_apns=push, email_smtp=email)
+			// 크리덴셜 kind → 검증 플러그인 (push_fcm/push_apns=push, email_smtp/email_nhn/email_resend=email)
 			verifier := channel.NewVerifier(pg, map[string]channel.ChannelPlugin{
-				"push_fcm":   plugin,
-				"push_apns":  plugin,
-				"email_smtp": emailPlugin,
-				"email_nhn":  emailPlugin,
+				"push_fcm":     plugin,
+				"push_apns":    plugin,
+				"email_smtp":   emailPlugin,
+				"email_nhn":    emailPlugin,
+				"email_resend": emailPlugin,
 			}, masterKey, logger.With("component", "credential-verifier"))
 			worker := channel.NewWorker(
 				libqueue.NewConsumer(rdb, libqueue.StreamSendPush, libqueue.GroupChannel, "channel-"+hostname),
