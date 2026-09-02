@@ -181,13 +181,16 @@ export interface SendPushPayload {
   campaign_ref?: string | null;
 }
 
+/** 이메일 발송기(provider) 종류 — credentials.kind와 동일 값 (email_resend = Resend API) */
+export type EmailProvider = "email_smtp" | "email_nhn" | "email_resend";
+
 /** send.email 스트림 payload — content.email은 {{ }} 치환 완료 본문, email=수신 주소 */
 export interface SendEmailPayload {
   idempotency_key: string;
   message_id?: string;
   user_id?: string | null;
   email: string;
-  provider?: "email_smtp" | "email_nhn";
+  provider?: EmailProvider;
   content: {
     email: {
       subject: string;
@@ -199,6 +202,43 @@ export interface SendEmailPayload {
   journey_version?: number | null;
   node_index?: number | null;
   campaign_ref?: string | null;
+}
+
+/** message.lifecycle 스트림 payload v1 — 채널·공급자 중립 발송 수명주기 (커넥터·공급자 콜백·SDK 수렴) */
+export type LifecycleStatus =
+  | "accepted"
+  | "sent"
+  | "delivered"
+  | "opened"
+  | "clicked"
+  | "failed"
+  | "unsubscribed"
+  | "bounced";
+export type LifecycleFailureClass =
+  | "retryable"
+  | "rate_limited"
+  | "permanent_content"
+  | "invalid_target"
+  | "credential_auth"
+  | "unsupported"
+  | "retry_exhausted";
+export interface MessageLifecyclePayload {
+  message_id: string;
+  idempotency_key?: string;
+  status: LifecycleStatus;
+  occurred_at: string;
+  source: "engine" | "connector" | "provider_callback" | "sdk";
+  channel: string;
+  connector_id: string;
+  provider_message_id?: string | null;
+  user_id?: string | null;
+  endpoint_id?: string | null;
+  failure_class?: LifecycleFailureClass | null;
+  failure_detail?: string | null;
+  fallback_index?: number | null;
+  attempt?: number | null;
+  cost?: { currency: string; amount: number } | null;
+  click_ref?: string | null;
 }
 
 function loadSchema(name: string): Record<string, unknown> {
@@ -216,4 +256,5 @@ export const payloadSchemas: Partial<Record<MessageType, Record<string, unknown>
   "send.push": loadSchema("send.push.schema.json"),
   "send.email": loadSchema("send.email.schema.json"),
   "journey.enter": loadSchema("journey.entry.schema.json"),
+  "message.lifecycle": loadSchema("message.lifecycle.v1.schema.json"),
 };

@@ -23,12 +23,15 @@ export interface EntryRule {
   trigger_event?: string;
 }
 interface NodeIdentity { id?: string }
+/** 이메일 발송기(provider). 미지정 = 앱의 활성(최근 검증) 발송기. credentials.kind와 동일 값. */
+export const EMAIL_PROVIDERS = ["email_smtp", "email_nhn", "email_resend"] as const;
+export type EmailProvider = (typeof EMAIL_PROVIDERS)[number];
 export type JourneyNode = MessageNode | DelayNode | BranchNode | EventWaitNode | ABSplitNode;
 export interface MessageNode extends NodeIdentity {
   type: "message";
   // 채널 선택: push 또는 email 중 정확히 하나.
   push?: { title: string; body: string; image_url?: string; deep_link?: string };
-  email?: { subject: string; html: string; provider?: "email_smtp" | "email_nhn" };
+  email?: { subject: string; html: string; provider?: EmailProvider };
 }
 export interface DelayNode extends NodeIdentity {
   type: "delay";

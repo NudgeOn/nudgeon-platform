@@ -28,7 +28,7 @@ const testEmailSchema = z
     template_id: z.string().uuid().optional(),
     subject: z.string().min(1).max(998).optional(),
     html: z.string().min(1).max(1_000_000).optional(),
-    provider: z.enum(["email_smtp", "email_nhn"]).optional(),
+    provider: z.enum(["email_smtp", "email_nhn", "email_resend"]).optional(),
     variables: z.record(z.unknown()).default({}),
   })
   .refine((b) => b.template_id || (b.subject && b.html), {

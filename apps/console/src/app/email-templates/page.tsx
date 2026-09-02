@@ -3,13 +3,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ApiError, type EmailTemplate, type EmailTemplateSummary } from "@onda/api-client";
+import { ApiError, EMAIL_PROVIDER_LABELS, type EmailProvider, type EmailTemplate, type EmailTemplateSummary } from "@onda/api-client";
 import { useAppId } from "../use-app-id";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EmailProviderCard, isEmailProvider } from "./email-provider-card";
 
 /** {{ key }} 치환 — 서버 util/template.ts·워커 render.go와 동일 규약(미리보기·발송 결과 일치). */
 function renderVars(tpl: string, vars: Record<string, string>): string {
@@ -44,7 +45,7 @@ export default function EmailTemplatesPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
         <div className="flex flex-col gap-3">
-          <ProviderCard appId={appId} />
+          <EmailProviderCard appId={appId} />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between p-4">
               <CardTitle className="text-sm">템플릿</CardTitle>
@@ -104,7 +105,7 @@ function TemplateEditor({
   const [html, setHtml] = useState("<h1>안녕하세요 {{name}}님</h1>\n<p>Onda에 오신 것을 환영합니다.</p>");
   const [varsText, setVarsText] = useState("name=홍길동");
   const [toEmail, setToEmail] = useState("");
-  const [provider, setProvider] = useState<"" | "email_smtp" | "email_nhn">("");
+  const [provider, setProvider] = useState<"" | EmailProvider>("");
   const [err, setErr] = useState<string | null>(null);
 
   // 설정(검증)된 이메일 발송기만 선택 가능하도록 목록을 크리덴셜에서 구성.
@@ -113,8 +114,8 @@ function TemplateEditor({
     queryFn: () => api.credentials.list(appId),
     enabled: !!appId,
   });
-  const verifiedProviders = (creds.data?.credentials ?? []).filter(
-    (c) => (c.kind === "email_smtp" || c.kind === "email_nhn") && c.status === "verified",
+  const verifiedProviders = (creds.data?.credentials ?? []).flatMap((c) =>
+    isEmailProvider(c.kind) && c.status === "verified" ? [c.kind] : [],
   );
 
   useEffect(() => {
@@ -211,8 +212,8 @@ function TemplateEditor({
               <select id="t-provider" className="h-9 rounded-md border border-border bg-card px-2 text-sm"
                 value={provider} onChange={(e) => setProvider(e.target.value as typeof provider)}>
                 <option value="">자동(활성 발송기)</option>
-                {verifiedProviders.map((c) => (
-                  <option key={c.kind} value={c.kind}>{c.kind}</option>
+                {verifiedProviders.map((kind) => (
+                  <option key={kind} value={kind}>{EMAIL_PROVIDER_LABELS[kind]}</option>
                 ))}
               </select>
             </div>
@@ -224,111 +225,11 @@ function TemplateEditor({
             <p className="text-xs text-destructive">검증된 이메일 발송기가 없습니다 — 왼쪽 &lsquo;이메일 발송기&rsquo;에서 먼저 등록·검증하세요.</p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              발송기를 선택하지 않으면 활성(최근 검증) 발송기로 나갑니다. 설정된 발송기: {verifiedProviders.map((c) => c.kind).join(", ")}
+              발송기를 선택하지 않으면 활성(최근 검증) 발송기로 나갑니다. 설정된 발송기: {verifiedProviders.map((kind) => EMAIL_PROVIDER_LABELS[kind]).join(", ")}
             </p>
           )}
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-type Provider = "smtp" | "ses" | "nhn";
-
-/** 이메일 발송기 등록 — 프리셋: 범용 SMTP / AWS SES(SMTP) / NHN Cloud(API). */
-function ProviderCard({ appId }: { appId: string | undefined }) {
-  const [provider, setProvider] = useState<Provider>("smtp");
-  const [msg, setMsg] = useState<string | null>(null);
-  // SMTP/SES 공통 필드
-  const [host, setHost] = useState("");
-  const [port, setPort] = useState("587");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [fromEmail, setFromEmail] = useState("");
-  const [fromName, setFromName] = useState("");
-  const [region, setRegion] = useState("ap-northeast-2");
-  // NHN
-  const [appKey, setAppKey] = useState("");
-  const [secretKey, setSecretKey] = useState("");
-
-  const creds = useQuery({
-    queryKey: ["credentials", appId],
-    queryFn: () => api.credentials.list(appId!),
-    enabled: !!appId,
-  });
-
-  const save = useMutation({
-    mutationFn: () => {
-      if (!appId) throw new Error("no app");
-      if (provider === "nhn") {
-        return api.credentials.upsert(appId, {
-          kind: "email_nhn", app_key: appKey, secret_key: secretKey, from_email: fromEmail, from_name: fromName,
-        });
-      }
-      const h = provider === "ses" ? `email-smtp.${region}.amazonaws.com` : host;
-      return api.credentials.upsert(appId, {
-        kind: "email_smtp", host: h, port: Number(port), username, password,
-        from_email: fromEmail, from_name: fromName, security: "starttls",
-      });
-    },
-    onSuccess: () => { setMsg("등록됨 — 워커가 검증 중(수 초). 상태는 목록에서 확인"); creds.refetch(); },
-    onError: (e) => setMsg(e instanceof ApiError ? e.message : "등록 실패"),
-  });
-
-  const emailCred = creds.data?.credentials.find((c) => c.kind === "email_smtp" || c.kind === "email_nhn");
-
-  return (
-    <Card>
-      <CardHeader className="p-4"><CardTitle className="text-sm">이메일 발송기</CardTitle></CardHeader>
-      <CardContent className="flex flex-col gap-2 p-4 pt-0 text-sm">
-        {emailCred && (
-          <p className="text-xs">
-            현재: <span className="font-medium">{emailCred.kind}</span> ·{" "}
-            <span className={emailCred.status === "verified" ? "text-primary" : "text-muted-foreground"}>{emailCred.status}</span>
-          </p>
-        )}
-        <select className="h-9 rounded-md border border-border bg-card px-2 text-sm"
-          value={provider} onChange={(e) => setProvider(e.target.value as Provider)}>
-          <option value="smtp">범용 SMTP</option>
-          <option value="ses">AWS SES (SMTP)</option>
-          <option value="nhn">NHN Cloud (API)</option>
-        </select>
-
-        {provider !== "nhn" ? (
-          <>
-            {provider === "ses" ? (
-              <Field label="리전"><Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="ap-northeast-2" /></Field>
-            ) : (
-              <>
-                <Field label="호스트"><Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="smtp.example.com" /></Field>
-                <Field label="포트"><Input value={port} onChange={(e) => setPort(e.target.value)} /></Field>
-              </>
-            )}
-            <Field label={provider === "ses" ? "SMTP 사용자명(SES)" : "사용자명"}><Input value={username} onChange={(e) => setUsername(e.target.value)} /></Field>
-            <Field label={provider === "ses" ? "SMTP 비밀번호(SES)" : "비밀번호"}><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
-          </>
-        ) : (
-          <>
-            <Field label="App Key"><Input value={appKey} onChange={(e) => setAppKey(e.target.value)} /></Field>
-            <Field label="Secret Key"><Input type="password" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} /></Field>
-          </>
-        )}
-        <Field label="발신 이메일"><Input type="email" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} placeholder="noreply@yourdomain.com" /></Field>
-        <Field label="발신 이름"><Input value={fromName} onChange={(e) => setFromName(e.target.value)} placeholder="Onda" /></Field>
-        <Button className="mt-1" disabled={save.isPending || !fromEmail} onClick={() => save.mutate()}>
-          {save.isPending ? "등록 중…" : "발송기 등록/교체"}
-        </Button>
-        {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
-      </CardContent>
-    </Card>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <Label className="text-xs">{label}</Label>
-      {children}
     </div>
   );
 }
