@@ -3,6 +3,8 @@ package alimtalk
 import (
 	"strings"
 	"testing"
+
+	"github.com/ondahq/onda/apps/worker/internal/connector"
 )
 
 func TestVariables(t *testing.T) {
@@ -158,7 +160,7 @@ func validSendRequest() SendRequest {
 
 func TestValidateSend(t *testing.T) {
 	t.Run("정상", func(t *testing.T) {
-		if err := ValidateSend(approvedTemplate(), validSendRequest()); err != nil {
+		if err := ValidateSend(approvedTemplate(), validSendRequest(), connector.SubstitutionVariables); err != nil {
 			t.Fatalf("통과해야 한다: %v", err)
 		}
 	})
@@ -196,7 +198,7 @@ func TestValidateSend(t *testing.T) {
 			if tc.req != nil {
 				tc.req(&req)
 			}
-			err := ValidateSend(tm, req)
+			err := ValidateSend(tm, req, connector.SubstitutionVariables)
 			if err == nil {
 				t.Fatalf("%q를 담은 오류여야 한다", tc.wantErr)
 			}
@@ -212,7 +214,7 @@ func TestValidateSend(t *testing.T) {
 		tm.MessageType = "AD"
 		req := validSendRequest()
 		req.Buttons = []Button{{Type: "AC", Name: "채널 추가"}}
-		if err := ValidateSend(tm, req); err != nil {
+		if err := ValidateSend(tm, req, connector.SubstitutionVariables); err != nil {
 			t.Fatalf("통과해야 한다: %v", err)
 		}
 	})

@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ondahq/onda/apps/worker/internal/connector"
 )
 
 // 카카오 원본 제약 (벤더 무관 — 어느 딜러사를 쓰든 동일하다).
@@ -129,7 +131,10 @@ func ValidateButtons(buttons []Button, isAd bool) error {
 }
 
 // ValidateSend — 발송 직전 벤더 무관 검증. 벤더에 보내기 전에 걸러 공급자 거절과 과금을 아낀다.
-func ValidateSend(t Template, req SendRequest) error {
+//
+// mode는 이 벤더의 치환 방식(manifest.SubstitutionMode())이다. 완성 본문만 보내는 벤더(rendered)는
+// 치환자 맵이 비어 있어도 정상이므로 RenderedText가 있는지를 대신 본다.
+func ValidateSend(t Template, req SendRequest, mode connector.Substitution) error {
 	if t.Status != TemplateApproved {
 		return fmt.Errorf("승인되지 않은 템플릿입니다 (status=%s)", t.Status)
 	}
@@ -142,9 +147,16 @@ func ValidateSend(t Template, req SendRequest) error {
 	if req.To == "" {
 		return fmt.Errorf("수신 번호 누락")
 	}
-	for _, name := range Variables(t.Content) {
-		if v, ok := req.Variables[name]; !ok || v == "" {
-			return fmt.Errorf("치환자 값 누락: %s", name)
+	switch mode {
+	case connector.SubstitutionRendered:
+		if strings.TrimSpace(req.RenderedText) == "" {
+			return fmt.Errorf("완성 본문(RenderedText) 누락 — 이 벤더는 승인 본문과 일치하는 전문을 요구한다")
+		}
+	default: // variables · both — 공급자가 렌더하므로 치환자가 모두 있어야 한다
+		for _, name := range Variables(t.Content) {
+			if v, ok := req.Variables[name]; !ok || v == "" {
+				return fmt.Errorf("치환자 값 누락: %s", name)
+			}
 		}
 	}
 	if err := ValidateButtons(req.Buttons, t.IsAd()); err != nil {
