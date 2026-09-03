@@ -18,6 +18,11 @@ RUN pnpm --filter @nudgeon/api... build \
 FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+ARG BUILD_REVISION=unknown
+ARG BUILD_SOURCE_SHA256=unknown
+ENV BUILD_REVISION=$BUILD_REVISION BUILD_SOURCE_SHA256=$BUILD_SOURCE_SHA256
+LABEL org.opencontainers.image.revision=$BUILD_REVISION
+LABEL io.nudgeon.api.source-sha256=$BUILD_SOURCE_SHA256
 COPY --from=build /app /app
 COPY LICENSE NOTICE TRADEMARKS.md THIRD_PARTY_NOTICES.md /licenses/nudgeon/
 COPY docs-public/LICENSING.md /licenses/nudgeon/LICENSING.md

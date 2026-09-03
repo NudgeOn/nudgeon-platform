@@ -1,0 +1,18 @@
+{
+  "status": "draft_not_delivered",
+  "diagram_type": "architecture",
+  "specification": "architecture.draft.json",
+  "last_artifact_geometry_checks_passed": 9,
+  "last_artifact_geometry_checks_total": 9,
+  "composition_errors": 1,
+  "composition_warnings": 0,
+  "unresolved_code": "composition/desktop-readability",
+  "unresolved_text": "receipt + outbox 원자 저장",
+  "projected_font_px": 5.6629502572898796,
+  "required_minimum_px": 6,
+  "html_delivered": false,
+  "browser_evidence": null,
+  "visual_review": null,
+  "reason": "Stopped under Archify's non-improving correction limit. No HTML or browser acceptance is claimed.",
+  "authoritative_design": "../CAPACITY-PLAN.md"
+}

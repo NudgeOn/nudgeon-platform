@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import { STREAMS, type IngestBatchPayload } from "@nudgeon/queue-schemas";
 import type { ResolvedApiKey } from "../auth/api-key.service";
 import type { TrackBody } from "./schemas";
+import { noReceiptObserver, observedClient, type ReceiptObserver } from "./receipt-observer";
 
 type TrackEvent = TrackBody["batch"][number];
 type UserRow = { id: string; status: string; merged_into: string | null };
@@ -17,16 +18,19 @@ export async function persistTrackReceipts(
   key: Pick<ResolvedApiKey, "tenantId" | "appId" | "id">,
   body: TrackBody,
   requestId: string,
+  observer: ReceiptObserver = noReceiptObserver,
 ): Promise<void> {
   for (let attempt = 0; ; attempt++) {
     try {
-      await persistOnce(pg, key, body, requestId);
+      const unique = await persistOnce(pg, key, body, requestId, observer);
+      observer.committed(unique, body.batch.length);
       return;
     } catch (error) {
       const code = error != null && typeof error === "object" && "code" in error ? error.code : undefined;
       if (attempt >= 2 || !(error instanceof IdentityChanged || code === "40P01" || code === "40001")) {
         throw error;
       }
+      observer.retry();
     }
   }
 }
@@ -36,8 +40,9 @@ async function persistOnce(
   key: Pick<ResolvedApiKey, "tenantId" | "appId" | "id">,
   body: TrackBody,
   requestId: string,
+  observer: ReceiptObserver,
 ) {
-  const client = await pg.connect();
+  const client = observedClient(await observer.measure("pool_acquire", () => pg.connect()), observer);
   try {
     await client.query("BEGIN");
     // Preserve the first item in a batch, even if a duplicate changes identity
@@ -61,7 +66,7 @@ async function persistOnce(
     for (const row of existing.rows) unique.delete(row.insert_id);
     if (unique.size === 0) {
       await client.query("COMMIT");
-      return;
+      return 0;
     }
 
     const identities = new Map<string, string>();
@@ -137,6 +142,7 @@ async function persistOnce(
       );
     }
     await client.query("COMMIT");
+    return unique.size;
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);
     throw error;

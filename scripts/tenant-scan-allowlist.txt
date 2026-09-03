@@ -40,7 +40,6 @@ apps/api/src/auth/totp.service.ts::3d6a20e7e588   # members UPDATE by id (인증
 apps/api/src/auth/totp.service.ts::a491ad57e2b4   # members UPDATE by id (잠금, member PK)
 apps/api/src/auth/totp.service.ts::16ea7e1fdd8a   # members UPDATE by id (실패 카운트, member PK)
 apps/api/src/auth/totp.service.ts::2355f3a18a86   # members SELECT by id FOR UPDATE (R-09 원자적 2FA 검증, member PK)
-apps/api/src/auth/api-key.service.ts::75b05e436177   # api_keys last_used_at by id (키 PK, fire-and-forget)
 
 # --- 인증 이전(pre-auth) 조회: 테넌트를 아직 확정하기 전 ---
 apps/api/src/auth/auth.service.ts::2094ba5add97   # members count — single_tenant 부트스트랩 잠금 판정
@@ -48,6 +47,7 @@ apps/api/src/auth/auth.service.ts::66f6c515dfa7   # members by email — 가입 
 apps/api/src/auth/session.service.ts::838b2746e73e   # sessions revoke by token_hash — 토큰 기반 로그아웃
 
 # --- 워커 백그라운드 잡: 전 테넌트 처리(사용자 비대면) ---
+apps/worker/internal/ops/postgres.go::a0ad43df436f   # ops-monitor 전용 전역 count/min 3개: 식별자/본문 미노출, SELECT-only 별도 pool 1개, statement timeout 2s, 내부 운영망만 scrape
 apps/api/src/health/health.controller.ts::727617fb32e5   # 전역 master key readiness: tenant-independent key로 저장 credential 1건의 AEAD 복호화 확인, 응답에는 고정 상태 코드만 반환
 apps/worker/internal/trigger/index.go::163f880e835a   # journeys 전 테넌트 활성 로드 (트리거 매처)
 apps/worker/internal/channel/verifier.go::6d313e6d367f   # credentials 전 테넌트 unverified 로드 (검증 워커)

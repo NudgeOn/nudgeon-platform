@@ -5,6 +5,7 @@ import type { Pool } from "pg";
 import type { AppConfig } from "../config";
 import { decryptEnvelope, encryptEnvelope, loadMasterKey } from "../crypto/envelope";
 import { CLICKHOUSE, CONFIG, PG, REDIS } from "../infra/infra.module";
+import { ShutdownState } from "../infra/shutdown-state";
 
 const REQUIRED_POSTGRES_RELATIONS = [
   "public.tenants",
@@ -109,6 +110,7 @@ export class HealthController {
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(CLICKHOUSE) private readonly clickhouse: ClickHouseClient,
     @Inject(CONFIG) config: AppConfig,
+    @Inject(ShutdownState) private readonly shutdown: ShutdownState,
   ) {
     this.timeoutMs = config.readinessTimeoutMs;
   }
@@ -131,6 +133,7 @@ export class HealthController {
    */
   @Get("readyz")
   async readyz(): Promise<ReadinessResponse> {
+    this.assertServing();
     // Every phase shares one deadline so the endpoint never consumes N times the
     // configured timeout as checks become more comprehensive.
     const deadline = Date.now() + this.timeoutMs;
@@ -182,8 +185,13 @@ export class HealthController {
       },
     };
 
+    this.assertServing(); // a probe begun before SIGTERM cannot report ready after it
     if (!response.ok) throw new HttpException(response, HttpStatus.SERVICE_UNAVAILABLE);
     return response;
+  }
+
+  private assertServing() {
+    if (this.shutdown.draining) throw new HttpException({ ok: false, code: "shutting_down" }, HttpStatus.SERVICE_UNAVAILABLE);
   }
 
   private checkPostgresSchema(deadline: number): Promise<ProbeResult> {

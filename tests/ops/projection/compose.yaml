@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:16
+    mem_limit: 256m
+    environment: {POSTGRES_USER: nudgeon, POSTGRES_PASSWORD: local-projection-only, POSTGRES_DB: nudgeon}
+    volumes:
+      - pg:/var/lib/postgresql/data
+      - ../../../db/postgres/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../../../db/postgres/seed.dev.sql:/docker-entrypoint-initdb.d/02-fixture.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U nudgeon -d nudgeon"]
+      interval: 2s
+      timeout: 2s
+      retries: 40
+  redis:
+    image: redis:7
+    mem_limit: 96m
+    command: [redis-server, --maxmemory, 64mb, --maxmemory-policy, noeviction]
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    mem_limit: 1536m
+    cpus: 2
+    environment: {CLICKHOUSE_USER: nudgeon, CLICKHOUSE_PASSWORD: local-projection-only, CLICKHOUSE_DB: nudgeon, CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"}
+    volumes:
+      - ch:/var/lib/clickhouse
+      - ../../../db/clickhouse:/docker-entrypoint-initdb.d:ro
+      - ../api-shutdown/clickhouse.xml:/etc/clickhouse-server/config.d/projection-qa.xml:ro
+    healthcheck:
+      test: [CMD, wget, -qO-, "http://localhost:8123/ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+  api:
+    image: ${PROJECTION_API_IMAGE:?fresh API image required}
+    mem_limit: 256m
+    stop_grace_period: 20s
+    environment:
+      DATABASE_URL: postgres://nudgeon:local-projection-only@postgres:5432/nudgeon?statement_timeout=3000
+      REDIS_URL: redis://redis:6379
+      CLICKHOUSE_URL: http://nudgeon:local-projection-only@clickhouse:8123/nudgeon
+      NUDGEON_MASTER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      METRICS_HOST: 0.0.0.0
+      METRICS_PORT: "9091"
+    depends_on:
+      postgres: {condition: service_healthy}
+      clickhouse: {condition: service_healthy}
+      redis: {condition: service_started}
+  ingest:
+    image: ${PROJECTION_WORKER_IMAGE:?fresh worker image required}
+    mem_limit: 128m
+    command: [--role, ingest-consumer]
+    environment: &worker-env
+      DATABASE_URL: postgres://nudgeon:local-projection-only@postgres:5432/nudgeon?pool_max_conns=4
+      REDIS_URL: redis://redis:6379
+      CLICKHOUSE_URL: http://nudgeon:local-projection-only@clickhouse:8123/nudgeon?read_timeout=2s&dial_timeout=2s
+    depends_on:
+      postgres: {condition: service_healthy}
+      clickhouse: {condition: service_healthy}
+      redis: {condition: service_started}
+  scheduler:
+    image: ${PROJECTION_WORKER_IMAGE:?fresh worker image required}
+    mem_limit: 128m
+    command: [--role, scheduler]
+    environment: *worker-env
+    depends_on:
+      postgres: {condition: service_healthy}
+      clickhouse: {condition: service_healthy}
+      redis: {condition: service_started}
+  gateway:
+    image: ${PROJECTION_API_IMAGE:?fresh API image required}
+    entrypoint: [node, /gateway.mjs]
+    mem_limit: 64m
+    networks: [default, host-access]
+    volumes: ["./gateway.mjs:/gateway.mjs:ro"]
+    ports: ["127.0.0.1:19500:8080", "127.0.0.1:19501:9091", "127.0.0.1:19502:9090", "127.0.0.1:19503:5432", "127.0.0.1:19504:8123"]
+networks:
+  default: {internal: true}
+  host-access: {}
+volumes:
+  pg: {}
+  ch: {}

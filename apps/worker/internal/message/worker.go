@@ -15,6 +15,8 @@ import (
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk"
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/connector"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/dlq"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/metrics"
 	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
@@ -423,25 +425,25 @@ func uuidOrZero(s string) string {
 }
 
 // DLQ — 재시도 소진분 적재. cmd/dlq가 원본 envelope으로 재처리한다.
-func (w *Worker) DLQ(ctx context.Context, env *libqueue.Envelope, job *Job, out channel.SendOutcome) {
+func (w *Worker) DLQ(ctx context.Context, env *libqueue.Envelope, job *Job, out channel.SendOutcome) error {
 	if w.pg == nil {
-		return
+		return fmt.Errorf("DLQ database is not configured")
 	}
-	envJSON, _ := json.Marshal(env)
+	envJSON, err := json.Marshal(env)
+	if err != nil {
+		return fmt.Errorf("DLQ envelope encoding failed: %w", err)
+	}
 	var mid any
 	if _, err := uuid.Parse(job.P.MessageID); err == nil {
 		mid = job.P.MessageID
 	}
-	if _, err := w.pg.Exec(ctx, `
-		INSERT INTO send_dlq (tenant_id, app_id, idempotency_key, message_id,
-			failure_class, failure_detail, attempts, envelope)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (tenant_id, idempotency_key) DO UPDATE SET
-			failure_class = EXCLUDED.failure_class, failure_detail = EXCLUDED.failure_detail,
-			attempts = EXCLUDED.attempts, envelope = EXCLUDED.envelope,
-			created_at = now(), replayed_at = NULL`,
-		env.TenantID, env.AppID, job.P.IdempotencyKey, mid,
-		out.FailureClass, out.FailureDetail, out.Attempts, envJSON); err != nil {
-		w.logger.Error("DLQ 적재 실패", "err", err, "idem", job.P.IdempotencyKey)
+	written, err := dlq.Persist(ctx, w.pg, dlq.Entry{TenantID: env.TenantID, AppID: env.AppID, IdempotencyKey: job.P.IdempotencyKey,
+		FailureID: out.FailureID, MessageID: mid, FailureClass: out.FailureClass, FailureDetail: out.FailureDetail, Attempts: out.Attempts, Envelope: envJSON})
+	if err != nil {
+		return err
 	}
+	if written {
+		metrics.ObserveDLQEntry(libqueue.StreamSendMessage, out.FailureClass)
+	}
+	return nil
 }

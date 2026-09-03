@@ -15,11 +15,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/config"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/dlq"
 	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
@@ -27,7 +29,11 @@ func main() {
 	if len(os.Args) < 2 {
 		usage()
 	}
-	cfg, err := config.Load("DATABASE_URL", "REDIS_URL")
+	required := []string{"DATABASE_URL"}
+	if os.Args[1] == "replay" {
+		required = append(required, "REDIS_URL")
+	}
+	cfg, err := config.Load(required...)
 	if err != nil {
 		log.Fatalf("설정 로드: %v", err)
 	}
@@ -37,25 +43,32 @@ func main() {
 		log.Fatalf("PG 연결: %v", err)
 	}
 	defer pg.Close()
-	ropts, err := redis.ParseURL(cfg.RedisURL)
-	if err != nil {
-		log.Fatalf("REDIS_URL 파싱: %v", err)
+	var rdb *redis.Client
+	if os.Args[1] == "replay" {
+		ropts, err := redis.ParseURL(cfg.RedisURL)
+		if err != nil {
+			log.Fatalf("REDIS_URL 파싱: %v", err)
+		}
+		rdb = redis.NewClient(ropts)
+		defer rdb.Close()
 	}
-	rdb := redis.NewClient(ropts)
-	defer rdb.Close()
 
 	switch os.Args[1] {
 	case "list":
 		listDLQ(ctx, pg, os.Args[2:])
 	case "replay":
 		replayDLQ(ctx, pg, rdb, os.Args[2:])
+	case "resolve":
+		if err := resolveDLQ(ctx, pg, os.Args[2:]); err != nil {
+			log.Fatalf("resolve: %v", err)
+		}
 	default:
 		usage()
 	}
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: dlq list [--tenant <uuid>] [--limit N] | dlq replay <idempotency_key> | dlq replay --all [--tenant <uuid>]")
+	fmt.Fprintln(os.Stderr, "usage: dlq list [--tenant <uuid>] [--limit N] | dlq replay <idempotency_key> | dlq replay --all [--tenant <uuid>] | dlq resolve --tenant <uuid> --id <uuid> --created-at <RFC3339> --note <incident-reference> --verified")
 	os.Exit(2)
 }
 
@@ -66,8 +79,8 @@ func listDLQ(ctx context.Context, pg *pgxpool.Pool, args []string) {
 	_ = fs.Parse(args)
 
 	rows, err := pg.Query(ctx, `
-		SELECT tenant_id, app_id, idempotency_key, COALESCE(message_id::text,''),
-		       failure_class, attempts, created_at, replayed_at
+		SELECT id, tenant_id, app_id, idempotency_key, COALESCE(message_id::text,''),
+		       failure_class, attempts, created_at, replayed_at, resolved_at
 		  FROM send_dlq
 		 WHERE ($1 = '' OR tenant_id = $1::uuid)
 		 ORDER BY created_at DESC LIMIT $2`, *tenant, *limit)
@@ -77,17 +90,44 @@ func listDLQ(ctx context.Context, pg *pgxpool.Pool, args []string) {
 	defer rows.Close()
 	n := 0
 	for rows.Next() {
-		var tid, aid, idem, mid, class string
+		var id, tid, aid, idem, mid, class string
 		var attempts int
-		var created, replayed any
-		if err := rows.Scan(&tid, &aid, &idem, &mid, &class, &attempts, &created, &replayed); err != nil {
+		var created time.Time
+		var replayed, resolved any
+		if err := rows.Scan(&id, &tid, &aid, &idem, &mid, &class, &attempts, &created, &replayed, &resolved); err != nil {
 			log.Fatalf("scan: %v", err)
 		}
-		fmt.Printf("tenant=%s app=%s idem=%s msg=%s class=%s attempts=%d created=%v replayed=%v\n",
-			tid, aid, idem, mid, class, attempts, created, replayed)
+		fmt.Printf("id=%s tenant=%s app=%s idem=%s msg=%s class=%s attempts=%d created=%s replayed=%v resolved=%v\n",
+			id, tid, aid, idem, mid, class, attempts, created.UTC().Format(time.RFC3339Nano), replayed, resolved)
 		n++
 	}
 	fmt.Printf("총 %d건\n", n)
+}
+
+func resolveDLQ(ctx context.Context, pg dlq.Execer, args []string) error {
+	fs := flag.NewFlagSet("resolve", flag.ContinueOnError)
+	tenant := fs.String("tenant", "", "대상 tenant UUID")
+	id := fs.String("id", "", "대상 DLQ row UUID")
+	created := fs.String("created-at", "", "조회한 실패 created_at (RFC3339Nano)")
+	note := fs.String("note", "", "검증/승인 근거 (비밀 없는 incident 참조)")
+	verified := fs.Bool("verified", false, "공급자·message_log 결과 또는 승인된 폐기 근거를 확인함")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if !*verified || fs.NArg() != 0 {
+		return fmt.Errorf("--verified 확인 및 정확한 대상 플래그가 필요합니다; 재발행만으로 완료 처리하지 마세요")
+	}
+	observed, err := time.Parse(time.RFC3339Nano, *created)
+	if err != nil {
+		return fmt.Errorf("--created-at RFC3339 timestamp required")
+	}
+	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := dlq.Resolve(queryCtx, pg, *tenant, *id, observed, *note); err != nil {
+		return err
+	}
+	fmt.Println("DLQ 항목 1건에 운영자 확인 완료를 기록했습니다. 실제 발송은 실행하지 않았습니다.")
+	return nil
 }
 
 func replayDLQ(ctx context.Context, pg *pgxpool.Pool, rdb *redis.Client, args []string) {
@@ -98,11 +138,11 @@ func replayDLQ(ctx context.Context, pg *pgxpool.Pool, rdb *redis.Client, args []
 
 	producer := libqueue.NewProducer(rdb, 0)
 
-	sql := `SELECT tenant_id, idempotency_key, envelope FROM send_dlq WHERE idempotency_key = $1`
+	sql := `SELECT tenant_id, idempotency_key, envelope FROM send_dlq WHERE idempotency_key = $1 AND resolved_at IS NULL`
 	sqlArgs := []any{}
 	if *all {
 		sql = `SELECT tenant_id, idempotency_key, envelope FROM send_dlq
-		        WHERE replayed_at IS NULL AND ($1 = '' OR tenant_id = $1::uuid)`
+		        WHERE replayed_at IS NULL AND resolved_at IS NULL AND ($1 = '' OR tenant_id = $1::uuid)`
 		sqlArgs = []any{*tenant}
 	} else {
 		if fs.NArg() < 1 {

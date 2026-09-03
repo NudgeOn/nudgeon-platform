@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-03",
+  "scope": "P0-2 local durable DLQ monitoring; synthetic data; no provider delivery or production rollout",
+  "source_sha256": {
+    "apps/worker/cmd/dlq/main.go": "71da8578ab02561b27e210f44fcff7cc4111f13be214b1e54e7ec2e56f978fa4",
+    "apps/worker/cmd/dlq/main_test.go": "69a5c47b74620d137b85d49d64326559400e76dd43d082066fd5b79402c3f5a7",
+    "apps/worker/cmd/worker/main.go": "1a05e6088c75973f0c66e27a7921cb0ff701cc9178cfaf92218290f265020501",
+    "apps/worker/cmd/worker/dlq_monitor.go": "982647a396aa67f168c5109c7d45059564f93b797ee229002c59b31091524c2f",
+    "apps/worker/internal/channel/worker.go": "5734356bffc2275e3eb9e95d057dd6e0facecd44b80d2f96dd357d677a6b048b",
+    "apps/worker/internal/message/worker.go": "40ddfc277de3ad483121cb4d6639ea4d45b989613bef3bfa3bdbb7e8ff8f119b",
+    "apps/worker/internal/dlq/store.go": "96438b06ef1084fb3f955b36c8a52fdb1f55d46ee19f0a87b82261a148f3710e",
+    "apps/worker/internal/dlq/store_test.go": "aeb6c24924536ca03097eeba8550b71d5baf7bfc4db8a8e3916318456fa2bae9",
+    "apps/worker/internal/metrics/metrics.go": "7ab69739a185e6ec35b8f1521c22670fb9f27ec6af620a0736f88569df0af0c2",
+    "apps/worker/internal/metrics/dlq.go": "70c8a9e082593bffbacaab77755ef2030b98acec9b32dcbdfd00e5c2f8367d4f",
+    "apps/worker/internal/metrics/dlq_test.go": "a668cfa776c6f5ffe39587202ba3a733cb336c6ed18764e83c75eee2690ebd66",
+    "db/postgres/schema.sql": "8138a5ee599ef18d0046524d38b59be482ff263ffdd8c8808bb800e7f24a6b44",
+    "db/postgres/upgrades/0005_dlq_resolution.sql": "da9f3d2a955add0e22b32e73268b647f77df1d50e71efccc71e1d9b5f73232d6",
+    "deploy/compose.yaml": "6e8dad820025dbf7132952b76776aea131588e795fe386e2cc26ca84846ae5c7",
+    "deploy/observability/alerts.yml": "aed8b5d3e3f3b4663262ffc24d9c01fd3edd1e5109de379daa0d9964f2b80359",
+    "deploy/observability/alerts.test.yml": "463883d7ef08b272b3357bb74b05a9810bce72663d7ef5ed050a79ed45c3a033",
+    "deploy/observability/prometheus.example.yml": "f3a23615e32593868e74952ba30e2ff0db7a94be52a852d0b6fe977ecaf078b9",
+    "tests/ops/dlq/run.mjs": "78803e2628b8f0abe33be94174acf92980c64117090a8b52fd2d00d89a4cecb7",
+    "tests/ops/dlq/gateway.mjs": "4724ca6274ea1b57b86edee9e979e1930cfd0e6f7aba4b511ce9a1d06a9072db",
+    "tests/ops/dlq/compose.yaml": "f94150204ba57ddd3f9bc101cdc47ee9e3256d8de96511cc656f9bc3c9fbb114",
+    "tests/ops/dlq/prometheus.yml": "24095b1aa0e52962870cd5629038b32d636a7bcc7b4c8c39ec01008b0fe2c5b1",
+    "tests/ops/dlq/alertmanager.yml": "ee81d6abec2448ef45c8d391feb40f5a4e17f3233b85ec65dc6d663e8b5fa66e",
+    "tests/ops/dlq/fixtures.sql": "3f810eeb537e7948fe06b73e49553ec6c10145501aff40975bc0fe907df472f9"
+  },
+  "base_commit": "0f4f28141af0e7d3544c548a69bf3b784e5cfc0b",
+  "branch": "chore/rename-nudgeon",
+  "go": "go version go1.26.1 darwin/arm64",
+  "node": "v24.12.0",
+  "final_run": {
+    "project": "nudgeon-dlq-qa-7266ba3f",
+    "evidence_directory": ".nudgeon/nudgeon-dlq-qa-7266ba3f",
+    "started_at": "2026-09-03T04:03:21.276Z",
+    "finished_at": "2026-09-03T04:10:14.665Z",
+    "pass": true,
+    "steps": {
+      "postgresStateAndUpgrade": "pass",
+      "firstWebhookMilliseconds": 13633,
+      "replayDoesNotResolve": "pass",
+      "restartBacklog": "pass",
+      "databaseFailureKeepsLastBacklog": "pass",
+      "monitorDown": "pass",
+      "unresolvedAfter330Seconds": "pass",
+      "verifiedResolution": "pass"
+    },
+    "worker_binary_sha256": "9a4cf28deec3ae97b6ed5cf8fe5b036365f35dcff3e2d93206901302a2eb6ee1",
+    "dlq_cli_binary_sha256": "dcfed2c1ba84badfaaeb658d185524bcb6499f6758d1bb34aaeeed8cd8302461",
+    "pre_existing_running_containers": 19,
+    "pre_existing_running_set_preserved": true,
+    "test_containers": [
+      {
+        "service": "alertmanager",
+        "state": "exited",
+        "exit_code": 0,
+        "image": "prom/alertmanager:v0.28.1",
+        "image_id": "sha256:27c475db5fb156cab31d5c18a4251ac7ed567746a2483ff264516437a39b15ba"
+      },
+      {
+        "service": "gateway",
+        "state": "exited",
+        "exit_code": 0,
+        "image": "nudgeon-api:latest",
+        "image_id": "sha256:e7c7657734d9e4a039c688d51decb704af69396d1feb00e288c889922f8b5b1d"
+      },
+      {
+        "service": "monitor",
+        "state": "exited",
+        "exit_code": 0,
+        "image": "nudgeon-worker:latest",
+        "image_id": "sha256:a114f9a6212cb73117433e01fa7ccfe029a8d4d2f8ad51adc1eab1e350cc02cd"
+      },
+      {
+        "service": "postgres",
+        "state": "exited",
+        "exit_code": 0,
+        "image": "postgres:16",
+        "image_id": "sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94"
+      },
+      {
+        "service": "prometheus",
+        "state": "exited",
+        "exit_code": 0,
+        "image": "prom/prometheus:v3.5.0",
+        "image_id": "sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996"
+      }
+    ],
+    "webhook_events": [
+      {
+        "received_at": "2026-09-03T04:03:43.576Z",
+        "alert": "NudgeOnDLQEntries",
+        "status": "firing"
+      },
+      {
+        "received_at": "2026-09-03T04:04:08.598Z",
+        "alert": "NudgeOnDLQCollectorFailure",
+        "status": "firing"
+      },
+      {
+        "received_at": "2026-09-03T04:04:23.601Z",
+        "alert": "NudgeOnDLQCollectorFailure",
+        "status": "resolved"
+      },
+      {
+        "received_at": "2026-09-03T04:04:28.595Z",
+        "alert": "NudgeOnDLQMonitorDown",
+        "status": "firing"
+      },
+      {
+        "received_at": "2026-09-03T04:04:43.602Z",
+        "alert": "NudgeOnDLQMonitorDown",
+        "status": "resolved"
+      },
+      {
+        "received_at": "2026-09-03T04:10:13.841Z",
+        "alert": "NudgeOnDLQEntries",
+        "status": "resolved"
+      }
+    ],
+    "artifact_sha256": {
+      ".nudgeon/nudgeon-dlq-qa-7266ba3f/result.json": "c366b0f284d45ee740afa53ccec035f268340b8ab9873cb06eae942c4459940e",
+      ".nudgeon/nudgeon-dlq-qa-7266ba3f/notifications.json": "38aff9eaeec42e063e71e34cfe88b4df562b48568c15565db3d6fe779565e02a",
+      ".nudgeon/nudgeon-dlq-qa-7266ba3f/postgres-integration.log": "a7a9dd88057d1465056fe67c0e8a91d812c84eee5892a895e2f60491d98e2e13",
+      ".nudgeon/nudgeon-dlq-qa-7266ba3f/containers.log": "27c4820727e9238241f9835c0d14bc99bd9d7e70724aa290befff5a357bd2a01"
+    }
+  },
+  "initial_attempt": {
+    "project": "nudgeon-dlq-qa-3013d84e",
+    "alert_flow_pass": true,
+    "first_webhook_ms": 13571,
+    "unresolved_observation_seconds": 330,
+    "clean_shutdown_pass": false,
+    "gateway_exit_code": 137,
+    "gateway_oom_killed": false,
+    "raw_runner_pass_not_sufficient": true,
+    "fix": "Explicit gateway SIGTERM/socket shutdown and exit-code assertions; full test rerun in a fresh project."
+  },
+  "checks": {
+    "race_test_command": "go test -race ./apps/worker/internal/channel ./apps/worker/internal/message ./apps/worker/internal/metrics ./apps/worker/internal/dlq ./apps/worker/cmd/dlq ./apps/worker/cmd/worker ./apps/worker/cmd/migrate",
+    "race_package_command_pass": true,
+    "postgres_test_without_database": "skips; final runner supplies real isolated PG and requires PASS, not SKIP",
+    "postgres_integration_no_skip_pass": true,
+    "metrics_cache_only_scrape_test_pass": true,
+    "promtool_rule_count": 5,
+    "promtool_scenarios": 9,
+    "promtool_pass": true,
+    "go_vet_pass": true,
+    "node_syntax_pass": true,
+    "compose_validation_pass": true,
+    "recompiled_binaries_byte_identical": true,
+    "observed_monitor_db_connections": 1,
+    "partial_index_verified": true
+  },
+  "remaining": [
+    "DLQ writer failure can still reach terminal/ACK paths: P0-2b; code inspection, not a failed-insert recovery test.",
+    "Legacy replay is push-only, single-key selection is not tenant scoped, and --all has no batch limit.",
+    "Long observer outage can end Entries after the 1m hold; separate observer alerts and a fresh zero DB snapshot are required for closure.",
+    "Provider/device receipt, production alert receivers, managed DB/PITR, 24-hour soak and sustained TPS remain unverified.",
+    "API application graceful shutdown (P0-3) is unchanged; the gateway fix is test-harness-only."
+  ]
+}

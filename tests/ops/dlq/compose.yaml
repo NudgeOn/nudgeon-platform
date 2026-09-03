@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16
+    mem_limit: 256m
+    cpus: 1
+    environment:
+      POSTGRES_USER: nudgeon
+      POSTGRES_PASSWORD: local-dlq-test-only
+      POSTGRES_DB: nudgeon
+    volumes:
+      - pg:/var/lib/postgresql/data
+      - ../../../db/postgres/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./fixtures.sql:/docker-entrypoint-initdb.d/02-fixtures.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U nudgeon -d nudgeon"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  monitor:
+    image: nudgeon-worker:latest
+    entrypoint: [/qa/nudgeon-worker]
+    command: [--role=dlq-monitor]
+    mem_limit: 96m
+    cpus: 1
+    read_only: true
+    volumes: ["${DLQ_WORKER_BIN:?compiled linux worker required}:/qa/nudgeon-worker:ro"]
+    environment:
+      DATABASE_URL: postgres://dlq_observer:local-dlq-observer-only@postgres:5432/nudgeon
+  resolver:
+    image: nudgeon-worker:latest
+    entrypoint: [/qa/nudgeon-dlq]
+    mem_limit: 96m
+    read_only: true
+    volumes: ["${DLQ_CLI_BIN:?compiled linux dlq required}:/qa/nudgeon-dlq:ro"]
+    environment:
+      DATABASE_URL: postgres://nudgeon:local-dlq-test-only@postgres:5432/nudgeon
+    profiles: [tools]
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.retention.time=1h]
+    mem_limit: 128m
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../../../deploy/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    command: [--config.file=/etc/alertmanager/alertmanager.yml]
+    mem_limit: 64m
+    volumes: ["./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro"]
+  gateway:
+    image: nudgeon-api:latest
+    entrypoint: [node, /gateway.mjs]
+    mem_limit: 96m
+    networks: [default, host-access]
+    volumes: ["./gateway.mjs:/gateway.mjs:ro"]
+    ports:
+      - "127.0.0.1:19294:9194"
+      - "127.0.0.1:19295:5432"
+networks:
+  default: {internal: true}
+  host-access: {}
+volumes:
+  pg: {}

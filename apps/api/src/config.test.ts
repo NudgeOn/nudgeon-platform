@@ -20,6 +20,12 @@ function secret(value: string): string {
 }
 
 describe("loadConfig *_FILE support", () => {
+  it("keeps usage coalescing opt-in with an explicit false rollback", () => {
+    const env = { DATABASE_URL: "postgres://fixture", REDIS_URL: "redis://fixture", CLICKHOUSE_URL: "http://fixture" };
+    expect(loadConfig(env).apiKeyUsageCoalesceEnabled).toBe(false);
+    expect(loadConfig({ ...env, API_KEY_USAGE_COALESCE_ENABLED: "true" }).apiKeyUsageCoalesceEnabled).toBe(true);
+    expect(loadConfig({ ...env, API_KEY_USAGE_COALESCE_ENABLED: "false" }).apiKeyUsageCoalesceEnabled).toBe(false);
+  });
   it("loads required connection settings from secret files", () => {
     const config = loadConfig({
       DATABASE_URL_FILE: secret("postgres://nudgeon:secret@postgres:5432/nudgeon"),

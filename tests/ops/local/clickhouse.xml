@@ -1,0 +1,10 @@
+<clickhouse>
+  <max_server_memory_usage>1073741824</max_server_memory_usage>
+  <mark_cache_size>67108864</mark_cache_size>
+  <uncompressed_cache_size>16777216</uncompressed_cache_size>
+  <logger><level>warning</level></logger>
+  <storage_configuration>
+    <disks><backups><type>local</type><path>/backups/</path></backups></disks>
+  </storage_configuration>
+  <backups><allowed_disk>backups</allowed_disk></backups>
+</clickhouse>

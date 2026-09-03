@@ -19,6 +19,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 type receiptTestCH struct {
@@ -143,11 +145,15 @@ func (f *receiptFixture) rows(t *testing.T, r *receipt) *chRows {
 
 func TestReceiptProjectionCommitAndReplay(t *testing.T) {
 	f := newReceiptFixture(t)
+	before := testutil.ToFloat64(metrics.ProjectionCommitted)
 	ctx := context.Background()
 	r := f.receipt(t, "purchase", f.clk.Now())
 	f.ch.failEvents = true
 	if err := f.c.flushAndProject(ctx, f.rows(t, r)); err == nil {
 		t.Fatal("injected CH failure must fail projection")
+	}
+	if testutil.ToFloat64(metrics.ProjectionCommitted) != before {
+		t.Fatal("failed CH write counted as projection")
 	}
 	pending, err := loadReceipt(ctx, f.c.pg, f.tenantID, f.appID, r.insertID)
 	if err != nil || pending.projectedAt != nil {
@@ -185,6 +191,12 @@ func TestReceiptProjectionCommitAndReplay(t *testing.T) {
 	if len(f.ch.events) != 1 {
 		t.Fatalf("replay projected again: %d", len(f.ch.events))
 	}
+	if testutil.ToFloat64(metrics.ProjectionCommitted) != before+1 {
+		t.Fatal("replay inflated committed projections")
+	}
+	if testutil.ToFloat64(metrics.IngestProcessed.WithLabelValues(f.tenantID)) != 1 {
+		t.Fatal("legacy processed metric counted failed or replayed work")
+	}
 	if err := f.c.pg.QueryRow(ctx, `SELECT count(*) FROM journey_outbox WHERE tenant_id = $1 AND app_id = $2`, f.tenantID, f.appID).Scan(&count); err != nil || count != 1 {
 		t.Fatalf("duplicate normalized job: %d %v", count, err)
 	}
@@ -215,12 +227,16 @@ func TestReceiptRepairRetainsFirstReceipt(t *testing.T) {
 
 func TestReceiptCrashAfterCHBeforePGCommitIsRetryable(t *testing.T) {
 	f := newReceiptFixture(t)
+	before := testutil.ToFloat64(metrics.ProjectionCommitted)
 	r := f.receipt(t, "purchase", f.clk.Now())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	f.ch.afterSend = cancel
 	if err := f.c.flushAndProject(ctx, f.rows(t, r)); err == nil {
 		t.Fatal("canceled projection must not commit PG readiness")
+	}
+	if testutil.ToFloat64(metrics.ProjectionCommitted) != before {
+		t.Fatal("CH acknowledgement without PG commit inflated projection count")
 	}
 	ready, err := loadReceipt(context.Background(), f.c.pg, f.tenantID, f.appID, r.insertID)
 	if err != nil || ready.projectedAt != nil {
@@ -229,6 +245,9 @@ func TestReceiptCrashAfterCHBeforePGCommitIsRetryable(t *testing.T) {
 	f.ch.afterSend = nil
 	if err := f.c.flushAndProject(context.Background(), f.rows(t, r)); err != nil {
 		t.Fatal(err)
+	}
+	if testutil.ToFloat64(metrics.ProjectionCommitted) != before+1 {
+		t.Fatal("recovery did not count exactly one projection")
 	}
 	var jobs int
 	if err := f.c.pg.QueryRow(context.Background(), `SELECT count(*) FROM journey_outbox

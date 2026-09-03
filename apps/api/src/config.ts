@@ -14,6 +14,8 @@ export interface AppConfig {
   readinessTimeoutMs: number;
   /** Enable only after every worker understands graph schema v2. */
   journeyGraphV2Enabled: boolean;
+  /** Opt-in coarse last_used_at writes; never caches authorization decisions. */
+  apiKeyUsageCoalesceEnabled?: boolean;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -52,6 +54,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     corsOrigin: env.CORS_ORIGIN ?? "http://localhost:3000",
     readinessTimeoutMs: positiveNumber(env.READINESS_TIMEOUT_MS, 3_000),
     journeyGraphV2Enabled: env.JOURNEY_GRAPH_V2_ENABLED === "true",
+    apiKeyUsageCoalesceEnabled: env.API_KEY_USAGE_COALESCE_ENABLED === "true",
   };
 }
 

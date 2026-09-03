@@ -17,6 +17,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/dlq"
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/metrics"
 	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
@@ -68,6 +69,7 @@ type Worker struct {
 	queue     *libqueue.Consumer
 	rdb       redis.Cmdable
 	pg        *pgxpool.Pool
+	dlqStore  dlq.Execer // Optional narrow dependency; defaults to pg.
 	ch        driver.Conn
 	plugin    ChannelPlugin
 	masterKey []byte
@@ -127,26 +129,9 @@ func (w *Worker) Run(ctx context.Context) error {
 			continue
 		}
 
-		logRows := make([][]any, 0, len(msgs))
-		ackIDs := make([]string, 0, len(msgs))
-		for _, m := range msgs {
-			row, retry := w.handleOne(ctx, &m)
-			if row != nil {
-				logRows = append(logRows, row)
-			}
-			// retryable(일시 실패)은 ACK하지 않는다 → pending으로 남아 reclaim(≈30s)이
-			// 재전달 → 자연 백오프 재시도. 종결(전송/영구실패/중복/소진)만 ACK.
-			if !retry {
-				ackIDs = append(ackIDs, m.StreamID)
-			}
-		}
-		if err := w.flushLog(ctx, logRows); err != nil {
-			w.logger.Error("message_log 적재 실패 — 재시도", "err", err)
+		if err := processSendBatch(ctx, msgs, w.handleOne, w.flushLog, w.queue.Ack); err != nil {
+			w.logger.Error("발송 배치 완료 실패 — 재시도", "err", err)
 			time.Sleep(time.Second)
-			continue // ack 없이 재처리 (멱등 커밋이 실전송 중복을 막는다)
-		}
-		if err := w.queue.Ack(ctx, ackIDs...); err != nil {
-			w.logger.Error("ack 실패", "err", err)
 		}
 	}
 }
@@ -179,6 +164,29 @@ func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) ([]any, boo
 	idemKey := fmt.Sprintf("send:idem:%s:%s", env.TenantID, p.IdempotencyKey)
 	attemptsKey := fmt.Sprintf("send:attempts:%s:%s", env.TenantID, p.IdempotencyKey)
 	retryAtKey := fmt.Sprintf("send:retryat:%s:%s", env.TenantID, p.IdempotencyKey)
+	lease := statusProcessing + "|" + uuid.NewString()
+	resumeDLQ := func(raw string) ([]any, bool) {
+		record, err := finishDLQ(ctx, w.rdb, idemKey, attemptsKey, retryAtKey, raw, func(record pendingDLQ) error {
+			return w.toDLQ(ctx, env, &p, record)
+		})
+		if err != nil {
+			w.logger.Error("DLQ 저장/완료 실패 — pending 유지", "err", err, "idem", p.IdempotencyKey)
+			return nil, true
+		}
+		messageID = record.MessageID
+		now = record.At
+		metrics.ChannelSends.WithLabelValues("failed").Inc()
+		return base("failed", record.Class+"_exhausted", record.Detail), false
+	}
+	startDLQ := func(class, detail string, attempts int) ([]any, bool) {
+		raw, err := beginDLQ(ctx, w.rdb, idemKey, lease, pendingDLQ{MessageID: messageID, Class: class,
+			Detail: detail, Attempts: attempts, At: now})
+		if err != nil {
+			w.logger.Error("DLQ 대기 상태 기록 실패 — pending 유지", "err", err)
+			return nil, true
+		}
+		return resumeDLQ(raw)
+	}
 
 	// commitFailed — 영구 실패 종결(상태에 사유 기록, 재전송 차단).
 	commitFailed := func(class string) {
@@ -191,12 +199,11 @@ func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) ([]any, boo
 		if err == nil {
 			w.rdb.Expire(ctx, attemptsKey, idemCommitTTL)
 		}
-		if err != nil || n >= maxSendAttempts {
-			w.toDLQ(ctx, env, &p, messageID, class, detail, int(n))
-			w.rdb.Set(ctx, idemKey, statusFailed+"|"+class+"_exhausted", idemCommitTTL)
-			w.rdb.Del(ctx, attemptsKey, retryAtKey)
-			metrics.ChannelSends.WithLabelValues("failed").Inc()
-			return base("failed", class+"_exhausted", detail), false
+		if err != nil {
+			return nil, true // Unknown attempt count is not proof of exhaustion.
+		}
+		if n >= maxSendAttempts {
+			return startDLQ(class, detail, int(n))
 		}
 		delay := retryAfter // 429 Retry-After 우선
 		if delay <= 0 {
@@ -213,25 +220,38 @@ func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) ([]any, boo
 	}
 
 	// 1) 멱등 선점 (processing 리스). 실패=이미 종결됐거나 처리 중.
-	acquired, err := w.rdb.SetNX(ctx, idemKey, statusProcessing, idemLeaseTTL).Result()
+	acquired, err := w.rdb.SetNX(ctx, idemKey, lease, idemLeaseTTL).Result()
 	if err != nil {
 		w.logger.Error("멱등 선점 실패", "err", err)
 		return nil, true
 	}
 	if !acquired {
 		// 상태를 읽어 전송 결과를 보존한다: sent였다면 CH 로그 flush 실패 후 재전달에도 sent 재기록(중복 전송 없음).
-		val, _ := w.rdb.Get(ctx, idemKey).Result()
+		val, err := w.rdb.Get(ctx, idemKey).Result()
+		if err != nil {
+			return nil, true
+		}
 		switch {
+		case strings.HasPrefix(val, statusDLQPending):
+			return resumeDLQ(val)
 		case strings.HasPrefix(val, statusSent+"|"):
 			providerID := strings.TrimPrefix(val, statusSent+"|")
 			metrics.ChannelSends.WithLabelValues("duplicate").Inc()
 			return sentRow(providerID, "provider_id="+providerID), false
 		case strings.HasPrefix(val, statusFailed+"|"):
 			return base("failed", strings.TrimPrefix(val, statusFailed+"|"), ""), false
-		default: // processing — 처리 중이거나 크래시 리스(만료 후 reclaim이 재획득). 이번 전달은 중복.
-			metrics.ChannelSends.WithLabelValues("duplicate").Inc()
-			return base("duplicate", "", ""), false
+		default: // A live/legacy lease or unknown state is NOT a terminal result.
+			return nil, true
 		}
+	}
+	// If writing the pending marker failed after the final INCR, do not send
+	// again once the lease expires. Original detail may be unavailable here.
+	priorAttempts, err := w.rdb.Get(ctx, attemptsKey).Int64()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return nil, true
+	}
+	if priorAttempts >= maxSendAttempts {
+		return startDLQ("retryable", "retry budget already exhausted; prior failure detail unavailable", int(priorAttempts))
 	}
 
 	// 2) 크리덴셜 해석 (verified만, 10분 캐시)
@@ -321,26 +341,31 @@ func backoff(attempt int) time.Duration {
 }
 
 // toDLQ는 재시도 소진된 발송을 send_dlq에 적재한다(원본 envelope 포함 → cmd/dlq로 replay 가능).
-func (w *Worker) toDLQ(ctx context.Context, env *libqueue.Envelope, p *SendPushPayload, messageID, class, detail string, attempts int) {
-	if w.pg == nil {
-		return // 단위 테스트 등 pg 미주입 시 스킵
+func (w *Worker) toDLQ(ctx context.Context, env *libqueue.Envelope, p *SendPushPayload, record pendingDLQ) error {
+	store := w.dlqStore
+	if store == nil && w.pg != nil {
+		store = w.pg
 	}
-	envJSON, _ := json.Marshal(env)
+	if store == nil {
+		return errors.New("DLQ database is not configured")
+	}
+	envJSON, err := json.Marshal(env)
+	if err != nil {
+		return fmt.Errorf("DLQ envelope encoding failed: %w", err)
+	}
 	var mid any
-	if messageID != "" {
-		mid = messageID
+	if record.MessageID != "" {
+		mid = record.MessageID
 	}
-	if _, err := w.pg.Exec(ctx, `
-		INSERT INTO send_dlq (tenant_id, app_id, idempotency_key, message_id,
-			failure_class, failure_detail, attempts, envelope)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (tenant_id, idempotency_key) DO UPDATE SET
-			failure_class = EXCLUDED.failure_class, failure_detail = EXCLUDED.failure_detail,
-			attempts = EXCLUDED.attempts, envelope = EXCLUDED.envelope,
-			created_at = now(), replayed_at = NULL`,
-		env.TenantID, env.AppID, p.IdempotencyKey, mid, class, detail, attempts, envJSON); err != nil {
-		w.logger.Error("DLQ 적재 실패", "err", err, "idem", p.IdempotencyKey)
+	written, err := dlq.Persist(ctx, store, dlq.Entry{TenantID: env.TenantID, AppID: env.AppID, IdempotencyKey: p.IdempotencyKey,
+		FailureID: record.FailureID, MessageID: mid, FailureClass: record.Class, FailureDetail: record.Detail, Attempts: record.Attempts, Envelope: envJSON})
+	if err != nil {
+		return err
 	}
+	if written {
+		metrics.ObserveDLQEntry(libqueue.StreamSendPush, record.Class)
+	}
+	return nil
 }
 
 func (w *Worker) credential(ctx context.Context, appID, kind string) (Credentials, bool, error) {

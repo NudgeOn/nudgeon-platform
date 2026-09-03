@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16
+    mem_limit: 256m
+    cpus: 1
+    environment: {POSTGRES_USER: nudgeon, POSTGRES_PASSWORD: local-ops-only, POSTGRES_DB: nudgeon}
+    volumes:
+      - pg:/var/lib/postgresql/data
+      - ../../../db/postgres/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./fixtures.sql:/docker-entrypoint-initdb.d/02-fixtures.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U nudgeon -d nudgeon"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  redis:
+    # users.acl is synthetic QA only; its passwordless admin is not deployable.
+    image: redis:7
+    mem_limit: 96m
+    cpus: 1
+    command: [redis-server, --appendonly, "yes", --maxmemory, 64mb, --maxmemory-policy, noeviction, --aclfile, /qa/users.acl]
+    volumes: ["redis:/data", "./users.acl:/qa/users.acl:ro"]
+    healthcheck:
+      test: [CMD, redis-cli, PING]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  monitor:
+    image: ${OPS_QA_IMAGE:?unique local worker image required}
+    command: [--role=ops-monitor]
+    mem_limit: 96m
+    cpus: 1
+    read_only: true
+    environment:
+      DATABASE_URL: postgres://ops_observer:local-observer-only@postgres:5432/nudgeon
+      REDIS_URL: redis://ops_observer:local-observer-only@redis:6379/0
+      GOMEMLIMIT: 64MiB
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.retention.time=1h]
+    mem_limit: 128m
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../../../deploy/observability/ops-alerts.yml:/etc/prometheus/ops-alerts.yml:ro
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    command: [--config.file=/etc/alertmanager/alertmanager.yml]
+    mem_limit: 64m
+    volumes: ["../dlq/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro"]
+  gateway:
+    image: nudgeon-api:latest
+    entrypoint: [node, /gateway.mjs]
+    mem_limit: 64m
+    read_only: true
+    networks: [default, host-access]
+    volumes: ["../dlq/gateway.mjs:/gateway.mjs:ro"]
+    ports: ["127.0.0.1:19494:9194"]
+networks:
+  default: {internal: true}
+  host-access: {}
+volumes:
+  pg: {}
+  redis: {}

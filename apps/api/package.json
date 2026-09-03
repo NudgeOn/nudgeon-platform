@@ -23,6 +23,7 @@
     "@nudgeon/journey-model": "workspace:*",
     "@nudgeon/queue-schemas": "workspace:*",
     "@nudgeon/segment-dsl": "workspace:*",
+    "@prometheus-io/client": "0.16.1",
     "argon2": "^0.41.0",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",

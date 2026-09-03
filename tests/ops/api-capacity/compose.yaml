@@ -1,0 +1,8 @@
+# Merge over ../projection/compose.yaml. No existing stack or provider access.
+services:
+  postgres:
+    command: [postgres, -c, shared_preload_libraries=pg_stat_statements, -c, track_io_timing=on, -c, track_wal_io_timing=on]
+  api:
+    environment:
+      DATABASE_URL: postgres://nudgeon:local-projection-only@postgres:5432/nudgeon?statement_timeout=3000&application_name=api-capacity
+      API_KEY_USAGE_COALESCE_ENABLED: ${API_KEY_USAGE_COALESCE_ENABLED:-false}

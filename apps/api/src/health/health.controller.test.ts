@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "../config";
 import { encryptEnvelope } from "../crypto/envelope";
 import { HealthController } from "./health.controller";
+import { ShutdownState } from "../infra/shutdown-state";
 
 interface Mocks {
   pg: { query: ReturnType<typeof vi.fn> };
@@ -43,12 +44,13 @@ function readyMocks(): Mocks {
   };
 }
 
-function controller(mocks: Mocks, timeoutMs = 100): HealthController {
+function controller(mocks: Mocks, timeoutMs = 100, shutdown = new ShutdownState()): HealthController {
   return new HealthController(
     mocks.pg as unknown as Pool,
     mocks.redis as unknown as Redis,
     mocks.clickhouse as unknown as ClickHouseClient,
     { readinessTimeoutMs: timeoutMs } as AppConfig,
+    shutdown,
   );
 }
 
@@ -65,6 +67,20 @@ async function failedReadiness(subject: HealthController): Promise<Record<string
 }
 
 describe("HealthController", () => {
+  it("rejects readiness without touching dependencies once draining", async () => {
+    const mocks = readyMocks(), shutdown = new ShutdownState();
+    shutdown.beginDrain();
+    expect(await failedReadiness(controller(mocks, 100, shutdown))).toEqual({ ok: false, code: "shutting_down" });
+    expect(mocks.pg.query).not.toHaveBeenCalled();
+    expect(mocks.redis.ping).not.toHaveBeenCalled();
+    expect(mocks.clickhouse.ping).not.toHaveBeenCalled();
+  });
+
+  it("does not return ready if shutdown begins during its probes", async () => {
+    const mocks = readyMocks(), shutdown = new ShutdownState();
+    mocks.redis.ping.mockImplementation(async () => { shutdown.beginDrain(); return "PONG"; });
+    expect(await failedReadiness(controller(mocks, 100, shutdown))).toEqual({ ok: false, code: "shutting_down" });
+  });
   beforeEach(() => {
     vi.stubEnv("NUDGEON_MASTER_KEY", randomBytes(32).toString("base64"));
     vi.stubEnv("KMS_MASTER_KEY_FILE", "");

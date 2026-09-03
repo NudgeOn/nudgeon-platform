@@ -1,0 +1,164 @@
+{
+  "status": "local-p0-4a-passed",
+  "project": "nudgeon-ops-qa-0bbd15a2",
+  "startedAt": "2026-09-03T08:47:55.572Z",
+  "finishedAt": "2026-09-03T08:50:46.675Z",
+  "steps": {
+    "goTests": {
+      "passed": 156,
+      "skipped": [
+        "TestDLQStoragePostgresRedis",
+        "TestMessageDLQDatabaseErrors"
+      ],
+      "packagesPassed": 5
+    },
+    "pendingWithPGZeroWebhookMs": 12536,
+    "initialCounts": {
+      "projection": 2,
+      "matching": 3,
+      "outbox": 2,
+      "pushPending": 1,
+      "messagePending": 1,
+      "pgDLQ": 0
+    },
+    "pgHealthyConnections": 1,
+    "restartAndReadOnlyMarker": "pass",
+    "readOnlyCredentials": "pass",
+    "pgQueryTimeoutSeconds": 2.000747043,
+    "pgConnections": 0,
+    "pgFailureRetainsDataAndRecovers": "pass",
+    "redisReadFailureAndMalformedMarker": "pass",
+    "largeScanUnknownNotZero": "pass",
+    "monitorDownWebhook": "pass",
+    "pendingAlertSurvivesBriefOutage": "pass",
+    "fixtureClearResolved": "pass"
+  },
+  "build": {
+    "revision": "0f4f28141af0e7d3544c548a69bf3b784e5cfc0b",
+    "dirty": true,
+    "sourceFiles": 147,
+    "sourceSHA256": "b3c3ead8fbb83b134843662a889909a6a27b51cefc355c452f7ef812a1d407a9",
+    "binarySHA256": "aa9156337684301b5001321ff97691cf6cbadf0f0aeaa2200ff5b4060670a900",
+    "localImage": "nudgeon-ops-qa-0bbd15a2:local",
+    "localImageID": "sha256:5e8951cc7415f1326d1dfa967315667fe1fdc9efc3e67cdf70eb0c7d9298a3ec",
+    "goVersion": "go version go1.26.1 darwin/arm64",
+    "registryPublished": false,
+    "apiImageRebuilt": false,
+    "scope": "worker-only local QA image",
+    "localRepoDigests": [
+      "nudgeon-ops-qa-0bbd15a2@sha256:5e8951cc7415f1326d1dfa967315667fe1fdc9efc3e67cdf70eb0c7d9298a3ec"
+    ]
+  },
+  "storageRegression": {
+    "project": "nudgeon-dlq-storage-842b129b",
+    "pass": true,
+    "startedAt": "2026-09-03T08:51:05.667Z",
+    "finishedAt": "2026-09-03T08:51:23.168Z",
+    "integrationLogSha256": "5138e02032254d3ffd78a09b9b9f0348855e4f767b9f8dbb77759d2b85cb2b05",
+    "topLevelTestsPassed": 4,
+    "faultCasesPassed": 4,
+    "skipped": 0,
+    "provider": "synthetic; no actual send"
+  },
+  "verification": {
+    "alertRuleScenariosPassed": 17,
+    "goVet": "pass",
+    "goBuild": "pass",
+    "goModuleTests": "pass; environment-dependent integrations skip by default",
+    "repositoryRules": "pass",
+    "ciWorkflowExecuted": false,
+    "currentGoSourceMatchesImage": true
+  },
+  "preservation": {
+    "existingRunningContainers": 19,
+    "opsContainers": [
+      {
+        "name": "nudgeon-ops-qa-0bbd15a2-alertmanager-1",
+        "exitCode": 0,
+        "state": "exited"
+      },
+      {
+        "name": "nudgeon-ops-qa-0bbd15a2-gateway-1",
+        "exitCode": 0,
+        "state": "exited"
+      },
+      {
+        "name": "nudgeon-ops-qa-0bbd15a2-monitor-1",
+        "exitCode": 0,
+        "state": "exited"
+      },
+      {
+        "name": "nudgeon-ops-qa-0bbd15a2-postgres-1",
+        "exitCode": 0,
+        "state": "exited"
+      },
+      {
+        "name": "nudgeon-ops-qa-0bbd15a2-prometheus-1",
+        "exitCode": 0,
+        "state": "exited"
+      },
+      {
+        "name": "nudgeon-ops-qa-0bbd15a2-redis-1",
+        "exitCode": 0,
+        "state": "exited"
+      }
+    ],
+    "storageContainers": [
+      {
+        "name": "nudgeon-dlq-storage-842b129b-gateway-1",
+        "exitCode": 0,
+        "state": "exited"
+      },
+      {
+        "name": "nudgeon-dlq-storage-842b129b-postgres-1",
+        "exitCode": 0,
+        "state": "exited"
+      },
+      {
+        "name": "nudgeon-dlq-storage-842b129b-redis-1",
+        "exitCode": 0,
+        "state": "exited"
+      }
+    ],
+    "opsNetworksReleased": [
+      "nudgeon-ops-qa-0bbd15a2_default",
+      "nudgeon-ops-qa-0bbd15a2_host-access"
+    ],
+    "volumesAndEvidenceRetained": true,
+    "storageNetworksReleased": [
+      "nudgeon-dlq-storage-842b129b_default",
+      "nudgeon-dlq-storage-842b129b_host-access"
+    ]
+  },
+  "boundaries": [
+    "No TPS/EPS qualification",
+    "No actual provider/device delivery",
+    "No production rollout",
+    "No backup/restore or 24h soak",
+    "Redis pending observer is a bounded non-atomic scan for small installations, not a G2/G3 index",
+    "API SQL/CH latency and unique EPS remain P0-4b"
+  ],
+  "artifactSHA256": {
+    ".nudgeon/nudgeon-ops-qa-0bbd15a2/result.json": "cbd03f254d2f481f6e303b408abf347053eb3b4f694a4a91bb165a607c882790",
+    ".nudgeon/nudgeon-ops-qa-0bbd15a2/source-manifest.json": "0705d7847ef8a4e877fbbf96370692104daff0ce849f686a230b84e24c034cc6",
+    ".nudgeon/nudgeon-ops-qa-0bbd15a2/go-tests.jsonl": "4dd4b9dbe88605a4944675857472ae0e03f6f580285d651355abc5ca21f3b90d",
+    ".nudgeon/nudgeon-ops-qa-0bbd15a2/initial.prom": "5f3cbe0998d56555c5d9f7dfa2bd01f68c60b130526690a53cc76a6a2a89c545",
+    ".nudgeon/nudgeon-ops-qa-0bbd15a2/postgres-timeout.prom": "d54672da78cfe3e248040bee89a91676cc96859b298209241e6cdac5508acd4f",
+    ".nudgeon/nudgeon-ops-qa-0bbd15a2/redis-failure.prom": "2489c358385f9f94d4c6fd7a93e9af1af7dffd51221f7d11d3402a91c8fe937f",
+    ".nudgeon/nudgeon-ops-qa-0bbd15a2/scan-budget.prom": "ae1246b1a4f0b6fd0a23153deb367aa1cf16752cffc56d912f14e2343b7e3b98",
+    ".nudgeon/nudgeon-ops-qa-0bbd15a2/final.prom": "09f246328b2310f8f065f38c79bc00fd6c44bb68e6c0cfc7c0efd100527bb75a",
+    ".nudgeon/nudgeon-ops-qa-0bbd15a2/notifications.json": "25d41da4997cfe0c85f2cf7579e55a6ec60e10b0d23ddf7eabb3de8bd97a716f",
+    ".nudgeon/nudgeon-ops-qa-0bbd15a2/backlog-explain.txt": "175e1ac33a9463ef448646203474da08512d11348c4b43e32dd39dec690c8e0a",
+    "tests/ops/capacity/run.mjs": "89ea1e410f30839a6f36fe92f52a4f1044228b0c769e9e6437252cefab9cf269",
+    "tests/ops/capacity/compose.yaml": "5ff3311a56ec6790fe4fe4acf17faec718c27483a3ee8756a81ff996296c980f",
+    "tests/ops/capacity/Dockerfile": "85464ab218123ac52c88ee95a6ed28607b4a763f53e85001f20c884327f072af",
+    "tests/ops/capacity/users.acl": "519ca13d4c4d392983c0307e018323aeb6f8049a0edeb984d4c87ede4102ebfa",
+    "tests/ops/capacity/fixtures.sql": "14b0d215e11d80b1354207a8eb8255e82d8beeec9896d862b537def3ce94a9de",
+    "tests/ops/capacity/prometheus.yml": "e5bbb660ca4298e84f3e575946a2af01ab0e71e63a1f4ae2097b82e0aa2f0461",
+    "tests/ops/dlq/gateway.mjs": "4724ca6274ea1b57b86edee9e979e1930cfd0e6f7aba4b511ce9a1d06a9072db",
+    "tests/ops/dlq/alertmanager.yml": "ee81d6abec2448ef45c8d391feb40f5a4e17f3233b85ec65dc6d663e8b5fa66e",
+    "deploy/observability/ops-alerts.yml": "3f6b830c7f791b8111b8670024d0a5556905c43495412024f90f2af6b4e987dc",
+    "deploy/observability/ops-alerts.test.yml": "6ae560738ac867d6b8942d2ad2b71d3ab72052e8f6c7972241fda0e5fc13efdc",
+    "db/postgres/schema.sql": "eb4a33849e343eca7b52e39d2fa506234fe15319b4f2a5bdc8056dc858bbc43b"
+  }
+}

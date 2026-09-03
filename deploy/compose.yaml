@@ -74,6 +74,10 @@ services:
     build:
       context: ..
       dockerfile: apps/worker/Dockerfile
+      args:
+        # worker와 같은 이미지 태그를 공유하므로 선택적 구현도 같은 태그로 빌드해야 한다.
+        # 값이 다르면 병렬 빌드의 마지막 결과가 앞선 이미지를 덮어써 E2E worker가 시작되지 않는다.
+        GO_TAGS: ${GO_TAGS:-}
     image: nudgeon-worker
     profiles: [app]
     # Dockerfile ENTRYPOINT는 /nudgeon-worker 고정 — 마이그레이터는 entrypoint를 덮어써야 한다
@@ -100,6 +104,7 @@ services:
       context: ..
       dockerfile: apps/api/Dockerfile
     image: nudgeon-api
+    stop_grace_period: 20s
     profiles: [app]
     depends_on:
       migrator:
@@ -112,6 +117,7 @@ services:
       NUDGEON_MASTER_KEY: ${NUDGEON_MASTER_KEY:?NUDGEON_MASTER_KEY 필수 (openssl rand -base64 32)}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       JOURNEY_GRAPH_V2_ENABLED: ${JOURNEY_GRAPH_V2_ENABLED:-false}
+      API_KEY_USAGE_COALESCE_ENABLED: ${API_KEY_USAGE_COALESCE_ENABLED:-false}
       # 워커와 같은 디렉터리를 읽는다 — 콘솔의 벤더 목록과 실제 발송 가능 여부가 갈리지 않게.
       NUDGEON_CONNECTOR_MANIFESTS: ${NUDGEON_CONNECTOR_MANIFESTS:-/etc/nudgeon/connectors}
     volumes:
@@ -148,6 +154,22 @@ services:
       - ${NUDGEON_CONNECTOR_DIR:-./connectors}:/etc/nudgeon/connectors:ro
     ports:
       - "9090:9090" # /metrics·/healthz
+
+  # One DB observer per installation. It does not send messages and needs no
+  # master key, Redis or ClickHouse. Apply the additive migration before rollout.
+  dlq-monitor:
+    image: nudgeon-worker
+    profiles: [app]
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    command: ["--role=dlq-monitor"]
+    environment:
+      DATABASE_URL: ${DLQ_DATABASE_URL:-${DATABASE_URL:-postgres://nudgeon:nudgeon@postgres:5432/nudgeon}}
+    expose: ["9090"]
+    mem_limit: 128m
+    read_only: true
+    cap_drop: [ALL]
 
   console:
     build:

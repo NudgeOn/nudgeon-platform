@@ -7,6 +7,8 @@ import type { QueueProducer } from "@nudgeon/libqueue";
 import type { ResolvedApiKey } from "../auth/api-key.service";
 import { persistTrackReceipts } from "./event-receipts";
 import { IngestionService } from "./ingestion.service";
+import { ShutdownState } from "../infra/shutdown-state";
+import { CapacityMetrics } from "../infra/capacity-metrics";
 import type { TrackBody } from "./schemas";
 
 const databaseUrl = process.env.NUDGEON_RECEIPT_TEST_DATABASE_URL;
@@ -78,10 +80,13 @@ describe.skipIf(!runPG)("track receipt / actual PostgreSQL transactions", () => 
   it("concurrent customers submitting the same insert_id create one receipt/outbox/customer", async () => {
     const key = await fixture();
     const first = event("customer-a");
+    const metrics = new CapacityMetrics();
     await Promise.all([
-      save(key, { batch: [first] }),
-      save(key, { batch: [{ ...first, external_id: "customer-b", properties: { alternative: true } }] }),
+      persistTrackReceipts(pg, key, { batch: [first] }, randomUUID(), metrics),
+      persistTrackReceipts(pg, key, { batch: [{ ...first, external_id: "customer-b", properties: { alternative: true } }] }, randomUUID(), metrics),
     ]);
+    expect(await metrics.registry.metrics()).toContain("nudgeon_api_receipts_committed_total 1\n");
+    expect(await metrics.registry.metrics()).toContain("nudgeon_api_receipt_duplicates_total 1\n");
     expect((await receipts(key)).rows).toHaveLength(1);
     expect((await pg.query("SELECT id FROM journey_outbox WHERE tenant_id = $1", [key.tenantId])).rowCount).toBe(1);
     expect((await pg.query("SELECT id FROM users WHERE tenant_id = $1", [key.tenantId])).rowCount).toBe(1);
@@ -133,19 +138,21 @@ describe.skipIf(!runPG)("track receipt / actual PostgreSQL transactions", () => 
     } as unknown as Pool;
     const insert = vi.fn().mockResolvedValue({});
     const publish = vi.fn();
-    const service = new IngestionService({ insert } as unknown as ClickHouseClient, { publish } as unknown as QueueProducer, failingPool);
+    const metrics = new CapacityMetrics();
+    const service = new IngestionService({ insert } as unknown as ClickHouseClient, { publish } as unknown as QueueProducer, failingPool, new ShutdownState(), metrics);
     await expect(service.track(key, { batch: [event(), event()] }, {})).rejects.toMatchObject({ status: 503 });
     for (const table of ["event_receipts", "event_customer_cursors", "journey_outbox", "users"]) {
       expect((await pg.query(`SELECT 1 FROM ${table} WHERE tenant_id = $1`, [key.tenantId])).rowCount).toBe(0);
     }
     expect(insert).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
+    expect(await metrics.registry.metrics()).toContain("nudgeon_api_receipts_committed_total 0\n");
   });
 
   it("track response shape is unchanged and success requires no Redis publish", async () => {
     const key = await fixture();
     const insert = vi.fn().mockResolvedValue({}), publish = vi.fn();
-    const service = new IngestionService({ insert } as unknown as ClickHouseClient, { publish } as unknown as QueueProducer, pg);
+    const service = new IngestionService({ insert } as unknown as ClickHouseClient, { publish } as unknown as QueueProducer, pg, new ShutdownState());
     const first = event();
     const result = await service.track(key, { batch: [first, first] }, { synthetic: true });
     expect(result).toEqual({ accepted: 2, request_id: expect.any(String) });

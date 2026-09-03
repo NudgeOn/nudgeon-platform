@@ -1,0 +1,137 @@
+rule_files:
+  - alerts.yml
+evaluation_interval: 5s
+tests:
+  - name: First observed item fires and stays firing beyond five minutes
+    interval: 5s
+    input_series:
+      - series: 'nudgeon_channel_dlq_unresolved_count{nudgeon_cluster="qa",stream="push",failure_class="retryable",instance="a"}'
+        values: '1+0x72'
+    alert_rule_test:
+      - eval_time: 0s
+        alertname: NudgeOnDLQEntries
+        exp_alerts:
+          - exp_labels: &entry_labels {nudgeon_cluster: qa, stream: push, failure_class: retryable, severity: critical}
+            exp_annotations: &entry_annotations
+              summary: NudgeOn has unresolved DLQ deliveries
+              description: 1 unresolved item(s) in push as retryable. Replay publication is not recovery confirmation.
+              runbook_url: https://github.com/ondahq/onda-platform/blob/main/docs-public/DLQ-RUNBOOK.md
+      - eval_time: 330s
+        alertname: NudgeOnDLQEntries
+        exp_alerts:
+          - exp_labels: *entry_labels
+            exp_annotations: *entry_annotations
+
+  - name: Replicas of the same database do not double count
+    interval: 5s
+    input_series:
+      - series: 'nudgeon_channel_dlq_unresolved_count{nudgeon_cluster="qa",stream="push",failure_class="retryable",instance="a"}'
+        values: '1+0x3'
+      - series: 'nudgeon_channel_dlq_unresolved_count{nudgeon_cluster="qa",stream="push",failure_class="retryable",instance="b"}'
+        values: '1+0x3'
+    alert_rule_test:
+      - eval_time: 10s
+        alertname: NudgeOnDLQEntries
+        exp_alerts:
+          - exp_labels: *entry_labels
+            exp_annotations: *entry_annotations
+
+  - name: Confirmed zero clears only after the hold period
+    interval: 5s
+    input_series:
+      - series: 'nudgeon_channel_dlq_unresolved_count{nudgeon_cluster="qa",stream="push",failure_class="retryable"}'
+        values: '1 1 1 0+0x20'
+    alert_rule_test:
+      - eval_time: 70s
+        alertname: NudgeOnDLQEntries
+        exp_alerts:
+          - exp_labels: *entry_labels
+            exp_annotations: *entry_annotations
+      - eval_time: 80s
+        alertname: NudgeOnDLQEntries
+        exp_alerts: []
+
+  - name: Failed database snapshot is an independent critical alert
+    interval: 5s
+    input_series:
+      - series: 'nudgeon_channel_dlq_collector_success{job="dlq-monitor",instance="a",nudgeon_cluster="qa"}'
+        values: '0+0x4'
+    alert_rule_test:
+      - eval_time: 0s
+        alertname: NudgeOnDLQCollectorFailure
+        exp_alerts:
+          - exp_labels: {job: dlq-monitor, instance: a, nudgeon_cluster: qa, severity: critical}
+            exp_annotations: &collector_annotations
+              summary: NudgeOn DLQ database snapshot is unavailable
+              description: DLQ state is unknown or stale. Do not interpret missing or cached values as an empty queue.
+              runbook_url: https://github.com/ondahq/onda-platform/blob/main/docs-public/DLQ-RUNBOOK.md
+
+  - name: A frozen last-success timestamp alerts even if success remains one
+    interval: 5s
+    input_series:
+      - series: 'nudgeon_channel_dlq_collector_success{job="dlq-monitor",instance="a",nudgeon_cluster="qa"}'
+        values: '1+0x10'
+      - series: 'nudgeon_channel_dlq_collector_last_success_timestamp_seconds{job="dlq-monitor",instance="a",nudgeon_cluster="qa"}'
+        values: '10+0x10'
+    alert_rule_test:
+      - eval_time: 25s
+        alertname: NudgeOnDLQCollectorFailure
+        exp_alerts: []
+      - eval_time: 30s
+        alertname: NudgeOnDLQCollectorFailure
+        exp_alerts:
+          - exp_labels: {job: dlq-monitor, instance: a, nudgeon_cluster: qa, severity: critical}
+            exp_annotations: *collector_annotations
+
+  - name: Unreachable observer alerts
+    interval: 5s
+    input_series:
+      - series: 'up{job="dlq-monitor",instance="a",nudgeon_cluster="qa",dlq_monitor="true"}'
+        values: '0+0x3'
+    alert_rule_test:
+      - eval_time: 0s
+        alertname: NudgeOnDLQMonitorDown
+        exp_alerts:
+          - exp_labels: {job: dlq-monitor, instance: a, nudgeon_cluster: qa, dlq_monitor: "true", severity: critical}
+            exp_annotations:
+              summary: NudgeOn DLQ monitor cannot be scraped
+              description: Restore the observer before closing a DLQ incident; resolved notifications alone do not prove recovery.
+              runbook_url: https://github.com/ondahq/onda-platform/blob/main/docs-public/DLQ-RUNBOOK.md
+
+  - name: Missing observer configuration alerts
+    interval: 5s
+    alert_rule_test:
+      - eval_time: 0s
+        alertname: NudgeOnDLQMonitorMissing
+        exp_alerts:
+          - exp_labels: {dlq_monitor: "true", severity: critical}
+            exp_annotations: &missing_annotations
+              summary: NudgeOn DLQ monitoring is not configured correctly
+              description: Configure a dlq-monitor target with dlq_monitor=true and a unique nudgeon_cluster label; verify the new observer binary is running.
+              runbook_url: https://github.com/ondahq/onda-platform/blob/main/docs-public/DLQ-RUNBOOK.md
+
+  - name: Reachable old binary without the collector alerts
+    interval: 5s
+    input_series:
+      - series: 'up{job="dlq-monitor",instance="a",nudgeon_cluster="qa",dlq_monitor="true"}'
+        values: '1+0x3'
+    alert_rule_test:
+      - eval_time: 0s
+        alertname: NudgeOnDLQMonitorMissing
+        exp_alerts:
+          - exp_labels: {job: dlq-monitor, instance: a, nudgeon_cluster: qa, dlq_monitor: "true", severity: critical}
+            exp_annotations: *missing_annotations
+
+  - name: Missing database identity alerts
+    interval: 5s
+    input_series:
+      - series: 'up{job="dlq-monitor",instance="a",dlq_monitor="true"}'
+        values: '1+0x3'
+      - series: 'nudgeon_channel_dlq_collector_success{job="dlq-monitor",instance="a",dlq_monitor="true"}'
+        values: '1+0x3'
+    alert_rule_test:
+      - eval_time: 0s
+        alertname: NudgeOnDLQMonitorMissing
+        exp_alerts:
+          - exp_labels: {job: dlq-monitor, instance: a, dlq_monitor: "true", severity: critical}
+            exp_annotations: *missing_annotations

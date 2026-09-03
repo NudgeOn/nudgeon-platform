@@ -2,12 +2,14 @@ package channel
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/clock"
@@ -26,6 +28,7 @@ import (
 // SendOutcome — 한 건의 처리 결과. Row·OnTerminal·DLQ가 공유한다.
 type SendOutcome struct {
 	MessageID     string
+	FailureID     string // DLQ cycle ID, stable through persistence retries.
 	Status        string // sent | failed | duplicate
 	FailureClass  string
 	FailureDetail string
@@ -51,8 +54,9 @@ type SendHandler[J any] interface {
 	OnTerminal(ctx context.Context, env *libqueue.Envelope, job J, out SendOutcome)
 	// Row — message_log 행 16개 값. nil이면 기록하지 않는다.
 	Row(env *libqueue.Envelope, job J, out SendOutcome) []any
-	// DLQ — 재시도 소진 시 적재. 미구현이면 no-op이어도 된다.
-	DLQ(ctx context.Context, env *libqueue.Envelope, job J, out SendOutcome)
+	// DLQ returns nil only after durable persistence (including same-cycle retry).
+	// An unconfigured/no-op implementation must return an error, never success.
+	DLQ(ctx context.Context, env *libqueue.Envelope, job J, out SendOutcome) error
 }
 
 // SendLoop — SendHandler를 감싸 스트림을 소비한다.
@@ -101,26 +105,9 @@ func (l *SendLoop[J]) Run(ctx context.Context) error {
 		if len(msgs) == 0 {
 			continue
 		}
-		rows := make([][]any, 0, len(msgs))
-		ackIDs := make([]string, 0, len(msgs))
-		for i := range msgs {
-			row, retry := l.handleOne(ctx, &msgs[i])
-			if row != nil {
-				rows = append(rows, row)
-			}
-			if !retry {
-				ackIDs = append(ackIDs, msgs[i].StreamID)
-			}
-		}
-		// 로그 적재 실패 시 ACK하지 않는다 — 재전달돼도 멱등 상태가 sent를 보존하므로
-		// 중복 발송 없이 로그만 다시 기록된다.
-		if err := l.flushLog(ctx, rows); err != nil {
-			l.logger.Error("message_log 적재 실패 — 재시도", "err", err, "worker", l.name)
+		if err := processSendBatch(ctx, msgs, l.handleOne, l.flushLog, l.queue.Ack); err != nil {
+			l.logger.Error("발송 배치 완료 실패 — 재시도", "err", err, "worker", l.name)
 			time.Sleep(time.Second)
-			continue
-		}
-		if err := l.queue.Ack(ctx, ackIDs...); err != nil {
-			l.logger.Error("ack 실패", "err", err)
 		}
 	}
 }
@@ -148,6 +135,30 @@ func (l *SendLoop[J]) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 		l.handler.OnTerminal(ctx, env, job, o)
 		return l.handler.Row(env, job, o), false
 	}
+	lease := statusProcessing + "|" + uuid.NewString()
+	resumeDLQ := func(raw string) ([]any, bool) {
+		var o SendOutcome
+		_, err := finishDLQ(ctx, l.rdb, idemKey, attemptsKey, retryAtKey, raw, func(record pendingDLQ) error {
+			o = out("failed", record.Class+"_exhausted", record.Detail, "", record.Attempts)
+			o.MessageID, o.FailureID, o.At = record.MessageID, record.FailureID, record.At
+			return l.handler.DLQ(ctx, env, job, o)
+		})
+		if err != nil {
+			l.logger.Error("DLQ 저장/완료 실패 — pending 유지", "err", err, "idem", idemK)
+			return nil, true
+		}
+		metrics.ChannelSends.WithLabelValues("failed").Inc()
+		return terminal(o)
+	}
+	startDLQ := func(class, detail string, attempts int) ([]any, bool) {
+		raw, err := beginDLQ(ctx, l.rdb, idemKey, lease, pendingDLQ{MessageID: messageID, Class: class,
+			Detail: detail, Attempts: attempts, At: now})
+		if err != nil {
+			l.logger.Error("DLQ 대기 상태 기록 실패 — pending 유지", "err", err)
+			return nil, true
+		}
+		return resumeDLQ(raw)
+	}
 
 	// 0) 백오프 대기 중이면 리스 없이 미룬다 → reclaim이 나중에 재전달.
 	if ts, err := l.rdb.Get(ctx, retryAtKey).Int64(); err == nil && now.Unix() < ts {
@@ -155,15 +166,20 @@ func (l *SendLoop[J]) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 	}
 
 	// 1) 멱등 선점 (processing 리스).
-	acquired, err := l.rdb.SetNX(ctx, idemKey, statusProcessing, idemLeaseTTL).Result()
+	acquired, err := l.rdb.SetNX(ctx, idemKey, lease, idemLeaseTTL).Result()
 	if err != nil {
 		l.logger.Error("멱등 선점 실패", "err", err)
 		return nil, true
 	}
 	if !acquired {
 		// 이미 종결됐거나 처리 중. 결과를 보존해 로그만 다시 기록한다(재전송 없음).
-		val, _ := l.rdb.Get(ctx, idemKey).Result()
+		val, err := l.rdb.Get(ctx, idemKey).Result()
+		if err != nil {
+			return nil, true
+		}
 		switch {
+		case strings.HasPrefix(val, statusDLQPending):
+			return resumeDLQ(val)
 		case strings.HasPrefix(val, statusSent+"|"):
 			providerID := strings.TrimPrefix(val, statusSent+"|")
 			metrics.ChannelSends.WithLabelValues("duplicate").Inc()
@@ -171,8 +187,7 @@ func (l *SendLoop[J]) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 		case strings.HasPrefix(val, statusFailed+"|"):
 			return l.handler.Row(env, job, out("failed", strings.TrimPrefix(val, statusFailed+"|"), "", "", 0)), false
 		default:
-			metrics.ChannelSends.WithLabelValues("duplicate").Inc()
-			return l.handler.Row(env, job, out("duplicate", "", "", "", 0)), false
+			return nil, true // A lease/unknown state never authorizes ACK.
 		}
 	}
 
@@ -186,13 +201,11 @@ func (l *SendLoop[J]) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 		if ierr == nil {
 			l.rdb.Expire(ctx, attemptsKey, idemCommitTTL)
 		}
-		if ierr != nil || n >= maxSendAttempts {
-			o := out("failed", class+"_exhausted", detail, "", int(n))
-			l.handler.DLQ(ctx, env, job, o)
-			l.rdb.Set(ctx, idemKey, statusFailed+"|"+class+"_exhausted", idemCommitTTL)
-			l.rdb.Del(ctx, attemptsKey, retryAtKey)
-			metrics.ChannelSends.WithLabelValues("failed").Inc()
-			return terminal(o)
+		if ierr != nil {
+			return nil, true
+		}
+		if n >= maxSendAttempts {
+			return startDLQ(class, detail, int(n))
 		}
 		delay := retryAfter // 429 Retry-After 우선
 		if delay <= 0 {
@@ -201,6 +214,13 @@ func (l *SendLoop[J]) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 		l.rdb.Set(ctx, retryAtKey, now.Add(delay).Unix(), idemCommitTTL)
 		l.rdb.Del(ctx, idemKey) // 리스 해제
 		return nil, true
+	}
+	priorAttempts, err := l.rdb.Get(ctx, attemptsKey).Int64()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return nil, true
+	}
+	if priorAttempts >= maxSendAttempts {
+		return startDLQ("retryable", "retry budget already exhausted; prior failure detail unavailable", int(priorAttempts))
 	}
 
 	// 2) 크리덴셜 등 준비

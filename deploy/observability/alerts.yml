@@ -1,0 +1,55 @@
+groups:
+  - name: nudgeon-delivery
+    rules:
+      - alert: NudgeOnDLQEntries
+        # max deduplicates observers of the SAME database. nudgeon_cluster must
+        # identify that database; do not share it across independent databases.
+        expr: max by (nudgeon_cluster, stream, failure_class) (nudgeon_channel_dlq_unresolved_count) > 0
+        for: 0m
+        keep_firing_for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NudgeOn has unresolved DLQ deliveries"
+          description: "{{ $value }} unresolved item(s) in {{ $labels.stream }} as {{ $labels.failure_class }}. Replay publication is not recovery confirmation."
+          runbook_url: "https://github.com/ondahq/onda-platform/blob/main/docs-public/DLQ-RUNBOOK.md"
+
+      - alert: NudgeOnDLQCollectorFailure
+        expr: (nudgeon_channel_dlq_collector_success == 0) or (time() - nudgeon_channel_dlq_collector_last_success_timestamp_seconds > 15)
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NudgeOn DLQ database snapshot is unavailable"
+          description: "DLQ state is unknown or stale. Do not interpret missing or cached values as an empty queue."
+          runbook_url: "https://github.com/ondahq/onda-platform/blob/main/docs-public/DLQ-RUNBOOK.md"
+
+      - alert: NudgeOnDLQMonitorDown
+        expr: up{dlq_monitor="true"} == 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NudgeOn DLQ monitor cannot be scraped"
+          description: "Restore the observer before closing a DLQ incident; resolved notifications alone do not prove recovery."
+          runbook_url: "https://github.com/ondahq/onda-platform/blob/main/docs-public/DLQ-RUNBOOK.md"
+
+      - alert: NudgeOnDLQMonitorMissing
+        expr: absent(up{dlq_monitor="true"}) or (up{dlq_monitor="true"} == 1 unless on (job, instance) nudgeon_channel_dlq_collector_success) or (up{dlq_monitor="true", nudgeon_cluster=""} == 1)
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NudgeOn DLQ monitoring is not configured correctly"
+          description: "Configure a dlq-monitor target with dlq_monitor=true and a unique nudgeon_cluster label; verify the new observer binary is running."
+          runbook_url: "https://github.com/ondahq/onda-platform/blob/main/docs-public/DLQ-RUNBOOK.md"
+
+      - alert: NudgeOnWorkerBatchErrors
+        expr: sum by (role) (increase(nudgeon_worker_batch_errors_total[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NudgeOn worker batch errors are sustained"
+          description: "Worker role {{ $labels.role }} produced {{ $value }} batch errors in 5 minutes."
+          runbook_url: "https://github.com/ondahq/onda-platform/blob/main/docs-public/DLQ-RUNBOOK.md"
