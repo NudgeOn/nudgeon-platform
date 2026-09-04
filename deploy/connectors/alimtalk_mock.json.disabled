@@ -5,7 +5,7 @@
   "description": "계약 검증·E2E 전용 가짜 딜러사. 수신번호 끝 4자리로 결과를 조종한다(패키지 주석의 조종표 참조). 실제 발송은 하지 않는다.",
   "version": "0.1.0",
   "channel": "kakao_alimtalk",
-  "vendor": { "name": "NudgeOn", "url": "https://github.com/nudgeon/nudgeon-platform", "support": "https://github.com/nudgeon/nudgeon-platform/issues" },
+  "vendor": { "name": "NudgeOn", "url": "https://github.com/NudgeOn/nudgeon-platform", "support": "https://github.com/NudgeOn/nudgeon-platform/issues" },
   "license": "Apache-2.0",
   "tier": "core",
   "runtime": { "type": "in_process_go", "go_package": "github.com/nudgeon/nudgeon-platform/apps/worker/internal/channel/alimtalk/mock", "timeout_ms": 1000 },

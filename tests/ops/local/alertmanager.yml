@@ -1,0 +1,13 @@
+global:
+  resolve_timeout: 10s
+route:
+  receiver: local-only
+  group_by: [alertname, stream, failure_class]
+  group_wait: 1s
+  group_interval: 2s
+  repeat_interval: 10m
+receivers:
+  - name: local-only
+    webhook_configs:
+      - url: http://receiver:9194/alerts
+        send_resolved: true

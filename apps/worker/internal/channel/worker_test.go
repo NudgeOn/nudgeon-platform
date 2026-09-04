@@ -96,6 +96,7 @@ func TestHandleOneMessageIDContract(t *testing.T) {
 // 백오프 때문에 재시도 사이에 시계를 전진시켜야 다음 처리가 미뤄지지 않는다.
 func TestHandleOneRetryableThenExhaust(t *testing.T) {
 	w, mr, fk := newTestWorker(t, NewSendError(FailureRetryable, "5xx 일시 오류"))
+	w.dlqStore = &controlledDLQStore{} // Explicit successful persistence, never a nil-DB skip.
 	ctx := context.Background()
 	m := testMsg()
 

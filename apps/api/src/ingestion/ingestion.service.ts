@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Inject, Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
+import { Inject, Injectable, Logger, Optional, ServiceUnavailableException } from "@nestjs/common";
 import type { ClickHouseClient } from "@clickhouse/client";
 import type { Pool } from "pg";
 import { QueueProducer } from "@nudgeon/libqueue";
@@ -15,6 +15,8 @@ import type {
   TrackBody,
 } from "./schemas";
 import { persistTrackReceipts } from "./event-receipts";
+import { ShutdownState } from "../infra/shutdown-state";
+import { CapacityMetrics } from "../infra/capacity-metrics";
 
 /**
  * Ingestion 처리 (DEV-sub-01 §2):
@@ -29,12 +31,14 @@ export class IngestionService {
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @Inject(QUEUE) private readonly queue: QueueProducer,
     @Inject(PG) private readonly pg: Pool,
+    @Inject(ShutdownState) private readonly shutdown: ShutdownState,
+    @Optional() @Inject(CapacityMetrics) private readonly metrics?: CapacityMetrics,
   ) {}
 
   async track(key: ResolvedApiKey, body: TrackBody, rawBody: unknown) {
     const requestId = randomUUID();
     try {
-      await persistTrackReceipts(this.pg, key, body, requestId);
+      await persistTrackReceipts(this.pg, key, body, requestId, this.metrics);
     } catch {
       this.logger.error("track receipt/outbox transaction failed; batch was not acknowledged");
       throw new ServiceUnavailableException("이벤트를 저장하지 못했습니다. 동일 insert_id로 다시 시도해 주세요.");
@@ -153,8 +157,7 @@ export class IngestionService {
     rawBody: unknown,
     requestId: string,
   ) {
-    void this.ch
-      .insert({
+    this.shutdown.runBackground("raw_ingestions", () => this.ch.insert({
         table: "raw_ingestions",
         values: [
           {
@@ -168,10 +171,6 @@ export class IngestionService {
           },
         ],
         format: "JSONEachRow",
-      })
-      .catch((err) => {
-        // raw 적재 실패는 수집을 막지 않는다 — 관찰성 지표로만 노출
-        this.logger.error(`raw_ingestions 적재 실패: ${err}`);
-      });
+      }));
   }
 }

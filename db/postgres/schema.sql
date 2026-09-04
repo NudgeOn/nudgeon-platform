@@ -500,6 +500,10 @@ CREATE TABLE send_dlq (
   envelope        jsonb NOT NULL,   -- 원본 libqueue Envelope (replay용)
   created_at      timestamptz NOT NULL DEFAULT now(),
   replayed_at     timestamptz,
+  resolved_at     timestamptz,     -- 운영자 확인 완료. replayed_at은 발행 여부일 뿐이다.
+  resolution_note text,
+  failure_id      uuid,          -- 같은 소진 회차의 DB 재시도는 새 실패로 갱신하지 않는다.
   UNIQUE (tenant_id, idempotency_key)
 );
 CREATE INDEX send_dlq_tenant_idx ON send_dlq (tenant_id, created_at DESC);
+CREATE INDEX send_dlq_unresolved_idx ON send_dlq (created_at) WHERE resolved_at IS NULL;

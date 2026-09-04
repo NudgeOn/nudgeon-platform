@@ -172,7 +172,9 @@ func TestWorkerEndToEndGraphThroughRealStores(t *testing.T) {
 	if requests[0].Content.Push.Title == "fallback" {
 		t.Fatal("a required condition or wait fell through")
 	}
-	messageID := requests[0].Content.Push.Data["nudgeon.message_id"]
+	// The generic channel contract carries the stable ID in Push.MessageID.
+	// FCM/APNs adapters translate it into their provider-specific payload shapes.
+	messageID := requests[0].Content.Push.MessageID
 	if _, err := uuid.Parse(messageID); err != nil {
 		t.Fatalf("stable message_id missing: %q", messageID)
 	}
@@ -199,10 +201,13 @@ func TestWorkerEndToEndGraphThroughRealStores(t *testing.T) {
 	// Simulate the publish-before-mark crash. The actual channel consumer handles
 	// the repeated send while the fake provider is still called exactly once.
 	f.exec(`UPDATE journey_outbox SET published_at=NULL WHERE tenant_id=$1 AND stream='stream:send.push'`, f.tenant)
-	eventuallyE2E(t, ctx, "duplicate send acknowledgment", func() bool {
+	eventuallyE2E(t, ctx, "replayed send result", func() bool {
 		var count uint64
-		err := ch.QueryRow(ctx, `SELECT count() FROM message_log WHERE tenant_id=toUUID(?) AND app_id=toUUID(?) AND status='duplicate'`, f.tenant, f.app).Scan(&count)
-		return err == nil && count > 0
+		// A completed idempotency key re-emits the original sent result so a
+		// publish-before-log crash can recover provider_message_id without
+		// calling the provider again.
+		err := ch.QueryRow(ctx, `SELECT count() FROM message_log WHERE tenant_id=toUUID(?) AND app_id=toUUID(?) AND status='sent'`, f.tenant, f.app).Scan(&count)
+		return err == nil && count > 1
 	})
 	if len(plugin.calls()) != 1 {
 		t.Fatal("relay replay reached the provider again")

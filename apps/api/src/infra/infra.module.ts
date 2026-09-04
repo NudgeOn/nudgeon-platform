@@ -1,9 +1,12 @@
-import { Global, Module, type OnApplicationShutdown } from "@nestjs/common";
+import { Global, Inject, Logger, Module, type OnApplicationShutdown } from "@nestjs/common";
 import { createClient, type ClickHouseClient } from "@clickhouse/client";
 import Redis from "ioredis";
 import { Pool } from "pg";
 import { QueueProducer } from "@nudgeon/libqueue";
 import { loadConfig, type AppConfig } from "../config";
+import { ShutdownState } from "./shutdown-state";
+import { bounded, SHUTDOWN_BUDGET } from "./shutdown";
+import { CapacityMetrics } from "./capacity-metrics";
 
 export const CONFIG = "CONFIG";
 export const PG = "PG";
@@ -15,12 +18,17 @@ export const QUEUE = "QUEUE";
 @Global()
 @Module({
   providers: [
+    ShutdownState,
+    CapacityMetrics,
     { provide: CONFIG, useFactory: (): AppConfig => loadConfig() },
     {
       provide: PG,
-      inject: [CONFIG],
-      useFactory: (cfg: AppConfig) =>
-        new Pool({ connectionString: cfg.databaseUrl, max: 10 }),
+      inject: [CONFIG, CapacityMetrics],
+      useFactory: (cfg: AppConfig, metrics: CapacityMetrics) => {
+        const pool = new Pool({ connectionString: cfg.databaseUrl, max: 10 });
+        metrics.registerPool(pool);
+        return pool;
+      },
     },
     {
       provide: REDIS,
@@ -47,11 +55,35 @@ export const QUEUE = "QUEUE";
       useFactory: (redis: Redis) => new QueueProducer(redis),
     },
   ],
-  exports: [CONFIG, PG, REDIS, CLICKHOUSE, QUEUE],
+  exports: [CONFIG, PG, REDIS, CLICKHOUSE, QUEUE, ShutdownState, CapacityMetrics],
 })
 export class InfraModule implements OnApplicationShutdown {
-  constructor() {}
-  async onApplicationShutdown() {
-    // 연결 종료는 Nest lifecycle에서 개별 provider가 담당하지 않으므로 생략(프로세스 종료와 함께 정리)
+  private readonly logger = new Logger(InfraModule.name);
+  private closing?: Promise<void>;
+  constructor(
+    @Inject(PG) private readonly pg: Pool,
+    @Inject(REDIS) private readonly redis: Redis,
+    @Inject(CLICKHOUSE) private readonly clickhouse: ClickHouseClient,
+  ) {}
+  onApplicationShutdown(): Promise<void> {
+    return this.closing ??= this.closeClients();
+  }
+  private async closeClients() {
+    const close = async (client: string, work: () => Promise<unknown>) => {
+      const complete = await bounded(Promise.resolve().then(work), SHUTDOWN_BUDGET.clientsMs - 100);
+      this.logger.log(JSON.stringify({ event: "shutdown_client_closed", client, complete }));
+      return complete;
+    };
+    const results = await Promise.all([
+      close("postgres", () => this.pg.end()),
+      close("redis", async () => {
+        try { await this.redis.quit(); }
+        finally { this.redis.disconnect(); }
+      }),
+      close("clickhouse", () => this.clickhouse.close()),
+    ]);
+    // quit may wait on an unavailable Redis. Stop reconnect/offline work even then.
+    this.redis.disconnect();
+    if (results.some(complete => !complete)) throw new Error("Infrastructure shutdown incomplete");
   }
 }

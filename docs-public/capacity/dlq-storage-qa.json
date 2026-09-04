@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-03",
+  "scope": "P0-2b local DLQ persistence recovery; real PG/Redis, test provider and log sink; no throughput, production rollout, or provider delivery proof",
+  "base_commit": "0f4f28141af0e7d3544c548a69bf3b784e5cfc0b",
+  "branch": "chore/rename-nudgeon",
+  "dirty_worktree": true,
+  "go": "go version go1.26.1 darwin/arm64",
+  "node": "v24.12.0",
+  "source_sha256": {
+    "apps/worker/internal/channel/worker.go": "df29c723531a1626ce230326ad6210b084b529c7a9e316106e266c841dfc5115",
+    "apps/worker/internal/channel/sendloop.go": "89fbd7c8c09edf30ef23eb7c115b639cbfbb9183835ccb6a60b665fe246c7b9d",
+    "apps/worker/internal/channel/send_batch.go": "7b449dd30f0b9eafe72a6c532b79de758c96d63fc34441f5e6bfb2053f30d29d",
+    "apps/worker/internal/channel/dlq_pending.go": "b081ffae4ffa4bff7cd1021e9d8876afffe44752b88e1c97106c92b9fd09eb60",
+    "apps/worker/internal/channel/worker_test.go": "6a1250408101999975e46b5221667bcebb706d9074744dd26804596507b34a4a",
+    "apps/worker/internal/channel/dlq_pending_test.go": "7f974dd781304260c78c800c5973e97de76219c318703a20f29e6630bba35b46",
+    "apps/worker/internal/channel/dlq_storage_integration_test.go": "5d8d2ae9479a928f6e9e35db0549f7f9af62a1fd6294104913479e0c922900dc",
+    "apps/worker/internal/message/worker.go": "aee4d620d4e214d5169062e2ad9920806cc546d7cc9cd8ad4114a95fb8a72f7d",
+    "apps/worker/internal/message/dlq_storage_test.go": "f8ab80c11ab52adf6a6a2562cfd28d623be37a79ca73352645ba67b364511278",
+    "apps/worker/internal/dlq/store.go": "7f1b2168f1bcb3a852af386e52a9b519629e42cfd947cc34b80708b2bbb51324",
+    "apps/worker/internal/dlq/store_test.go": "aeb6c24924536ca03097eeba8550b71d5baf7bfc4db8a8e3916318456fa2bae9",
+    "apps/worker/internal/dlq/failure_cycle_test.go": "457de0fde2b14f1d5f88c3c1456a0eadebda28843385d2e45ea7f14774d65d26",
+    "apps/worker/internal/metrics/dlq.go": "945a02a7d4c8c1f7b769edbcc39f2b3e3dcf73a85c3d6f4e1d03dffdc5138980",
+    "apps/worker/internal/metrics/dlq_test.go": "5b660503ca80e5d1c02254f8856817d06f1002829088a2eb8d86d3638f26aeb8",
+    "apps/worker/cmd/worker/dlq_monitor.go": "3420ab4186229f1005d74a9ea20260a476935d58cd529e7416c28a31e7c16f4e",
+    "db/postgres/schema.sql": "eb4a33849e343eca7b52e39d2fa506234fe15319b4f2a5bdc8056dc858bbc43b",
+    "db/postgres/upgrades/0006_dlq_failure_id.sql": "b4e13113d6bf50be42adf2def9b0de9b59f6da471b548fb635b55d543502d78e",
+    "tests/ops/dlq-storage/compose.yaml": "b219dd2ecec33139fa962f4aabaffe0534bd9824d7370f7f423bf0fed923544a",
+    "tests/ops/dlq-storage/fixtures.sql": "ace450707e727f0d57e10be09a7dc2ccf27158312ba40e7a38e032ddec27c541",
+    "tests/ops/dlq-storage/gateway.mjs": "95d691046ae5125a849fa6a8b716e8a9413c796ae7f2061dc6518f1b1ccc056f",
+    "tests/ops/dlq-storage/run.mjs": "c7b45fadd53998b86187ef971eec5dc3caac4f5607865e6518b294d9e4256342"
+  },
+  "final_run": {
+    "project": "nudgeon-dlq-storage-239dac33",
+    "evidence_directory": ".nudgeon/nudgeon-dlq-storage-239dac33",
+    "started_at": "2026-09-03T06:29:18.221Z",
+    "finished_at": "2026-09-03T06:29:39.799Z",
+    "pass": true,
+    "no_skipped_integration_tests": true,
+    "required_integration_tests": [
+      "TestDLQStoragePostgresRedis",
+      "TestPostgresDLQStateLifecycle",
+      "TestPostgresDLQFailureCycle",
+      "TestMessageDLQDatabaseErrors"
+    ],
+    "cases": [
+      {
+        "test": "TestDLQStoragePostgresRedis/push/insert-denied",
+        "pass": true,
+        "final_dlq_rows": 1,
+        "test_provider_calls": 1,
+        "extra_provider_calls_during_persistence_retry": 0,
+        "original_queue_pending_retained_before_recovery": true,
+        "ack_only_after_persistence": true
+      },
+      {
+        "test": "TestDLQStoragePostgresRedis/push/committed-reply-lost",
+        "pass": true,
+        "final_dlq_rows": 1,
+        "test_provider_calls": 1,
+        "extra_provider_calls_during_persistence_retry": 0,
+        "original_queue_pending_retained_before_recovery": true,
+        "ack_only_after_persistence": true
+      },
+      {
+        "test": "TestDLQStoragePostgresRedis/sendloop/insert-denied",
+        "pass": true,
+        "final_dlq_rows": 1,
+        "test_provider_calls": 1,
+        "extra_provider_calls_during_persistence_retry": 0,
+        "original_queue_pending_retained_before_recovery": true,
+        "ack_only_after_persistence": true
+      },
+      {
+        "test": "TestDLQStoragePostgresRedis/sendloop/committed-reply-lost",
+        "pass": true,
+        "final_dlq_rows": 1,
+        "test_provider_calls": 1,
+        "extra_provider_calls_during_persistence_retry": 0,
+        "original_queue_pending_retained_before_recovery": true,
+        "ack_only_after_persistence": true
+      }
+    ],
+    "pre_existing_running_containers": 19,
+    "pre_existing_running_set_preserved": true,
+    "test_containers": [
+      {
+        "service": "gateway",
+        "state": "exited",
+        "exit_code": 0,
+        "image": "nudgeon-api:latest",
+        "image_id": "sha256:e7c7657734d9e4a039c688d51decb704af69396d1feb00e288c889922f8b5b1d"
+      },
+      {
+        "service": "postgres",
+        "state": "exited",
+        "exit_code": 0,
+        "image": "postgres:16",
+        "image_id": "sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94"
+      },
+      {
+        "service": "redis",
+        "state": "exited",
+        "exit_code": 0,
+        "image": "redis:7",
+        "image_id": "sha256:71da9275c5f3fcb97d0fa0c8c5b36cc995327265420f17a04bfd544f458059f7"
+      }
+    ],
+    "artifact_sha256": {
+      ".nudgeon/nudgeon-dlq-storage-239dac33/result.json": "d7700bb86c69ac1ed4c8086211862f0c46ee6c92839bf7784b017feee9788ec4",
+      ".nudgeon/nudgeon-dlq-storage-239dac33/integration.log": "4d5757fb1072b6d00eac04806290d8f919c76578e56456140c39c9a5e098cf95",
+      ".nudgeon/nudgeon-dlq-storage-239dac33/containers.log": "a945d5d4521638b8eb6bd0eca18b8d13c1eef04a7d79c4826516d4d681d28d86"
+    }
+  },
+  "earlier_runs": [
+    {
+      "project": "nudgeon-dlq-storage-735be829",
+      "started_at": "2026-09-03T06:20:58.535Z",
+      "finished_at": "2026-09-03T06:21:12.131Z",
+      "pass": true,
+      "role": "earlier source snapshots; final evidence is the final_run"
+    },
+    {
+      "project": "nudgeon-dlq-storage-79a7f824",
+      "started_at": "2026-09-03T06:27:11.741Z",
+      "finished_at": "2026-09-03T06:27:25.511Z",
+      "pass": true,
+      "role": "earlier source snapshots; final evidence is the final_run"
+    }
+  ],
+  "build": {
+    "platform": "linux/arm64",
+    "cgo_enabled": false,
+    "pass": true,
+    "usage": "compile verification only; integration ran native Go race-enabled tests, not these Linux daemon binaries",
+    "binaries": {
+      "worker": {
+        "path": "/tmp/nudgeon-dlq-storage-build.6Thiec/nudgeon-worker.final",
+        "sha256": "c32b5626094139012e53556ec5f644d094f82393db4e3e06507f70e8c45c2e7b"
+      },
+      "dlq_cli": {
+        "path": "/tmp/nudgeon-dlq-storage-build.6Thiec/nudgeon-dlq.final",
+        "sha256": "9af26c689c3f17153a7f7da4b98e33857c1e5735a4c34995021ef2edb2c7c352"
+      }
+    }
+  },
+  "checks": {
+    "race_command": "go test -race ./apps/worker/internal/channel ./apps/worker/internal/message ./apps/worker/internal/dlq ./apps/worker/internal/metrics ./apps/worker/cmd/worker ./apps/worker/cmd/dlq ./apps/worker/cmd/migrate",
+    "race_pass": true,
+    "postgres_integration_without_fixture": "skipped by normal package tests; final isolated runner sets fixture URLs and requires all four named tests PASS",
+    "go_vet_pass": true,
+    "project_lint_rules_pass": true,
+    "tenant_sql_scope_scanner_pass": true,
+    "collector_clock_fix": "Injected clock for duration/freshness; unit regression and build passed; prior 330-second alert harness was not rerun after this source change",
+    "unit_regressions": [
+      "same failure ID and original failure time across storage retries",
+      "missing DB does not authorize ACK",
+      "active, legacy, unknown, or corrupt state does not authorize ACK",
+      "pre-exhausted counter prevents another provider call",
+      "Redis finalization error preserves storage pending",
+      "stale lease rejected",
+      "persistent marker survives simulated eight days",
+      "concurrent finalizers share failure ID and only one Redis state commit succeeds",
+      "log flush failure prevents ACK"
+    ],
+    "node_syntax_pass": true,
+    "git_diff_check_pass": true
+  },
+  "rollout_requirements": [
+    "Apply additive migration 0006 before upgraded DLQ writers; apply earlier 0005 resolution migration if absent",
+    "Stop and drain old push/message consumers, preserve queues/Redis, replace all affected writers together; no mixed old/new consumers",
+    "Do not manually replay or delete pending keys; do not roll back to old consumers while pending markers remain",
+    "Redis durability, noeviction, adequate memory, and pending-safe stream retention are prerequisites"
+  ],
+  "boundaries": [
+    "Provider is a synthetic test plugin; no FCM/APNs/SMS/Alimtalk send or device receipt",
+    "Log sink is a callback, not ClickHouse; no analytics reconciliation",
+    "Worker recovery reconstructs objects/new consumers, not OS process or container restart",
+    "Reclaim min-idle is zero for accelerated tests, not the natural production timing",
+    "Lost reply is an injected error after real PG commit, not a packet-level network cut",
+    "Eight-day persistence test uses a simulated clock, not long-duration soak",
+    "No real Redis crash, eviction, stream trim, or concurrent manual replay proof",
+    "PG unresolved count cannot see records still only in Redis dlq_pending; dedicated pending observability remains P0-4",
+    "Existing replay CLI is push-only, single-key selection is not tenant scoped, and --all is unbounded",
+    "Email pipeline parity, API shutdown P0-3, load gates, managed DB recovery, and production deployment remain unverified"
+  ],
+  "mutations": {
+    "existing_services_restarted": false,
+    "existing_databases_migrated": false,
+    "real_provider_sends": false,
+    "git_commit": false,
+    "git_push": false,
+    "production_deploy": false,
+    "test_containers_stopped": true,
+    "test_volumes_and_evidence_retained": true
+  }
+}

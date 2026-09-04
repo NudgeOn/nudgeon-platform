@@ -1,0 +1,514 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-03",
+  "scope": "P0-3 local API shutdown, actual PG/Redis/CH, synthetic track receipts; not throughput or production rollout proof",
+  "base_commit": "0f4f28141af0e7d3544c548a69bf3b784e5cfc0b",
+  "branch": "chore/rename-nudgeon",
+  "dirty_worktree": true,
+  "source_sha256": {
+    "apps/api/src/main.ts": "2bdcd77d56232d07535838e29e0e6db67f67761a61edbb2c726186e6d1c150a5",
+    "apps/api/src/infra/infra.module.ts": "e669c8c1540106893ac6b977f78e6a6ab37a4acefa74b5f2ddcf2240ddd6e8a0",
+    "apps/api/src/infra/shutdown.ts": "8b43f68288d458a87c7070ee1af7d5cb25e2a79d0bd7b5884bfe8bb9f07fa9d5",
+    "apps/api/src/infra/shutdown-state.ts": "fbf243f24833a5844c31d44410c157b92425ad398ee4093eadfd8cbe534f5c3a",
+    "apps/api/src/infra/shutdown.test.ts": "7d36b7d65fc4bfa4177e537261de45a8cb612e8e035e6dfdf06bcf1a98c76b13",
+    "apps/api/src/health/health.controller.ts": "06f49aa67f8d60316fb2df648331b2a58693fbd1d013fdb608fbf32297eb2328",
+    "apps/api/src/health/health.controller.test.ts": "3e6fa03cf90490f9ae9b64398ba6acc5d60a8b2ab14891bb56af46e607d51f97",
+    "apps/api/src/auth/api-key.service.ts": "90f70f3010d08331bb62e21fdcda2c18336100de9eb6d5e7613e3ce8bbf6e850",
+    "apps/api/src/ingestion/ingestion.service.ts": "a6d2338739a93457a1c1d10485e1881839098b340eede19a9334d44a7168706b",
+    "apps/api/src/ingestion/event-receipts.test.ts": "ef76ecc9301dfec0acc1589b03f5d1b828c290f3ebb7798a2a65422df0a42f57",
+    "deploy/compose.yaml": "f78794ca714ac87666b875b2397407bc5bf0dfc0e338c6866757fcaa2b6da686",
+    "tests/ops/api-shutdown/run.mjs": "e39fc165e285c0b52df7a22b1018d908acc996c5443e38cebc3f0420a2d73cce",
+    "tests/ops/api-shutdown/scenarios.mjs": "7a0f961c11e392cab050e1eefc9bd12059f8596a59ca1e907f24dba2c8f76214",
+    "tests/ops/api-shutdown/gateway.mjs": "5f3c45be159125ed6afb805a0e551bf723f30160442397daefbcc27a607e10e7",
+    "tests/ops/api-shutdown/probe.cjs": "b2ca3e5ba8ab933f8aa6f7226af033d050212cdb4ef434a2fb3ce507afd877c9",
+    "tests/ops/api-shutdown/compose.yaml": "fef040026b16c1943634865dbbed010fc1664365260965184a656b4d6b35aa69",
+    "tests/ops/api-shutdown/clickhouse.xml": "e6f0d5a2a2616d914be24f4b6fc895cbb95313ff10ec02f0452e47f0ab4cc61b"
+  },
+  "final_run": {
+    "project": "nudgeon-api-shutdown-4156b3c0",
+    "evidence_directory": ".nudgeon/nudgeon-api-shutdown-4156b3c0",
+    "started_at": "2026-09-03T06:59:57.999Z",
+    "finished_at": "2026-09-03T07:00:52.966Z",
+    "pass": true,
+    "cases": [
+      {
+        "name": "inflight_load",
+        "pass": true,
+        "exit_code": 0,
+        "oom_killed": false,
+        "signal_dispatched_at": "2026-09-03T07:00:10.694Z",
+        "container_finished_at": "2026-09-03T07:00:11.244548467Z",
+        "shutdown_ms": 550,
+        "control_roundtrip_ms": 686,
+        "pg_sessions_at_process_exit": 0,
+        "events": [
+          {
+            "event": "shutdown_drain_started",
+            "active_requests": 1,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 0
+          },
+          {
+            "event": "shutdown_requests_drained",
+            "complete": true,
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 1,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 519
+          },
+          {
+            "event": "shutdown_background_drained",
+            "complete": true,
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 520
+          },
+          {
+            "event": "shutdown_client_closed",
+            "client": "postgres",
+            "complete": true
+          },
+          {
+            "event": "shutdown_client_closed",
+            "client": "clickhouse",
+            "complete": true
+          },
+          {
+            "event": "shutdown_client_closed",
+            "client": "redis",
+            "complete": true
+          },
+          {
+            "event": "shutdown_complete",
+            "complete": true,
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 523
+          }
+        ],
+        "warm_requests": 40,
+        "offered_rps": 20,
+        "load_duration_seconds": 2,
+        "blocked_request_status": 202,
+        "readyz": 503,
+        "new_request": 503,
+        "rejected_receipts": 0
+      },
+      {
+        "name": "request_timeout",
+        "pass": true,
+        "exit_code": 1,
+        "oom_killed": false,
+        "signal_dispatched_at": "2026-09-03T07:00:12.685Z",
+        "container_finished_at": "2026-09-03T07:00:26.715228793Z",
+        "shutdown_ms": 14030,
+        "control_roundtrip_ms": 14205,
+        "pg_sessions_at_process_exit": 1,
+        "events": [
+          {
+            "event": "shutdown_drain_started",
+            "active_requests": 1,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 0
+          },
+          {
+            "event": "shutdown_requests_drained",
+            "complete": false,
+            "active_requests": 1,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 10003
+          },
+          {
+            "event": "shutdown_background_drained",
+            "complete": true,
+            "active_requests": 1,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 10004
+          },
+          {
+            "event": "shutdown_client_closed",
+            "client": "clickhouse",
+            "complete": true
+          },
+          {
+            "event": "shutdown_client_closed",
+            "client": "redis",
+            "complete": true
+          },
+          {
+            "event": "shutdown_client_closed",
+            "client": "postgres",
+            "complete": false
+          },
+          {
+            "event": "shutdown_complete",
+            "complete": false,
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 11412
+          },
+          {
+            "event": "shutdown_deadline_exceeded",
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 14002
+          }
+        ]
+      },
+      {
+        "name": "raw_timeout",
+        "pass": true,
+        "exit_code": 1,
+        "oom_killed": false,
+        "signal_dispatched_at": "2026-09-03T07:00:28.309Z",
+        "container_finished_at": "2026-09-03T07:00:42.420972301Z",
+        "shutdown_ms": 14111,
+        "control_roundtrip_ms": 15919,
+        "pg_sessions_at_process_exit": 0,
+        "events": [
+          {
+            "event": "shutdown_drain_started",
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 1,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 0
+          },
+          {
+            "event": "shutdown_requests_drained",
+            "complete": true,
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 1,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 0
+          },
+          {
+            "event": "shutdown_background_drained",
+            "complete": false,
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 1,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 2005
+          },
+          {
+            "event": "shutdown_client_closed",
+            "client": "postgres",
+            "complete": true
+          },
+          {
+            "event": "shutdown_client_closed",
+            "client": "clickhouse",
+            "complete": true
+          },
+          {
+            "event": "shutdown_client_closed",
+            "client": "redis",
+            "complete": true
+          },
+          {
+            "event": "shutdown_complete",
+            "complete": false,
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 1,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 2008
+          },
+          {
+            "event": "background_failed",
+            "kind": "raw_ingestions"
+          },
+          {
+            "event": "shutdown_deadline_exceeded",
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGTERM",
+            "elapsed_ms": 14004
+          }
+        ]
+      },
+      {
+        "name": "idle_keepalive_partial_header",
+        "pass": true,
+        "exit_code": 0,
+        "oom_killed": false,
+        "signal_dispatched_at": "2026-09-03T07:00:49.836Z",
+        "container_finished_at": "2026-09-03T07:00:49.865227262Z",
+        "shutdown_ms": 29,
+        "control_roundtrip_ms": 141,
+        "pg_sessions_at_process_exit": 0,
+        "events": [
+          {
+            "event": "shutdown_drain_started",
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGINT",
+            "elapsed_ms": 0
+          },
+          {
+            "event": "shutdown_requests_drained",
+            "complete": true,
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGINT",
+            "elapsed_ms": 0
+          },
+          {
+            "event": "shutdown_background_drained",
+            "complete": true,
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGINT",
+            "elapsed_ms": 1
+          },
+          {
+            "event": "shutdown_client_closed",
+            "client": "postgres",
+            "complete": true
+          },
+          {
+            "event": "shutdown_client_closed",
+            "client": "clickhouse",
+            "complete": true
+          },
+          {
+            "event": "shutdown_client_closed",
+            "client": "redis",
+            "complete": true
+          },
+          {
+            "event": "shutdown_complete",
+            "complete": true,
+            "active_requests": 0,
+            "background": {
+              "raw_ingestions": 0,
+              "api_key_last_used": 0
+            },
+            "signal": "SIGINT",
+            "elapsed_ms": 3
+          }
+        ]
+      }
+    ],
+    "reconciliation": {
+      "successful_responses": 84,
+      "unique_accepted_events": 43,
+      "receipt_and_outbox_match": true,
+      "scope": "PostgreSQL receipt/outbox only; no analytics or worker projection"
+    },
+    "same_id_retry_preserves_receipts": true,
+    "timed_out_request_retry_saved_once": true,
+    "timed_out_pg_sessions_after_unlock": 0,
+    "actual_postgres_receipt_tests": {
+      "passed": 7,
+      "skipped": 0
+    },
+    "runtime": {
+      "node": "v22.23.2",
+      "now": 1788418808583,
+      "nest": "11.2.3",
+      "pg": "8.23.0",
+      "redis": "5.11.1",
+      "clickhouse": "1.23.1"
+    },
+    "clock_check": {
+      "hostBefore": 1788418808493,
+      "containerNow": 1788418808583,
+      "hostAfter": 1788418808599
+    },
+    "source_tree_fingerprint": {
+      "files": 70,
+      "sha256": "5df78eb4a9964424b16174b8a6db9f6dbe24a173498a19b37c12627cafdf84ec"
+    },
+    "compiled_snapshot_fingerprint": {
+      "files": 165,
+      "sha256": "758cd913b45835e45f39f31345ebc6979dcc48a48170f80133301d82a3e8aed0"
+    },
+    "lockfile_sha256": "db4d3d0854726b525d5e6859cce5eb7a0296642f7cbe58b7ea9d8354a66a8c0e",
+    "memory_preflight": {
+      "usedBytes": 4361882173,
+      "reportedLimitBytes": 8217346179,
+      "requiredHeadroomGiB": 2.6
+    },
+    "pre_existing_running_containers": 19,
+    "pre_existing_running_set_preserved": true,
+    "test_containers": [
+      {
+        "service": "api",
+        "state": "exited",
+        "exit_code": 0,
+        "oom_killed": false
+      },
+      {
+        "service": "postgres",
+        "state": "exited",
+        "exit_code": 0,
+        "oom_killed": false
+      },
+      {
+        "service": "redis",
+        "state": "exited",
+        "exit_code": 0,
+        "oom_killed": false
+      },
+      {
+        "service": "clickhouse",
+        "state": "exited",
+        "exit_code": 0,
+        "oom_killed": false
+      },
+      {
+        "service": "gateway",
+        "state": "exited",
+        "exit_code": 0,
+        "oom_killed": false
+      }
+    ]
+  },
+  "baseline": {
+    "project": "nudgeon-api-shutdown-d4e7d8e7",
+    "evidence_directory": ".nudgeon/nudgeon-api-shutdown-d4e7d8e7",
+    "expected_failure_reproduced": true,
+    "docker_stop_command_ms": 20397,
+    "exit_code": 137,
+    "oom_killed": false,
+    "probe_events": [
+      "http_close_end",
+      "infra_hook_end",
+      "self_signal_SIGTERM",
+      "still_alive"
+    ],
+    "pg_end_called": false,
+    "inference": "HTTP and Nest hooks completed; explicit client cleanup was absent, live sockets/timers remained, and self-SIGTERM did not terminate the PID 1 runtime."
+  },
+  "earlier_incomplete_runs": [
+    {
+      "project": "nudgeon-api-shutdown-c3225567",
+      "pass": false,
+      "error": "Expected values to be strictly equal:\n\n1 !== 0\n",
+      "cleanup_error": "The expression evaluated to a falsy value:\n\n  assert(result.services.every(s=>s.Status==='exited' && (s.service==='api' && baseline ? s.ExitCode===137 : s.ExitCode===0)))\n"
+    },
+    {
+      "project": "nudgeon-api-shutdown-46e4c99b",
+      "pass": false,
+      "error": "request_timeout exceeded 15s: 15124",
+      "cleanup_error": null
+    },
+    {
+      "project": "nudgeon-api-shutdown-4298c644",
+      "pass": false,
+      "error": "docker exit 1: Container nudgeon-api-shutdown-4298c644-postgres-1  Waiting\n Container nudgeon-api-shutdown-4298c644-clickhouse-1  Waiting\n Container nudgeon-api-shutdown-4298c644-postgres-1  Healthy\n Container nudgeon-api-shutdown-4298c644-clickhouse-1  Error\ndependency failed to start: container nudgeon-api-shutdown-4298c644-clickhouse-1 is unhealthy",
+      "cleanup_error": null
+    }
+  ],
+  "checks": {
+    "api_default_tests_passed": 147,
+    "api_default_tests_skipped": 14,
+    "actual_pg_receipt_tests_passed": 7,
+    "actual_pg_receipt_tests_skipped": 0,
+    "journey_integration_tests_not_run": 7,
+    "typecheck_pass": true,
+    "workspace_dependency_and_api_build_pass": true,
+    "recompiled_dist_matches_tested_snapshot": true,
+    "project_lint_rules_pass": true,
+    "tenant_sql_scanner_pass": true,
+    "node_syntax_pass": true,
+    "git_diff_check_pass": true
+  },
+  "image_ids": {
+    "nudgeon-api:latest": "sha256:e7c7657734d9e4a039c688d51decb704af69396d1feb00e288c889922f8b5b1d",
+    "postgres:16": "sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
+    "redis:7": "sha256:71da9275c5f3fcb97d0fa0c8c5b36cc995327265420f17a04bfd544f458059f7",
+    "clickhouse/clickhouse-server:24.8": "sha256:1ffa82edee000a42c09313bd9f1293d94c570aee74babc1b3ca9983a35fa597b"
+  },
+  "artifact_sha256": {
+    ".nudgeon/nudgeon-api-shutdown-4156b3c0/result.json": "d67fdbabe64db7811b4ec24eb04a22edbbfefe084b10e7db94da1c683ebbb26b",
+    ".nudgeon/nudgeon-api-shutdown-4156b3c0/containers.log": "d232396c1f0af3b5604568c2298ba45f8882b88e9c925c6b8132b34b4ef9d155",
+    ".nudgeon/nudgeon-api-shutdown-4156b3c0/inflight_load.log": "57d6a11fd8ef5ac17dec3cd01549c3a7501315554e6dd4558e77144279760b04",
+    ".nudgeon/nudgeon-api-shutdown-4156b3c0/request_timeout.log": "534890c411c16534ec7d0bac4edb6277e9f73d2b83b98db249b65e7cf64f93d6",
+    ".nudgeon/nudgeon-api-shutdown-4156b3c0/raw_timeout.log": "1600aca91f7ba536dfc8e4f1379662b6326e34b05fadc6573404972f48d021cb",
+    ".nudgeon/nudgeon-api-shutdown-4156b3c0/idle_keepalive_partial_header.log": "4ae04be83df471f317a892ed70da40f6e0f1851235ad18600c057ee4fa523b31",
+    ".nudgeon/nudgeon-api-shutdown-4156b3c0/receipt-tests.log": "e60438d3179c4b827d12edc51099dec995b41d810c0eccbcca468bb378df1201",
+    ".nudgeon/nudgeon-api-shutdown-d4e7d8e7/result.json": "65d9afa87a7b3315c7aee0c91050ee59140b73dce9a78f8f5887f427b52fa0d8",
+    ".nudgeon/nudgeon-api-shutdown-d4e7d8e7/api.log": "286615ecf8edf83d7032c0eda13b3e67d02544dd5024c754604acd4bc5827040"
+  },
+  "boundaries": [
+    "Shutdown scenarios expect exit codes 0,1,1,0; a passing failure-path test is not a clean application exit",
+    "Nominal 20 requests/s for two seconds is only a functional workload, not a measured sustained TPS claim; SIGTERM occurs with one deliberately blocked request still in flight",
+    "A successful track response remains PG receipt/outbox commit; raw CH is best-effort and wait_for_async_insert remains zero",
+    "84 successful responses correspond to 43 unique accepted insert IDs after same-ID retries",
+    "PG session can survive forced process exit while blocked; after fixture unlock, session count becomes zero; arbitrary DB cancellation is not proven",
+    "HTTP client disconnection does not imply handler cancellation; unconfirmed outcomes must retry the same insert ID",
+    "14-second watchdog depends on a responsive event loop/OS; external termination budget remains necessary",
+    "Current compiled API code was mounted into an unchanged cached runtime image; no fresh production image was published",
+    "No worker projection, Journey integration, analytics reconciliation, real provider/device sends, maximum TPS, managed DB recovery, or soak proof"
+  ],
+  "mutations": {
+    "existing_services_restarted": false,
+    "existing_databases_changed": false,
+    "real_provider_sends": false,
+    "git_commit": false,
+    "git_push": false,
+    "production_deploy": false,
+    "test_containers_stopped": true,
+    "test_volumes_and_evidence_retained": true
+  },
+  "next": "P0-4 timing/backlog/pending observability and execution-image evidence"
+}

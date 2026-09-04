@@ -1,7 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import type { Pool } from "pg";
-import { PG } from "../infra/infra.module";
+import { CONFIG, PG } from "../infra/infra.module";
+import { ShutdownState } from "../infra/shutdown-state";
+import type { AppConfig } from "../config";
+import { CapacityMetrics } from "../infra/capacity-metrics";
+import { ApiKeyUsage } from "./api-key-usage";
 
 export type ApiKeyKind = "sdk" | "server";
 export type ApiKeyScope = "full" | "ingest_only";
@@ -27,7 +31,13 @@ export function hashApiKey(key: string): string {
 
 @Injectable()
 export class ApiKeyService {
-  constructor(@Inject(PG) private readonly pg: Pool) {}
+  private readonly usage: ApiKeyUsage;
+  constructor(
+    @Inject(PG) private readonly pg: Pool,
+    @Inject(ShutdownState) shutdown: ShutdownState,
+    @Optional() @Inject(CapacityMetrics) metrics?: CapacityMetrics,
+    @Optional() @Inject(CONFIG) cfg?: AppConfig,
+  ) { this.usage = new ApiKeyUsage(pg, shutdown, cfg?.apiKeyUsageCoalesceEnabled ?? false, metrics); }
 
   /**
    * 키 원문 → 유효 키 해석. 무효/폐기/유예 만료는 null.
@@ -36,7 +46,8 @@ export class ApiKeyService {
   async resolve(rawKey: string): Promise<ResolvedApiKey | null> {
     if (!/^(pk|sk)_[A-Za-z0-9_-]{20,}$/.test(rawKey)) return null;
     const { rows } = await this.pg.query(
-      `SELECT id, tenant_id, app_id, kind, scope, status, grace_expires_at
+      `SELECT id, tenant_id, app_id, kind, scope, status, grace_expires_at,
+              (last_used_at IS NULL OR last_used_at < now() - interval '60 seconds') AS usage_due
          FROM api_keys
         WHERE key_hash = $1`,
       [hashApiKey(rawKey)],
@@ -51,16 +62,16 @@ export class ApiKeyService {
     ) {
       return null;
     }
-    // 마지막 사용 시각 — 응답 지연에 얹지 않음 (fire-and-forget)
-    void this.pg
-      .query(`UPDATE api_keys SET last_used_at = now() WHERE id = $1`, [row.id])
-      .catch(() => undefined);
-    return {
+    const resolved: ResolvedApiKey = {
       id: row.id,
       tenantId: row.tenant_id,
       appId: row.app_id,
       kind: row.kind,
       scope: row.scope,
     };
+    // Always perform the DB validity check above, including after a recent touch.
+    // Only last_used_at writes may be coalesced; authorization is never cached.
+    this.usage.record(resolved, row.usage_due === true);
+    return resolved;
   }
 }

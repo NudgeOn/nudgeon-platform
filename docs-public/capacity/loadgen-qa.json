@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-03",
+  "scope": "P0-1 load generator unit/race/CLI verification, not platform capacity",
+  "base_commit": "0f4f28141af0e7d3544c548a69bf3b784e5cfc0b",
+  "dirty_worktree": true,
+  "go_version": "go1.26.1 darwin/arm64",
+  "source_sha256": {
+    "apps/worker/cmd/loadgen/main.go": "a16c8b6aba2a7d5a6a387cf250364fac015f6ada45705db06a5b13992328d67f",
+    "apps/worker/cmd/loadgen/latency.go": "b7a98a819f742d0d861c86f5de91bf0618060c813bf81f2a244e1179d7418717",
+    "apps/worker/cmd/loadgen/evidence.go": "fd14c22ef0bd0fd6c36843fffaa4c01ee54ea7327702298e749b9599d9188bbb",
+    "apps/worker/cmd/loadgen/main_test.go": "6846bb5f774b1cd0903a94af6ecefd3aaaeb3bf46434b9198b6f4cd54f93bc07",
+    "apps/worker/cmd/loadgen/regression_test.go": "9e4c27f9d8780b2bcb471dd25d21ed7266b8e54bba796bb860c837a0764c4aea",
+    "tests/ops/local/run.mjs": "cdfd8197781449e42761142b9566e0289423968b4ec258b5344e77e9a98d24fe",
+    "tests/ops/loadgen-smoke.mjs": "f07ba37fcebbe1a1cf753b978dbf6fb41c1642727076097cf17e4b59153d30cf"
+  },
+  "binary_sha256": "92555f59f02dc890e11074eff9e6480949050da22b1d9c7ab608bb1932f7efec",
+  "race_suite_repeats_passed": 3,
+  "go_vet": "pass",
+  "histogram_record_benchmark_iterations": 1000000,
+  "histogram_record_bytes_per_op": 0,
+  "histogram_record_allocations_per_op": 0,
+  "three_histogram_bucket_bytes": 442368,
+  "sequential_requests": 10,
+  "sequential_tcp_connections": 1,
+  "cli_smoke_cases_passed": 5,
+  "cli_synthetic_responder": {
+    "rate_rps": 200,
+    "duration_seconds": 1,
+    "expected": 200,
+    "accepted": 200,
+    "accepted_in_window": 200,
+    "failed_total": 0,
+    "reconstructed_ids_matching_actual_requests": 200,
+    "tcp_connections_opened": 2,
+    "connections_reused": 198
+  },
+  "service_load_test_run": false,
+  "database_reconciliation_run": false,
+  "docker_or_cloud_resources_changed": false,
+  "committed_or_pushed": false
+}

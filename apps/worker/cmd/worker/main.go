@@ -1,5 +1,5 @@
 // nudgeon-worker — Go 단일 바이너리 + --role 플래그 (PRD-08 2장).
-// roles: ingest-consumer | scheduler | trigger-matcher | segment | channel | all
+// roles: ingest-consumer | scheduler | trigger-matcher | segment | channel | dlq-monitor | ops-monitor | all
 package main
 
 import (
@@ -35,7 +35,7 @@ import (
 
 var validRoles = map[string]bool{
 	"ingest-consumer": true, "scheduler": true, "trigger-matcher": true,
-	"segment": true, "channel": true, "all": true,
+	"segment": true, "channel": true, "dlq-monitor": true, "ops-monitor": true, "all": true,
 }
 
 type workerComponent struct {
@@ -47,7 +47,8 @@ type workerComponent struct {
 const workerComponentRetryInterval = time.Second
 
 func main() {
-	role := flag.String("role", "all", "worker 역할: ingest-consumer|scheduler|trigger-matcher|segment|channel|all")
+	registerBuildInfo()
+	role := flag.String("role", "all", "worker 역할: ingest-consumer|scheduler|trigger-matcher|segment|channel|dlq-monitor|ops-monitor|all")
 	flag.Parse()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil)).With("role", *role)
@@ -63,6 +64,13 @@ func main() {
 }
 
 func run(role string, logger *slog.Logger) error {
+	if role == "ops-monitor" {
+		return runOpsMonitor(logger)
+	}
+	// The singleton observer uses only PG and must not start send consumers.
+	if role == "dlq-monitor" {
+		return runDLQMonitor(logger)
+	}
 	cfg, err := config.Load("DATABASE_URL", "REDIS_URL", "CLICKHOUSE_URL")
 	if err != nil {
 		return fmt.Errorf("설정 로드: %w", err)

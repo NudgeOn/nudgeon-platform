@@ -1,0 +1,233 @@
+{
+  "status": "accounting-passed-capacity-failed",
+  "project": "nudgeon-projection-qa-42d33634",
+  "startedAt": "2026-09-03T09:27:01.562Z",
+  "finishedAt": "2026-09-03T09:28:44.555Z",
+  "accountingPass": true,
+  "capacityPass": false,
+  "steps": {
+    "duplicates": {
+      "submitted": 6,
+      "unique": 2,
+      "projected": 2,
+      "duplicateEvents": 4
+    },
+    "postgresTimeout": {
+      "http": 503,
+      "admittedBefore": 2,
+      "admittedAfterFailure": 2,
+      "retryUnique": 1
+    },
+    "clickhouseFailure": {
+      "http": 202,
+      "admitted": 4,
+      "projectedDuringFailure": 3,
+      "pending": 1,
+      "recoveredProjected": 4
+    },
+    "activityCanary": {
+      "http": 200,
+      "eventCount": 4,
+      "queryMs": 254
+    },
+    "loadgen": {
+      "active_duration_ns": 10000000000,
+      "completed_at": "2026-09-03T09:28:32.230765Z",
+      "counters": {
+        "accepted": 1000,
+        "accepted_after_window": 0,
+        "accepted_in_window": 1000,
+        "connections_acquired": 1000,
+        "connections_reused": 979,
+        "dropped": 0,
+        "enqueued": 1000,
+        "http_errors": 0,
+        "network_errors": 0,
+        "response_errors": 0,
+        "scheduled": 1000,
+        "started": 1000,
+        "tcp_connections_opened": 21,
+        "timeouts": 0
+      },
+      "drain_duration_ns": 231375,
+      "expected": 1000,
+      "failed_total": 0,
+      "http_status_counts": {},
+      "latency": {
+        "end_to_end": {
+          "count": 1000,
+          "max_ns": 613633250,
+          "overflow": 0,
+          "p50_ns": 5491000,
+          "p99_ns": 548863000
+        },
+        "queue": {
+          "count": 1000,
+          "max_ns": 373516542,
+          "overflow": 0,
+          "p50_ns": 445000,
+          "p99_ns": 350463000
+        },
+        "service": {
+          "count": 1000,
+          "max_ns": 612048833,
+          "overflow": 0,
+          "p50_ns": 5091000,
+          "p99_ns": 489983000
+        }
+      },
+      "outcome": "FAIL",
+      "rate_rps": 100,
+      "run_id": "388e017f-1bc1-4009-aa3a-9047f5b218cd",
+      "schema_version": 1,
+      "scope": "single-event track HTTP acceptance only; no database or analytics reconciliation",
+      "violations": [
+        "종단 p99 548.863ms > 허용 500ms"
+      ],
+      "wall_duration_ns": 10000231375
+    },
+    "loadExitCode": 1,
+    "sampledWindow": {
+      "from": "2026-09-03T09:28:22.294Z",
+      "to": "2026-09-03T09:28:31.981Z",
+      "seconds": 9.687,
+      "admitted": 975,
+      "projected": 934,
+      "admittedEPS": 100.65035614741407,
+      "projectedEPS": 96.41787963249716,
+      "maxScrapeMs": 106,
+      "definition": "observed interval strictly within loadgen input; excludes warmup and drain; two scrapes are not an atomic snapshot"
+    },
+    "drainMs": 507,
+    "reconciliation": {
+      "apiCommitted": 1004,
+      "workerProjected": 1004,
+      "scheduled": 1000,
+      "dropped": 0,
+      "acknowledged": 1000,
+      "loadPGUnique": 1000,
+      "loadPGProjected": 1000,
+      "loadCHPhysical": 1000,
+      "exactIDSetMatch": true
+    },
+    "actualDBAPITests": {
+      "pass": 7,
+      "skipped": 0
+    },
+    "actualDBGoTests": {
+      "pass": 15,
+      "skipped": []
+    }
+  },
+  "build": {
+    "revision": "0f4f28141af0e7d3544c548a69bf3b784e5cfc0b",
+    "dirty": true,
+    "sourceSHA256": "c1c3d08ea99db60ea1f90eab17dbc9f22bdf5c740fd102270c570571916b3959",
+    "sourceFiles": 296,
+    "images": {
+      "api": {
+        "localTag": "nudgeon-projection-qa-42d33634-api:local",
+        "imageID": "sha256:06a6a17c775ba6852836db668ba94736fc70d240feb3dde473538e519bd15dfd",
+        "localRepoDigests": [
+          "nudgeon-projection-qa-42d33634-api@sha256:06a6a17c775ba6852836db668ba94736fc70d240feb3dde473538e519bd15dfd"
+        ],
+        "scope": "full API Dockerfile"
+      },
+      "worker": {
+        "localTag": "nudgeon-projection-qa-42d33634-worker:local",
+        "imageID": "sha256:d647831a9823235a5ab12088443c66c685b980184febedb4a100b431fe7e21fc",
+        "localRepoDigests": [
+          "nudgeon-projection-qa-42d33634-worker@sha256:d647831a9823235a5ab12088443c66c685b980184febedb4a100b431fe7e21fc"
+        ],
+        "scope": "full worker Dockerfile including operational CLIs"
+      }
+    },
+    "published": false
+  },
+  "preservation": {
+    "existingRunningContainers": 19,
+    "services": [
+      {
+        "service": "api",
+        "exitCode": 0,
+        "oom": false
+      },
+      {
+        "service": "ingest",
+        "exitCode": 0,
+        "oom": false
+      },
+      {
+        "service": "scheduler",
+        "exitCode": 0,
+        "oom": false
+      },
+      {
+        "service": "postgres",
+        "exitCode": 0,
+        "oom": false
+      },
+      {
+        "service": "redis",
+        "exitCode": 0,
+        "oom": false
+      },
+      {
+        "service": "clickhouse",
+        "exitCode": 0,
+        "oom": false
+      },
+      {
+        "service": "gateway",
+        "exitCode": 0,
+        "oom": false
+      }
+    ],
+    "volumesImagesEvidenceRetained": true
+  },
+  "artifactSHA256": {
+    ".nudgeon/nudgeon-projection-qa-42d33634/result.json": "69b09bf090c468a4610adc2161828f7537edb1d059bb647e26c6090a794dbaf9",
+    ".nudgeon/nudgeon-projection-qa-42d33634/source-manifest.json": "86f50419cf488ec4e02ace11d44818973f013c17efd4d5676bd81fdd849f85fd",
+    ".nudgeon/nudgeon-projection-qa-42d33634/api-build.log": "26d70557479532946e1874819bd289f4f7e9ea27a03dadd0980cb56e591d6bc9",
+    ".nudgeon/nudgeon-projection-qa-42d33634/worker-build.log": "c284c448abcc1893350df8dc7649956003eb21a2fee7b9b75722cad33f32144b",
+    ".nudgeon/nudgeon-projection-qa-42d33634/final-api.prom": "6ecdf681cf026bcf83ed09370335420af91e96ca7e4b95d2fdb3f2bd36d83032",
+    ".nudgeon/nudgeon-projection-qa-42d33634/final-worker.prom": "d7b2cf243981dadc8efd565e7bc8061e964fb4169fac154f22f9b84ae43e4f90",
+    ".nudgeon/nudgeon-projection-qa-42d33634/clickhouse-failure-api.prom": "11f76788025cb488388416f2ac7584fcf1449e5edaeb7e5415da5c7da977f5cb",
+    ".nudgeon/nudgeon-projection-qa-42d33634/clickhouse-failure-worker.prom": "3de90293c0f2740487ce943cfcf71b5c26be3fe8c5e36c9df327731121dbcf7e",
+    ".nudgeon/nudgeon-projection-qa-42d33634/activity-canary.json": "c3ea85532a77edfb02ed13ec7a0c8496563f2ffd5d63de9cf3e2bc341b80097c",
+    ".nudgeon/nudgeon-projection-qa-42d33634/load-ledger.json": "ff5504d8679e6c9a4f8c27312c2db29ec322432bbee43aed20d4c8aa533e9f64",
+    ".nudgeon/nudgeon-projection-qa-42d33634/load-clickhouse.json": "286cad12d1f646dd7fec96ae1a739bd538d577878859ff15b7b3b5b80e8b1908",
+    ".nudgeon/nudgeon-projection-qa-42d33634/load/summary.json": "45406043206938c7ba3f5058013656ed527d5b9bf03f476bb99805fc57dc246c",
+    ".nudgeon/nudgeon-projection-qa-42d33634/load/manifest.json": "21f83781bda3d3cc84ab6a2a229f687178eb4f971b98c0a9f4baad17354c4fef",
+    ".nudgeon/nudgeon-projection-qa-42d33634/load/events.bin": "e2a8ebba204e96bd5d40ea01336bd3e49fbc59f5c2293dd9d8d339e4ba875c60",
+    ".nudgeon/nudgeon-projection-qa-42d33634/window-samples.json": "5282323bf3190300e54bf83fe8bbf13d95f7a467f04f128e0e2c709011683a6d",
+    ".nudgeon/nudgeon-projection-qa-42d33634/api-receipt-tests.log": "6f38959a3e4ea976251ac5fe515a6077eb7659705d7aa0be348b9dca47ecdc65",
+    ".nudgeon/nudgeon-projection-qa-42d33634/go-receipt-tests.jsonl": "2999a7aed04df51dfdbaffbf0629f06a073c0e0730254f5a119eadc4db1ad522",
+    ".nudgeon/nudgeon-projection-qa-42d33634/shutdown-containers.log": "1d57687409eb8bdd5c42ccda98e5c1b3e808c32d287cce38e193056b783002a9",
+    "tests/ops/projection/run.mjs": "39fe27180a5898dff7a916c36e8cc194cac4dd7a3c89a974d68bdd1e6f55e883",
+    "tests/ops/projection/compose.yaml": "628b4afcfa95be12d8f2b233548e60e801b24ce86c5da519b181a9b009a95c73",
+    "tests/ops/projection/gateway.mjs": "4238898fdc56595bafbcdcdadc35fb9bc22484a53a1ba188f6e702f864609735",
+    "tests/ops/projection/reconcile.mjs": "79daf6c4fd35635bf856331fb3e2db73db55015453da40fe9318ca924aae5fbc",
+    "tests/ops/projection/reconcile.test.mjs": "8c55aab88d6455f4e40992b82c6ea4184e03cfd8868cfa6097cd0963715daf5d"
+  },
+  "verification": {
+    "apiUnitTestsPassed": 154,
+    "apiDefaultIntegrationSkips": 14,
+    "actualAPIReceiptTestsPassed": 7,
+    "goIngestTestsWithActualDatabasesPassed": 15,
+    "goIngestActualSkips": 0,
+    "nodeReconciliationTestsPassed": 3,
+    "promtoolLiveExposition": "pass for API and worker",
+    "goVet": "pass",
+    "goModuleTests": "pass; environment-dependent integrations skip by default",
+    "repositoryRules": "pass",
+    "remoteCIExecuted": false
+  },
+  "boundaries": [
+    "No stable capacity qualification: final p99 548.863ms exceeds 500ms; earlier run dropped 433 arrivals",
+    "No exact commit-to-commit latency or server clock synchronization qualification",
+    "Single synthetic tenant, all-new single-event workload, 10 seconds",
+    "No live provider/device sends, production rollout, managed DB recovery, backup or 24h soak",
+    "CH acknowledgement alone is not a committed unique projection; counters are not a durable ledger"
+  ]
+}

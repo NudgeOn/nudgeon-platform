@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:16
+    mem_limit: 256m
+    cpus: 1
+    environment: {POSTGRES_USER: nudgeon, POSTGRES_PASSWORD: local-storage-only, POSTGRES_DB: nudgeon}
+    volumes:
+      - pg:/var/lib/postgresql/data
+      - ../../../db/postgres/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./fixtures.sql:/docker-entrypoint-initdb.d/02-fixtures.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U nudgeon -d nudgeon"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  redis:
+    image: redis:7
+    mem_limit: 96m
+    command: [redis-server, --appendonly, "yes", --maxmemory, 64mb, --maxmemory-policy, noeviction]
+    volumes: ["redis:/data"]
+  gateway:
+    image: nudgeon-api:latest
+    entrypoint: [node, /gateway.mjs]
+    mem_limit: 64m
+    read_only: true
+    networks: [default, host-access]
+    volumes: ["./gateway.mjs:/gateway.mjs:ro"]
+    ports: ["127.0.0.1:19395:5432", "127.0.0.1:19379:6379"]
+networks:
+  default: {internal: true}
+  host-access: {}
+volumes:
+  pg: {}
+  redis: {}

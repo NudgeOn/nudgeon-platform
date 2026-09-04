@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/metrics"
 	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 )
 
@@ -95,14 +96,26 @@ func lockReceiptCursor(ctx context.Context, q Querier, tenantID, appID, userID s
 // flushAndProject holds customer cursors until CH is durable and PG projection
 // markers + normalized outbox jobs commit. Deletion uses the same cursor, so a
 // deleted customer's event cannot be inserted after its CH deletion mutation.
-func (c *Consumer) flushAndProject(ctx context.Context, rows *chRows) error {
+func (c *Consumer) flushAndProject(ctx context.Context, rows *chRows) (err error) {
 	if len(rows.receipts) == 0 {
 		return c.flushCH(ctx, rows)
 	}
-	tx, err := c.pg.Begin(ctx)
+	start := c.clk.Now()
+	defer func() { c.observeStage("transaction", start, err) }()
+	poolStart := c.clk.Now()
+	conn, err := c.pg.Acquire(ctx)
+	c.observeStage("pool_acquire", poolStart, err)
 	if err != nil {
 		return err
 	}
+	defer conn.Release()
+	beginStart := c.clk.Now()
+	rawTx, err := conn.Begin(ctx)
+	c.observeStage("begin", beginStart, err)
+	if err != nil {
+		return err
+	}
+	tx := observedProjectionTx{Tx: rawTx, c: c}
 	defer func() { _ = tx.Rollback(ctx) }()
 	ordered := append([]*receipt(nil), rows.receipts...)
 	sort.Slice(ordered, func(i, j int) bool {
@@ -177,5 +190,24 @@ func (c *Consumer) flushAndProject(ctx context.Context, rows *chRows) error {
 			return err
 		}
 	}
-	return tx.Commit(ctx)
+	commitStart := c.clk.Now()
+	err = tx.Commit(ctx)
+	c.observeStage("commit", commitStart, err)
+	if err != nil {
+		return err
+	}
+	// Count only after BOTH durable CH write and successful PG COMMIT. Replayed,
+	// deleted and already projected receipts are excluded by pending above.
+	metrics.ProjectionCommitted.Add(float64(len(pending)))
+	committedAt := c.clk.Now()
+	for _, r := range pending {
+		metrics.IngestProcessed.WithLabelValues(r.tenantID).Inc()
+		age := committedAt.Sub(r.receivedAt).Seconds()
+		if age < 0 {
+			metrics.ProjectionClockSkew.Inc()
+		} else {
+			metrics.ProjectionAge.Observe(age)
+		}
+	}
+	return nil
 }

@@ -1,0 +1,133 @@
+rule_files: [ops-alerts.yml]
+evaluation_interval: 5s
+tests:
+  - name: Pre-existing pending fires, replicas deduplicate, zero resolves only after hold
+    interval: 5s
+    input_series:
+      - series: 'nudgeon_ops_pending_push_pending_observed_count{nudgeon_cluster="qa",instance="a"}'
+        values: '1 1 0 0'
+      - series: 'nudgeon_ops_pending_push_pending_observed_count{nudgeon_cluster="qa",instance="b"}'
+        values: '1 1 0 0'
+      - series: 'nudgeon_ops_pending_message_pending_observed_count{nudgeon_cluster="qa",instance="a"}'
+        values: '0+0x3'
+    promql_expr_test:
+      - expr: 'max by (nudgeon_cluster) (nudgeon_ops_pending_push_pending_observed_count) + max by (nudgeon_cluster) (nudgeon_ops_pending_message_pending_observed_count)'
+        eval_time: 0s
+        exp_samples: [{labels: '{nudgeon_cluster="qa"}', value: 1}]
+      - expr: 'count(ALERTS{alertname="NudgeOnDLQPendingStorage",alertstate="firing"})'
+        eval_time: 0s
+        exp_samples: [{labels: '{}', value: 1}]
+      - expr: 'ALERTS{alertname="NudgeOnDLQPendingStorage",alertstate="firing"}'
+        eval_time: 75s
+        exp_samples: []
+      - expr: 'count(ALERTS{alertname="NudgeOnDLQPendingStorage",alertstate="firing"})'
+        eval_time: 15s
+        exp_samples: [{labels: '{}', value: 1}]
+
+  - name: Brief scrape loss must not resolve the pending incident
+    interval: 5s
+    input_series:
+      - series: 'nudgeon_ops_pending_push_pending_observed_count{nudgeon_cluster="qa",instance="a"}'
+        values: '1 stale _ _ 1+0x12'
+      - series: 'nudgeon_ops_pending_message_pending_observed_count{nudgeon_cluster="qa",instance="a"}'
+        values: '0 stale _ _ 0+0x12'
+    promql_expr_test:
+      - expr: 'count(ALERTS{alertname="NudgeOnDLQPendingStorage",alertstate="firing"})'
+        eval_time: 15s
+        exp_samples: [{labels: '{}', value: 1}]
+      - expr: 'count(ALERTS{alertname="NudgeOnDLQPendingStorage",alertstate="firing"})'
+        eval_time: 75s
+        exp_samples: [{labels: '{}', value: 1}]
+
+  - name: Initial unknown and later frozen freshness alert independently of backlog
+    interval: 5s
+    input_series:
+      - series: 'nudgeon_ops_pending_collector_success{job="ops",instance="a"}'
+        values: '0 1+0x9'
+      - series: 'nudgeon_ops_pending_collector_last_success_timestamp_seconds{job="ops",instance="a"}'
+        values: '0 5+0x9'
+    promql_expr_test:
+      - expr: 'count(ALERTS{alertname="NudgeOnOpsCollectorFailure",alertstate="firing"})'
+        eval_time: 0s
+        exp_samples: [{labels: '{}', value: 1}]
+      - expr: 'ALERTS{alertname="NudgeOnOpsCollectorFailure",alertstate="firing"}'
+        eval_time: 20s
+        exp_samples: []
+      - expr: 'count(ALERTS{alertname="NudgeOnOpsCollectorFailure",alertstate="firing"})'
+        eval_time: 25s
+        exp_samples: [{labels: '{}', value: 1}]
+
+  - name: Completely absent observer alerts
+    promql_expr_test:
+      - expr: 'count(ALERTS{alertname="NudgeOnOpsMonitorMissing",alertstate="firing"})'
+        eval_time: 0s
+        exp_samples: [{labels: '{}', value: 1}]
+
+  - name: Reachable binary with only two of three collectors is not configured correctly
+    interval: 5s
+    input_series:
+      - series: 'up{job="ops",instance="a",ops_monitor="true",nudgeon_cluster="qa"}'
+        values: '1+0x3'
+      - series: 'nudgeon_ops_postgres_collector_success{job="ops",instance="a",ops_monitor="true",nudgeon_cluster="qa"}'
+        values: '1+0x3'
+      - series: 'nudgeon_ops_redis_collector_success{job="ops",instance="a",ops_monitor="true",nudgeon_cluster="qa"}'
+        values: '1+0x3'
+    promql_expr_test:
+      - expr: 'count(ALERTS{alertname="NudgeOnOpsMonitorMissing",alertstate="firing"})'
+        eval_time: 5s
+        exp_samples: [{labels: '{}', value: 1}]
+
+  - name: Down observer alerts
+    interval: 5s
+    input_series:
+      - series: 'up{job="ops",instance="a",ops_monitor="true",nudgeon_cluster="qa"}'
+        values: '0+0x3'
+    promql_expr_test:
+      - expr: 'count(ALERTS{alertname="NudgeOnOpsMonitorDown",alertstate="firing"})'
+        eval_time: 5s
+        exp_samples: [{labels: '{}', value: 1}]
+
+  - name: Aging backlog and memory pressure respect their hold durations
+    interval: 5s
+    input_series:
+      - series: 'nudgeon_ops_postgres_projection_oldest_received_timestamp_seconds{instance="a"}'
+        values: '1+0x30'
+      - series: 'nudgeon_ops_postgres_projection_pending_count{instance="a"}'
+        values: '1+0x30'
+      - series: 'nudgeon_ops_redis_used_memory_bytes{instance="a"}'
+        values: '90+0x30'
+      - series: 'nudgeon_ops_redis_maxmemory_bytes{instance="a"}'
+        values: '100+0x30'
+    promql_expr_test:
+      - expr: 'ALERTS{alertname="NudgeOnPipelineBacklogAge",alertstate="firing"}'
+        eval_time: 70s
+        exp_samples: []
+      - expr: 'count(ALERTS{alertname="NudgeOnPipelineBacklogAge",alertstate="firing"})'
+        eval_time: 75s
+        exp_samples: [{labels: '{}', value: 1}]
+      - expr: 'ALERTS{alertname="NudgeOnRedisMemoryPressure",alertstate="firing"}'
+        eval_time: 115s
+        exp_samples: []
+      - expr: 'count(ALERTS{alertname="NudgeOnRedisMemoryPressure",alertstate="firing"})'
+        eval_time: 120s
+        exp_samples: [{labels: '{}', value: 1}]
+
+  - name: Storage errors, unsafe persistence, and unbounded memory alert
+    interval: 5s
+    input_series:
+      - series: 'nudgeon_channel_dlq_operation_errors_total{nudgeon_cluster="qa",stage="store"}'
+        values: '0+1x4'
+      - series: 'nudgeon_ops_redis_aof_enabled{instance="a"}'
+        values: '0+0x4'
+      - series: 'nudgeon_ops_redis_maxmemory_bytes{instance="a"}'
+        values: '0+0x4'
+    promql_expr_test:
+      - expr: 'count(ALERTS{alertname="NudgeOnDLQOperationErrors",alertstate="firing"})'
+        eval_time: 10s
+        exp_samples: [{labels: '{}', value: 1}]
+      - expr: 'count(ALERTS{alertname="NudgeOnRedisDurabilityRisk",alertstate="firing"})'
+        eval_time: 0s
+        exp_samples: [{labels: '{}', value: 1}]
+      - expr: 'count(ALERTS{alertname="NudgeOnRedisMemoryUnbounded",alertstate="firing"})'
+        eval_time: 0s
+        exp_samples: [{labels: '{}', value: 1}]

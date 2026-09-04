@@ -311,7 +311,6 @@ func (c *Consumer) handleTrack(ctx context.Context, tenantID, appID string, p *I
 		rows.events = append(rows.events, []any{
 			tenantID, appID, r.eventName, r.userID, deviceID, string(r.properties), *r.clientTS, r.receivedAt, r.insertID,
 		})
-		metrics.IngestProcessed.WithLabelValues(tenantID).Inc()
 		rows.touch(r.userID)
 		rows.receipts = append(rows.receipts, r)
 	}
@@ -443,10 +442,18 @@ func (c *Consumer) flushCH(ctx context.Context, rows *chRows) error {
 	return nil
 }
 
-func (c *Consumer) insertCH(ctx context.Context, insertSQL string, rows [][]any) error {
+func (c *Consumer) insertCH(ctx context.Context, insertSQL string, rows [][]any) (err error) {
 	if len(rows) == 0 {
 		return nil
 	}
+	start := c.clk.Now()
+	table := clickhouseTable(insertSQL)
+	defer func() {
+		metrics.ProjectionCHDuration.WithLabelValues(table, outcome(err)).Observe(c.clk.Now().Sub(start).Seconds())
+		if err == nil {
+			metrics.ProjectionCHRows.WithLabelValues(table).Add(float64(len(rows)))
+		}
+	}()
 	// Projection readiness is a durable insert acknowledgement, never an async
 	// buffer acknowledgement inherited from an API-oriented ClickHouse DSN.
 	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{"async_insert": 0, "wait_for_async_insert": 1}))

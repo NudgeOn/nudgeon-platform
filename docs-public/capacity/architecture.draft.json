@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": { "title": "NudgeOn 처리량 확장 설계안", "quality_profile": "showcase" },
+  "layout": { "mode": "grid", "origin": [40, 45], "cols": 4, "cellW": 192, "cellH": 70, "gapX": 130, "gapY": 100 },
+  "components": [
+    { "id": "traffic", "type": "external", "label": "SDK · 부하 발생기", "sublabel": "요청 수와 이벤트 수 분리", "row": 0, "col": 0, "tag": "측정 개선" },
+    { "id": "api", "type": "backend", "label": "수집 API", "sublabel": "입장 제한 · 정상 종료", "row": 1, "col": 0, "tag": "개선안" },
+    { "id": "ledger", "type": "database", "label": "PostgreSQL 원장", "sublabel": "receipt + outbox 원자 저장", "row": 1, "col": 1, "tag": "계약 유지" },
+    { "id": "relay", "type": "backend", "label": "전용 릴레이", "sublabel": "선점 임대 · 묶음 발행", "row": 1, "col": 2, "tag": "분리안" },
+    { "id": "streams", "type": "messagebus", "label": "Redis Streams", "sublabel": "상한 · 재전달", "row": 1, "col": 3, "tag": "개선안" },
+    { "id": "projector", "type": "backend", "label": "이벤트 처리기", "sublabel": "작은 묶음 · 제한된 병렬성", "row": 2, "col": 3, "tag": "개선안" },
+    { "id": "analytics", "type": "database", "label": "ClickHouse 분석", "sublabel": "저장 성공을 확인한 뒤 확정", "row": 2, "col": 2, "tag": "용량 재측정" },
+    { "id": "journey", "type": "backend", "label": "Journey · 발송", "sublabel": "수집 TPS와 별도로 검증", "row": 3, "col": 3, "tag": "계약 유지" },
+    { "id": "alerts", "type": "backend", "label": "DLQ · 경보", "sublabel": "첫 실패 · 재시작도 감지", "row": 3, "col": 2, "tag": "개선안" }
+  ],
+  "connections": [
+    { "id": "submit", "from": "traffic", "to": "api", "label": "POST /v1/track", "variant": "emphasis", "labelDy": 24 },
+    { "id": "durable", "from": "api", "to": "ledger", "label": "COMMIT → 202", "variant": "emphasis" },
+    { "id": "claim", "from": "ledger", "to": "relay", "label": "임대 선점", "variant": "emphasis" },
+    { "id": "publish", "from": "relay", "to": "streams", "label": "XADD", "variant": "emphasis" },
+    { "id": "consume", "from": "streams", "to": "projector", "label": "그룹 소비", "variant": "emphasis", "labelDy": 24 },
+    { "id": "store", "from": "projector", "to": "analytics", "label": "저장 확인", "variant": "emphasis" },
+    { "id": "followup", "from": "projector", "to": "journey", "label": "PG 확정 · outbox", "variant": "dashed", "labelDy": 24 },
+    { "id": "notify", "from": "journey", "to": "alerts", "label": "실패 기록", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "1단계 · 100 TPS", "items": ["30분 연속 시험을 두 번 통과", "오류·드롭 0 · p99 ≤ 500ms"] },
+    { "dot": "emerald", "title": "2단계 · 500 TPS", "items": ["1시간 연속 시험을 두 번 통과", "원장·분석 일치 · 대기 증가 없음"] },
+    { "dot": "amber", "title": "3단계 · 5,000 ev/s", "items": ["증량 시험 후 1시간 검증", "24시간 시험은 별도 자원 승인"] }
+  ]
+}

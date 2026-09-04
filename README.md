@@ -220,9 +220,11 @@ For commands, the manual development Compose file, managed databases, backup, an
 
 ```bash
 go run ./apps/worker/cmd/seed --tenant <uuid> --app <uuid> --users 500000   # synthetic data
-go run ./apps/worker/cmd/loadgen --key pk_... --rate 5000 --dur 30s          # ingestion load
+go run ./apps/worker/cmd/loadgen --key pk_... --rate 200 --dur 30s --concurrency 128 --max-p99 500ms  # ingestion load
 node tests/isolation/run.mjs                                                 # tenant isolation checks
 ```
+
+`loadgen` treats generator queue drops, non-202 responses, network errors, target-rate shortfall, and an optional end-to-end p99 limit as independent release gates. It prints a `run_id` in every request so PostgreSQL receipts/projections and ClickHouse events can be reconciled after the run. Size concurrency for the target latency and confirm generator drops stay at zero before attributing a failure to the API.
 
 ## License
 

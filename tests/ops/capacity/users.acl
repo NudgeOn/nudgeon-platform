@@ -1,0 +1,2 @@
+user default on nopass ~* +@all
+user ops_observer on >local-observer-only ~send:idem:* ~send:message:idem:* +ping +hello +auth +select +info +scan +getrange +client|setname +client|setinfo

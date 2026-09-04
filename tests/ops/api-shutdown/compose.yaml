@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:16
+    mem_limit: 256m
+    environment: {POSTGRES_USER: nudgeon, POSTGRES_PASSWORD: local-shutdown-only, POSTGRES_DB: nudgeon}
+    volumes:
+      - pg:/var/lib/postgresql/data
+      - ../../../db/postgres/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../../../db/postgres/seed.dev.sql:/docker-entrypoint-initdb.d/02-fixture.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U nudgeon -d nudgeon"]
+      interval: 2s
+      timeout: 2s
+      retries: 40
+  redis:
+    image: redis:7
+    mem_limit: 96m
+    command: [redis-server, --maxmemory, 64mb, --maxmemory-policy, noeviction]
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    mem_limit: 1536m
+    cpus: 2
+    environment: {CLICKHOUSE_USER: nudgeon, CLICKHOUSE_PASSWORD: local-shutdown-only, CLICKHOUSE_DB: nudgeon, CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"}
+    volumes:
+      - ch:/var/lib/clickhouse
+      - ../../../db/clickhouse:/docker-entrypoint-initdb.d:ro
+      - ./clickhouse.xml:/etc/clickhouse-server/config.d/shutdown-qa.xml:ro
+    healthcheck:
+      test: [CMD, wget, -qO-, "http://localhost:8123/ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+  api:
+    image: ${SHUTDOWN_API_IMAGE:-nudgeon-api:latest}
+    mem_limit: 256m
+    stop_grace_period: 20s
+    command: [node, --require, /qa/probe.cjs, dist/main.js]
+    volumes:
+      - ${SHUTDOWN_API_DIST:?compiled snapshot required}:/app/dist:ro
+      - ./probe.cjs:/qa/probe.cjs:ro
+    environment:
+      DATABASE_URL: postgres://nudgeon:local-shutdown-only@postgres:5432/nudgeon?application_name=shutdown-qa-api
+      REDIS_URL: redis://redis:6379
+      CLICKHOUSE_URL: http://nudgeon:local-shutdown-only@clickhouse:8123/nudgeon
+      NUDGEON_MASTER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      SHUTDOWN_QA_PROBE: ${SHUTDOWN_QA_PROBE:-false}
+    depends_on:
+      postgres: {condition: service_healthy}
+      clickhouse: {condition: service_healthy}
+  gateway:
+    image: ${SHUTDOWN_API_IMAGE:-nudgeon-api:latest}
+    entrypoint: [node, /gateway.mjs]
+    mem_limit: 64m
+    networks: [default, host-access]
+    volumes: ["./gateway.mjs:/gateway.mjs:ro"]
+    ports: ["127.0.0.1:19480:8080", "127.0.0.1:19495:5432", "127.0.0.1:19483:8123"]
+networks:
+  default: {internal: true}
+  host-access: {}
+volumes:
+  pg: {}
+  ch: {}

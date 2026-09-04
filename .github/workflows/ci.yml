@@ -65,6 +65,11 @@ jobs:
         run: docker compose -f deploy/compose.yaml --profile full --profile app config -q
         env:
           NUDGEON_MASTER_KEY: ci-config-validation-placeholder
+      - name: DLQ and operations alert rules
+        run: >-
+          docker run --rm --network none --entrypoint /bin/promtool
+          -v "$GITHUB_WORKSPACE/deploy/observability:/rules:ro"
+          prom/prometheus:v3.5.0 test rules /rules/alerts.test.yml /rules/ops-alerts.test.yml
       - name: Safe Boot CLI · 상태 서버 검증
         run: |
           sh -n ./nudgeon

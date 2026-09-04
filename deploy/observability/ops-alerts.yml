@@ -1,0 +1,60 @@
+groups:
+  - name: nudgeon-operations
+    rules:
+      - alert: NudgeOnDLQPendingStorage
+        expr: (max by (nudgeon_cluster) (nudgeon_ops_pending_push_pending_observed_count) + max by (nudgeon_cluster) (nudgeon_ops_pending_message_pending_observed_count)) > 0
+        keep_firing_for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "NudgeOn has DLQ pending markers in Redis"
+          description: "DLQ persistence/finalization is incomplete. PostgreSQL DLQ zero does not prove an empty failure queue. Never delete markers or resend manually."
+      - alert: NudgeOnDLQOperationErrors
+        expr: sum by (nudgeon_cluster, stage) (increase(nudgeon_channel_dlq_operation_errors_total[5m])) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "NudgeOn DLQ protocol operations are failing"
+          description: "Stage {{ $labels.stage }} failed. This is an attempt count, not a count of unique failed deliveries."
+      - alert: NudgeOnOpsCollectorFailure
+        expr: (nudgeon_ops_postgres_collector_success == 0) or (nudgeon_ops_pending_collector_success == 0) or (nudgeon_ops_redis_collector_success == 0) or (time() - nudgeon_ops_postgres_collector_last_success_timestamp_seconds > 15) or (time() - nudgeon_ops_pending_collector_last_success_timestamp_seconds > 15) or (time() - nudgeon_ops_redis_collector_last_success_timestamp_seconds > 15)
+        labels: {severity: critical}
+        annotations:
+          summary: "NudgeOn operations data is unavailable or stale"
+          description: "A failed, incomplete, or over-budget observation is unknown, not zero backlog. Restore freshness before declaring recovery."
+      - alert: NudgeOnOpsMonitorDown
+        expr: up{ops_monitor="true"} == 0
+        labels: {severity: critical}
+        annotations:
+          summary: "NudgeOn operations monitor is unreachable"
+          description: "Restore the read-only observer; missing metrics are not evidence of recovery."
+      - alert: NudgeOnOpsMonitorMissing
+        expr: absent(up{ops_monitor="true"}) or (up{ops_monitor="true"} == 1 unless on (job, instance) nudgeon_ops_postgres_collector_success) or (up{ops_monitor="true"} == 1 unless on (job, instance) nudgeon_ops_pending_collector_success) or (up{ops_monitor="true"} == 1 unless on (job, instance) nudgeon_ops_redis_collector_success) or (up{ops_monitor="true", nudgeon_cluster=""} == 1)
+        labels: {severity: critical}
+        annotations:
+          summary: "NudgeOn operations monitoring is misconfigured"
+          description: "Configure all three collectors on an ops_monitor=true target with a unique nudgeon_cluster identifying this PG/Redis installation."
+      - alert: NudgeOnPipelineBacklogAge
+        expr: ((time() - nudgeon_ops_postgres_projection_oldest_received_timestamp_seconds > 10) and (nudgeon_ops_postgres_projection_pending_count > 0)) or ((time() - nudgeon_ops_postgres_matching_oldest_received_timestamp_seconds > 10) and (nudgeon_ops_postgres_matching_pending_count > 0)) or ((time() - nudgeon_ops_postgres_outbox_oldest_created_timestamp_seconds > 10) and (nudgeon_ops_postgres_outbox_pending_count > 0))
+        for: 1m
+        labels: {severity: warning}
+        annotations:
+          summary: "NudgeOn pipeline backlog is aging"
+          description: "Receipt/outbox age is above the local 10-second investigation threshold. received_at is before commit; this is not end-to-end latency."
+      - alert: NudgeOnRedisDurabilityRisk
+        expr: (nudgeon_ops_redis_noeviction == 0) or (nudgeon_ops_redis_aof_enabled == 0) or (nudgeon_ops_redis_aof_last_write_ok == 0) or (nudgeon_ops_redis_evicted_keys_count > 0)
+        labels: {severity: critical}
+        annotations:
+          summary: "NudgeOn Redis retention or persistence needs attention"
+          description: "Check eviction history, noeviction, and AOF write health. These settings do not prove backup or restore capability."
+      - alert: NudgeOnRedisMemoryPressure
+        expr: (nudgeon_ops_redis_used_memory_bytes / nudgeon_ops_redis_maxmemory_bytes > 0.8) and (nudgeon_ops_redis_maxmemory_bytes > 0)
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: "NudgeOn Redis is above 80 percent of maxmemory"
+          description: "With noeviction, writes will fail at the limit. Investigate drain rate and retention; do not delete pending markers."
+      - alert: NudgeOnRedisMemoryUnbounded
+        expr: nudgeon_ops_redis_maxmemory_bytes == 0
+        labels: {severity: warning}
+        annotations:
+          summary: "NudgeOn Redis has no maxmemory budget"
+          description: "Set an explicit tested memory budget with headroom for persistence and container memory."

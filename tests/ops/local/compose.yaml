@@ -1,0 +1,178 @@
+name: nudgeon-local-ops
+
+x-env: &app-env
+  DATABASE_URL: postgres://nudgeon:local-ops-only@postgres:5432/nudgeon
+  REDIS_URL: redis://redis:6379
+  CLICKHOUSE_URL: http://nudgeon:local-ops-only@clickhouse:8123/nudgeon
+  NUDGEON_MASTER_KEY: ${OPS_MASTER_KEY:?test key required}
+  MODE: multi_tenant
+  JOURNEY_GRAPH_V2_ENABLED: "true"
+
+services:
+  gateway:
+    image: nudgeon-api:latest
+    entrypoint: [node, /proxy.mjs]
+    mem_limit: 128m
+    networks: [default, host-access]
+    ports:
+      - "127.0.0.1:18180:8180"
+      - "127.0.0.1:18181:8181"
+      - "127.0.0.1:19190:9190"
+      - "127.0.0.1:19191:9191"
+      - "127.0.0.1:19193:9193"
+      - "127.0.0.1:19194:9194"
+    volumes: ["./proxy.mjs:/proxy.mjs:ro"]
+  postgres:
+    image: postgres:16
+    cpus: 2
+    mem_limit: 512m
+    environment: &pg-env
+      POSTGRES_USER: nudgeon
+      POSTGRES_PASSWORD: local-ops-only
+      POSTGRES_DB: nudgeon
+    volumes: ["pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U nudgeon -d nudgeon"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    cpus: 2
+    mem_limit: 1536m
+    environment: &ch-env
+      CLICKHOUSE_USER: nudgeon
+      CLICKHOUSE_PASSWORD: local-ops-only
+      CLICKHOUSE_DB: nudgeon
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    volumes:
+      - ch:/var/lib/clickhouse
+      - backups:/backups
+      - ./clickhouse.xml:/etc/clickhouse-server/config.d/local-ops.xml:ro
+    healthcheck:
+      test: [CMD, wget, -qO-, "http://localhost:8123/ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+  redis:
+    image: redis:7
+    cpus: 1
+    mem_limit: 192m
+    command: [redis-server, --appendonly, "yes", --appendfsync, everysec, --maxmemory, 128mb, --maxmemory-policy, noeviction]
+    volumes: ["redis:/data"]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  migrator:
+    image: nudgeon-worker:latest
+    entrypoint: [/nudgeon-migrate]
+    command: [/db]
+    mem_limit: 192m
+    environment: *app-env
+    depends_on:
+      postgres: {condition: service_healthy}
+      clickhouse: {condition: service_healthy}
+  api:
+    image: nudgeon-api:latest
+    cpus: 2
+    mem_limit: 512m
+    environment: *app-env
+    depends_on:
+      migrator: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+  worker:
+    image: nudgeon-worker:latest
+    command: [--role=all]
+    cpus: 2
+    mem_limit: 256m
+    environment: *app-env
+    depends_on:
+      migrator: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+  dlq-monitor:
+    image: nudgeon-worker:latest
+    command: [--role=dlq-monitor]
+    mem_limit: 96m
+    environment:
+      DATABASE_URL: postgres://nudgeon:local-ops-only@postgres:5432/nudgeon
+    depends_on:
+      migrator: {condition: service_completed_successfully}
+    profiles: [alerts]
+  receiver:
+    image: nudgeon-api:latest
+    entrypoint: [node, /receiver.mjs]
+    mem_limit: 96m
+    volumes: ["./receiver.mjs:/receiver.mjs:ro"]
+    profiles: [alerts]
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.retention.time=1d]
+    mem_limit: 192m
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../../../deploy/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+    profiles: [alerts]
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    command: [--config.file=/etc/alertmanager/alertmanager.yml]
+    mem_limit: 96m
+    volumes: ["./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro"]
+    profiles: [alerts]
+  postgres-restored:
+    image: postgres:16
+    mem_limit: 512m
+    environment: *pg-env
+    volumes: ["pg-restored:/var/lib/postgresql/data"]
+    profiles: [restore]
+  clickhouse-restored:
+    image: clickhouse/clickhouse-server:24.8
+    cpus: 2
+    mem_limit: 1536m
+    environment: *ch-env
+    volumes:
+      - ch-restored:/var/lib/clickhouse
+      - backups:/backups
+      - ./clickhouse.xml:/etc/clickhouse-server/config.d/local-ops.xml:ro
+    profiles: [restore]
+  redis-restored:
+    image: redis:7
+    mem_limit: 192m
+    command: [redis-server, --appendonly, "no"]
+    volumes: ["redis-restored:/data"]
+    profiles: [restore]
+  api-restored:
+    image: nudgeon-api:latest
+    cpus: 2
+    mem_limit: 512m
+    environment:
+      <<: *app-env
+      DATABASE_URL: postgres://nudgeon:local-ops-only@postgres-restored:5432/nudgeon
+      REDIS_URL: redis://redis-restored:6379
+      CLICKHOUSE_URL: http://nudgeon:local-ops-only@clickhouse-restored:8123/nudgeon
+    profiles: [restore]
+  worker-restored:
+    image: nudgeon-worker:latest
+    command: [--role=all]
+    cpus: 2
+    mem_limit: 256m
+    environment:
+      <<: *app-env
+      DATABASE_URL: postgres://nudgeon:local-ops-only@postgres-restored:5432/nudgeon
+      REDIS_URL: redis://redis-restored:6379
+      CLICKHOUSE_URL: http://nudgeon:local-ops-only@clickhouse-restored:8123/nudgeon
+    profiles: [restore]
+
+networks:
+  default:
+    internal: true
+  host-access:
+volumes:
+  pg:
+  ch:
+  redis:
+  backups:
+  pg-restored:
+  ch-restored:
+  redis-restored:
