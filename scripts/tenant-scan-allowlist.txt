@@ -51,5 +51,11 @@ apps/worker/internal/ops/postgres.go::a0ad43df436f   # ops-monitor 전용 전역
 apps/api/src/health/health.controller.ts::727617fb32e5   # 전역 master key readiness: tenant-independent key로 저장 credential 1건의 AEAD 복호화 확인, 응답에는 고정 상태 코드만 반환
 apps/worker/internal/trigger/index.go::163f880e835a   # journeys 전 테넌트 활성 로드 (트리거 매처)
 apps/worker/internal/channel/verifier.go::6d313e6d367f   # credentials 전 테넌트 unverified 로드 (검증 워커)
-apps/worker/internal/journey/relay.go::7420584b5880   # journey_outbox by id (outbox PK, 릴레이)
 apps/worker/internal/journey/relay.go::615b9421a94f   # journey_states 재클레임 by claim_token/id (릴레이)
+
+# --- 운영자 전용 교차 테넌트 대사 도구 (cmd/reconcile) ---
+# 이 도구는 Redis 유실 후 "어느 테넌트에서 중복 발송이 났는가"를 찾는 것이 목적이므로
+# 테넌트를 가로질러 훑는 것이 기능 자체다. --tenant/--app로 좁힐 수 있고,
+# API가 아닌 운영자 CLI라 최종 사용자 요청 경로에 노출되지 않는다. 읽기 전용이다.
+apps/worker/internal/reconcile/reconcile.go::57339eea4e4c   # message_log 멱등키 집합 (--tenant 미지정 시 전체 대사가 목적)
+apps/worker/internal/reconcile/reconcile.go::8fadf69d4011   # journey_outbox 미발행 총계 (릴레이 정지 탐지, 전체 범위가 목적)
