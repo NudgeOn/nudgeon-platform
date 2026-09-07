@@ -3,6 +3,17 @@
 -- 격리: 모든 테넌트 데이터 테이블은 tenant_id 컬럼 + 애플리케이션 레벨 강제 (PRD-06 4장).
 
 -- ---------------------------------------------------------------------------
+-- 마이그레이션 원장 — cmd/migrate가 upgrades/*.sql 적용 기록을 남긴다.
+-- migrator는 이 파일보다 먼저 이 테이블을 만든다(기존 설치는 upgrade가 schema보다 먼저 돈다).
+-- 여기 두는 이유는 스키마 파일이 DB의 완전한 그림이어야 하기 때문이다.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  filename   text PRIMARY KEY,
+  checksum   text NOT NULL,          -- 파일 내용 SHA-256. 적용 후 수정되면 migrator가 실패한다.
+  applied_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------------
 -- ENUM 타입
 -- ---------------------------------------------------------------------------
 CREATE TYPE member_role AS ENUM ('owner', 'admin', 'editor', 'viewer');
