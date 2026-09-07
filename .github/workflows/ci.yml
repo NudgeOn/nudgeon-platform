@@ -63,6 +63,12 @@ jobs:
       - run: go test ./apps/worker/... ./packages/libqueue-go/...
         env:
           NUDGEON_MIGRATE_TEST_DATABASE_URL: postgres://nudgeon:nudgeon@localhost:5432/nudgeon_migrate_test?sslmode=disable
+      # 위 실행은 패키지당 ok 한 줄이라 skip과 pass를 구분할 수 없다. 실 PG 테스트가
+      # 진짜 돌았다는 증거를 로그에 남긴다 — 여기서 "SKIP"이 보이면 서비스 연결이 깨진 것이다.
+      - name: 실 PG 마이그레이션 테스트 실행 증거
+        run: go test -v -run 'TestPostgres' ./apps/worker/cmd/migrate/ 2>&1 | grep -E '^(--- |ok|FAIL)'
+        env:
+          NUDGEON_MIGRATE_TEST_DATABASE_URL: postgres://nudgeon:nudgeon@localhost:5432/nudgeon_migrate_test?sslmode=disable
 
   compose:
     name: Compose · Safe Boot 검증
