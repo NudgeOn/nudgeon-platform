@@ -182,7 +182,7 @@ packages/
   libqueue-go/     Redis Streams 래퍼 (Go, 생산·소비)
   segment-dsl/     세그먼트 DSL 스키마 + 골든 테스트
 db/
-  postgres/        Atlas 선언적 스키마
+  postgres/        schema.sql + 순번 upgrades (cmd/migrate가 적용)
   clickhouse/      순번 SQL 마이그레이션
 deploy/            Docker Compose
 ```
