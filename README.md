@@ -180,7 +180,7 @@ packages/
   libqueue-go/     Redis Streams wrapper (Go, produce and consume)
   segment-dsl/     Segment DSL schema + golden tests
 db/
-  postgres/        Atlas declarative schema
+  postgres/        schema.sql + numbered upgrades (applied by cmd/migrate)
   clickhouse/      Sequential SQL migrations
 deploy/            Docker Compose
 ```
