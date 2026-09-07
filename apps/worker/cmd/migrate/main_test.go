@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"strings"
 	"testing"
@@ -112,5 +113,15 @@ func TestSplitSQLMessageLifecycleMigration(t *testing.T) {
 	}
 	if stmts[1] != "ALTER TABLE nudgeon.message_log ADD COLUMN IF NOT EXISTS provider_message_id String DEFAULT ''" {
 		t.Errorf("ALTER 문 불일치: %q", stmts[1])
+	}
+}
+
+// 락 키는 문서화된 파생 규칙(FNV-1a 64 of "nudgeon:migrate")과 일치해야 한다.
+// 값이 바뀌면 구버전 migrator와 서로 다른 락을 잡아 직렬화가 깨진다.
+func TestMigrationLockKeyDerivation(t *testing.T) {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte("nudgeon:migrate"))
+	if want := int64(h.Sum64()); want != migrationLockKey {
+		t.Fatalf("migrationLockKey=%d, FNV-1a(nudgeon:migrate)=%d", migrationLockKey, want)
 	}
 }

@@ -81,7 +81,9 @@ docker compose -f deploy/compose.yaml --env-file deploy/.env --profile app up -d
 
 - **새 PostgreSQL DB**: `nudgeon-migrate`가 enum·기본 테이블을 만드는 `db/postgres/schema.sql`을 먼저 적용한 뒤 `db/postgres/upgrades/*.sql`을 이름순으로 재적용합니다.
 - **기존 PostgreSQL DB**: 추가 컬럼을 참조하는 schema index보다 upgrade가 먼저 필요하므로 upgrades → schema 순서를 유지합니다.
-- **ClickHouse**: `db/clickhouse/*.sql`을 이름순으로 적용합니다. 각 경로는 재실행 가능한 DDL을 전제로 하지만, 중단·부분 적용·동시 migrator는 별도 실패 복구 검증이 필요합니다.
+- **적용 기록과 직렬화 (PostgreSQL)**: migrator는 세션 advisory lock을 잡고 시작하므로 레플리카 여러 개가 동시에 기동해도 한 번에 하나만 스키마를 만집니다(뒤의 것은 "다른 migrator가 실행 중 — 완료를 기다린다"를 찍고 대기). 각 upgrade 파일은 `schema_migrations(filename, checksum, applied_at)`에 기록되며 같은 체크섬이면 다음 기동에서 건너뜁니다. upgrade 하나가 중간에 실패하면 기록이 남지 않고 다음 실행이 그 파일을 처음부터 다시 적용합니다 — upgrade 문은 여전히 재실행 가능해야 합니다.
+- **적용된 upgrade는 수정하지 않습니다**: 파일 내용이 기록된 체크섬과 다르면 migrator는 파일명을 지목하며 실패합니다. 다른 설치본은 옛 내용을 적용했기 때문입니다. 고칠 것이 있으면 새 번호의 파일을 추가합니다. 개발 DB에서만 `MIGRATE_REAPPLY_DRIFTED=1`로 재적용을 허용합니다.
+- **ClickHouse**: `db/clickhouse/*.sql`을 이름순으로 매번 재적용합니다. 적용 기록·락이 없으므로 재실행 가능한 DDL이어야 하며, 동시 migrator는 PG 락이 앞단에서 직렬화합니다(같은 프로세스가 PG 다음에 CH를 돌립니다).
 - **프로덕션 준비 기준**: Atlas 선언적 스키마(`db/postgres/atlas.hcl`)와 추가형 upgrade 코드가 있습니다.
   앱 N ↔ 스키마 N-1 호환·혼합 버전·롤링/롤백 안전성은 실제 업그레이드 테스트로 확인해야 합니다.
 

@@ -10,7 +10,7 @@
 - **apps/worker**: Go 1.25 단일 바이너리, `--role=ingest-consumer|scheduler|trigger-matcher|segment|channel|dlq-monitor|ops-monitor|outbox-relay|all`. chi(헬스 엔드포인트) + pgx. **sqlc는 쓰지 않는다** — 쿼리는 수기 SQL이다.
 - **저장**: PostgreSQL = 현재 상태(테넌트/프로필/디바이스/저니 상태), ClickHouse = append-only 수집·로그·분석.
 - **큐**: Redis Streams + Consumer Group. 메시지는 JSON. 계약의 단일 출처는 `packages/queue-schemas`의 JSON Schema이며 **TS 쪽만 런타임 검증**한다. Go는 구조체를 수기로 대응시키고 필수 필드만 검사한다(`libqueue-go` `Envelope.Validate`, `TODO(S2)`). 큐 상한은 `MAXLEN ~ 1,000,000`이며 배압이 아니라 **오래된 엔트리 트림**이다 — `nudgeon_queue_*` 지표로 유실을 관측한다.
-- **마이그레이션**: PG는 `apps/worker/cmd/migrate`가 `db/postgres/schema.sql` + `upgrades/000N.sql`을 순번 적용한다(자체 제작, **버전 테이블·advisory lock 없음**). `db/postgres/atlas.hcl`은 있으나 어디서도 호출되지 않는다. CH는 순번 SQL(`db/clickhouse`).
+- **마이그레이션**: PG는 `apps/worker/cmd/migrate`가 `db/postgres/schema.sql` + `upgrades/000N.sql`을 순번 적용한다(자체 제작). 세션 advisory lock으로 동시 실행을 직렬화하고, `schema_migrations`에 upgrade 파일명+SHA-256을 기록해 같은 체크섬은 건너뛴다. **적용된 upgrade 파일은 고치지 말고 새 번호로 추가한다** — 수정되면 migrator가 실패한다(개발 DB만 `MIGRATE_REAPPLY_DRIFTED=1`). `schema.sql`은 매번 재적용되며 중복 객체 오류만 무시한다. `db/postgres/atlas.hcl`은 있으나 어디서도 호출되지 않는다. CH는 순번 SQL(`db/clickhouse`, 버전 기록 없음).
 - **인증**: DB 세션(`sessions` 테이블) + httpOnly 쿠키. JWT 비채택. Redis 세션 캐시는 **미구현**(`session.service.ts` `TODO(S2)`) — 폐기가 즉시 반영되는 건 매 요청이 PG를 조회하기 때문이다.
 
 ## 절대 규칙 (CI가 기계 강제 — 위반 시 빌드 실패)
