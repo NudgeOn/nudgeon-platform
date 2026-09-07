@@ -32,6 +32,25 @@ groups:
         annotations:
           summary: "NudgeOn operations monitoring is misconfigured"
           description: "Configure all three collectors on an ops_monitor=true target with a unique nudgeon_cluster identifying this PG/Redis installation."
+      - alert: NudgeOnQueueTrimLoss
+        expr: max by (nudgeon_cluster, stream, group) (nudgeon_queue_group_trim_loss) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "NudgeOn stream entries were trimmed before they were consumed"
+          description: "Stream {{ $labels.stream }} reached MAXLEN and dropped entries that group {{ $labels.group }} never read. This is data loss, not lag - the producer was told the write succeeded. Backlog-age alerts do not cover this. See REDIS-RECOVERY-RUNBOOK.md; raw_ingestions replay is the last resort for the ingestion path."
+      - alert: NudgeOnQueueNearTrim
+        expr: max by (nudgeon_cluster, stream) (nudgeon_queue_fill_ratio) > 0.8
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: "NudgeOn stream is approaching its trim threshold"
+          description: "Stream {{ $labels.stream }} is over 80% of MAXLEN. This is the only warning that arrives before loss - once trimming starts the entries are gone. Scale consumers or raise MAXLEN now."
+      - alert: NudgeOnQueueCollectorFailure
+        expr: (nudgeon_queue_collector_success == 0) or (time() - nudgeon_queue_collector_last_success_timestamp_seconds > 30)
+        labels: {severity: critical}
+        annotations:
+          summary: "NudgeOn queue trim observation is unavailable or stale"
+          description: "Trim loss cannot be observed right now. A failed observation is unknown, not zero loss."
       - alert: NudgeOnPipelineBacklogAge
         expr: ((time() - nudgeon_ops_postgres_projection_oldest_received_timestamp_seconds > 10) and (nudgeon_ops_postgres_projection_pending_count > 0)) or ((time() - nudgeon_ops_postgres_matching_oldest_received_timestamp_seconds > 10) and (nudgeon_ops_postgres_matching_pending_count > 0)) or ((time() - nudgeon_ops_postgres_outbox_oldest_created_timestamp_seconds > 10) and (nudgeon_ops_postgres_outbox_pending_count > 0))
         for: 1m

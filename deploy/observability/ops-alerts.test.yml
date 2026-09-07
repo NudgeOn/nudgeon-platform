@@ -131,3 +131,54 @@ tests:
       - expr: 'count(ALERTS{alertname="NudgeOnRedisMemoryUnbounded",alertstate="firing"})'
         eval_time: 0s
         exp_samples: [{labels: '{}', value: 1}]
+
+  - name: Trim loss fires immediately and is distinct from lag
+    interval: 5s
+    input_series:
+      # 소비 전 트림이 발생한 그룹과, 단순히 밀리기만 한 그룹.
+      - series: 'nudgeon_queue_group_trim_loss{nudgeon_cluster="qa",stream="stream:ingest",group="cg:ingest"}'
+        values: '0 0 1 1'
+      - series: 'nudgeon_queue_group_trim_loss{nudgeon_cluster="qa",stream="stream:send.push",group="cg:channel"}'
+        values: '0+0x3'
+    promql_expr_test:
+      - expr: 'count(ALERTS{alertname="NudgeOnQueueTrimLoss",alertstate="firing"})'
+        eval_time: 0s
+        exp_samples: []
+      - expr: 'ALERTS{alertname="NudgeOnQueueTrimLoss",alertstate="firing"}'
+        eval_time: 15s
+        exp_samples:
+          - labels: 'ALERTS{alertname="NudgeOnQueueTrimLoss",alertstate="firing",group="cg:ingest",nudgeon_cluster="qa",severity="critical",stream="stream:ingest"}'
+            value: 1
+      # 밀리기만 한 스트림은 울리지 않는다 — 유실과 지연은 다른 사건이다.
+      - expr: 'count(ALERTS{alertname="NudgeOnQueueTrimLoss",alertstate="firing",stream="stream:send.push"})'
+        eval_time: 15s
+        exp_samples: []
+
+  - name: Near-trim warns before loss but needs a sustained window
+    interval: 5s
+    input_series:
+      - series: 'nudgeon_queue_fill_ratio{nudgeon_cluster="qa",stream="stream:ingest"}'
+        values: '0.5 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9'
+    promql_expr_test:
+      # 순간적인 급증으로는 울리지 않는다 (for: 2m).
+      - expr: 'count(ALERTS{alertname="NudgeOnQueueNearTrim",alertstate="firing"})'
+        eval_time: 30s
+        exp_samples: []
+      - expr: 'ALERTS{alertname="NudgeOnQueueNearTrim",alertstate="pending"}'
+        eval_time: 30s
+        exp_samples:
+          # ALERTS 시계열의 값은 상태 표시(1)이지 표현식 값이 아니다.
+          - labels: 'ALERTS{alertname="NudgeOnQueueNearTrim",alertstate="pending",nudgeon_cluster="qa",severity="warning",stream="stream:ingest"}'
+            value: 1
+
+  - name: A failed queue observation is unknown, not zero loss
+    interval: 5s
+    input_series:
+      - series: 'nudgeon_queue_collector_success{nudgeon_cluster="qa"}'
+        values: '1 1 0 0'
+      - series: 'nudgeon_queue_collector_last_success_timestamp_seconds{nudgeon_cluster="qa"}'
+        values: '1 1 1 1'
+    promql_expr_test:
+      - expr: 'count(ALERTS{alertname="NudgeOnQueueCollectorFailure",alertstate="firing"})'
+        eval_time: 15s
+        exp_samples: [{labels: '{}', value: 1}]
