@@ -197,10 +197,11 @@ func run(role string, logger *slog.Logger) error {
 				pushQueue,
 				rdb, pg, ch, plugin, masterKey, clk, logger.With("component", "channel"),
 			)
-			emailWorker := channel.NewEmailWorker(
-				emailQueue,
-				rdb, pg, ch, emailPlugin, masterKey, clk, logger.With("component", "channel-email"),
-			)
+			// send.email — 이관 완료: 멱등·리스·백오프·DLQ는 SendLoop이 맡는다.
+			// 이전 EmailWorker 사본에는 DLQ 경로와 리스 소유 토큰이 없었다.
+			emailWorker := channel.NewEmailWorker(pg, emailPlugin, masterKey, logger.With("component", "channel-email"))
+			emailLoop := channel.NewSendLoop[*channel.EmailJob]("send.email", emailWorker, emailQueue,
+				rdb, ch, clk, logger.With("component", "channel-email"))
 			probe.markReady("connector_runtime")
 			g.Go(func() error { return verifier.Run(gctx) })
 			startWorkerComponent(g, gctx, probe, logger, workerComponent{
@@ -211,7 +212,7 @@ func run(role string, logger *slog.Logger) error {
 			startWorkerComponent(g, gctx, probe, logger, workerComponent{
 				name:       "consumer_email",
 				initialize: emailQueue.EnsureGroup,
-				run:        emailWorker.Run,
+				run:        emailLoop.Run,
 			})
 
 			// send.message.v1 — 채널 중립 발송. 알림톡이 첫 채널이다.

@@ -13,7 +13,16 @@ import (
 )
 
 var Streams = []string{"stream:send.push", "stream:send.message", "stream:send.email", "unknown"}
-var Classes = []string{"retryable", "rate_limited", "permanent_content", "invalid_target", "credential_auth", "unknown"}
+
+// Classes — 지표 라벨로 허용하는 failure_class. 목록 밖 값은 "unknown"으로 접힌다.
+// 워커가 실제로 DLQ에 쓰는 값은 플러그인 분류(retryable 등)만이 아니다: SendLoop·push 워커는
+// 재시도 소진 시 "<class>_exhausted"를, 크리덴셜 미해석 시 "credential_missing"을 쓴다.
+// 이 값들이 빠져 있으면 DLQ의 가장 흔한 원인(소진)이 전부 unknown으로 집계된다.
+var Classes = []string{
+	"retryable", "rate_limited", "permanent_content", "invalid_target", "credential_auth",
+	"retryable_exhausted", "rate_limited_exhausted", "credential_missing",
+	"unknown",
+}
 
 func Label(value string, allowed []string) string {
 	for _, candidate := range allowed {

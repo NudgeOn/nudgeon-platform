@@ -108,3 +108,15 @@ func TestPostgresDLQStateLifecycle(t *testing.T) {
 		t.Fatal("unknown group missing")
 	}
 }
+
+// 재시도 소진과 크리덴셜 미해석은 DLQ의 주된 원인인데 라벨에서 unknown으로 접히면 지표가 눈을 감는다.
+func TestLabelKeepsExhaustionClasses(t *testing.T) {
+	for _, class := range []string{"retryable_exhausted", "rate_limited_exhausted", "credential_missing"} {
+		if got := Label(class, Classes); got != class {
+			t.Fatalf("Label(%q)=%q — unknown으로 접혔다", class, got)
+		}
+	}
+	if got := Label("made_up", Classes); got != "unknown" {
+		t.Fatalf("미지 클래스는 unknown이어야 한다, got %q", got)
+	}
+}

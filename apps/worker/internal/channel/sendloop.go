@@ -19,11 +19,11 @@ import (
 
 // sendloop — 발송 워커의 공통 골격(멱등·리스·백오프·DLQ·message_log 플러시).
 //
-// Worker(push)와 EmailWorker가 이 프로토콜을 250줄씩 그대로 중복하고 있다. 세 번째 복사를
-// 만들지 않으려고 여기로 추출했다. 채널별 차이는 SendHandler로 받는다.
+// 원래 Worker(push)와 EmailWorker가 이 프로토콜을 250줄씩 따로 들고 있었다. 세 번째 복사를
+// 만들지 않으려고 여기로 추출했고, 채널별 차이는 SendHandler로 받는다.
 //
-// 기존 두 워커는 이번에 이관하지 않는다 — 발송 신뢰성을 건드리는 위험을 피하고,
-// 세 번째 구현이 참조 구현으로 자리잡은 뒤 옮긴다.
+// 이관 현황: send.message(알림톡)와 send.email은 이 루프를 쓴다. Worker(push)만 아직
+// 자체 사본을 유지한다 — FCM 실단말 수신이 확인된 뒤 옮긴다.
 
 // SendOutcome — 한 건의 처리 결과. Row·OnTerminal·DLQ가 공유한다.
 type SendOutcome struct {
