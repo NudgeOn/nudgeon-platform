@@ -3,7 +3,7 @@
 이벤트 수집, 고객 세그먼트, 저니, 메시지 전송을 연결하는 오픈소스(Apache-2.0) 고객 인게이지먼트 플랫폼.
 기획 문서는 `docs/prd/`, `docs/dev/` (git 미추적 — 로컬 참조 전용). 스프린트·Go/No-Go 원장은 `docs/dev/DEV-MAIN-개발기획서.md`.
 
-## 스택 (ADR 확정 — DEV-MAIN §2)
+## 스택 (ADR 확정 — DEV-MAIN §2 · 저장소 선택 근거는 `docs-public/ARCHITECTURE-DECISIONS.md`)
 
 - **apps/api**: NestJS 11 — 관리 API + Ingestion API. OpenAPI 3.1 spec-first(`packages/openapi`).
 - **apps/console**: Next.js 15 App Router + shadcn/ui + TanStack Query + next-intl(en/ko).
