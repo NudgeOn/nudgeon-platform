@@ -152,6 +152,7 @@ If the diagram above is the full wiring, the one below keeps only **the main pat
 - **Main path**: SDK → Ingestion API → `stream:ingest` → Ingest Consumer → `stream:events` → Trigger Matcher → `stream:journey.entry` → Journey Scheduler → `stream:send.push` → Channel Worker → FCM · APNs
 - **Trust boundaries**: external (customer apps and backends) / auth edge (`pk_` SDK Key · `sk_` Server Key · session cookie) / internal plane (private network, no per-request auth) / external channel-vendor egress
 - **Interactive version**: [`docs-public/architecture/runtime-architecture.html`](docs-public/architecture/runtime-architecture.html) — open the file in a browser for search, path tracing, dark mode, and PNG/SVG export. The shape definitions live in `runtime-architecture.json` in the same folder.
+- **Why these stores**: [Architecture decisions](docs-public/ARCHITECTURE-DECISIONS.md) — why state lives in PostgreSQL and facts in ClickHouse, why not MySQL or a single database, what would make us revisit each choice.
 
 ## Current status
 
