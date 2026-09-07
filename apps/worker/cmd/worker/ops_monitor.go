@@ -12,6 +12,7 @@ import (
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/config"
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/metrics"
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/ops"
+	libqueue "github.com/nudgeon/nudgeon-platform/packages/libqueue-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
@@ -58,8 +59,18 @@ func runOpsMonitor(logger *slog.Logger) error {
 		"pending":  metrics.NewSnapshotCollector("pending", clk, ops.PendingDefinitions, func(ctx context.Context) (map[string]float64, error) { return ops.PendingSnapshot(ctx, rdb) }),
 		"redis":    metrics.NewSnapshotCollector("redis", clk, ops.RedisDefinitions, func(ctx context.Context) (map[string]float64, error) { return ops.RedisSnapshot(ctx, rdb) }),
 	}
-	checks := map[string]readinessCheck{}
+	// 스트림 트림 유실 관측. backlog 경보는 "밀림"을 보지만 이건 "이미 잘려나갔는가"를 본다.
+	queue := metrics.NewQueueCollector(clk, func(ctx context.Context) ([]ops.QueueStat, error) {
+		return ops.QueueSnapshot(ctx, rdb, libqueue.DefaultMaxLen)
+	})
+	if err := prometheus.Register(queue); err != nil {
+		return err
+	}
+	defer prometheus.Unregister(queue)
+
+	checks := map[string]readinessCheck{"queue_snapshot": queue.Ready}
 	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error { return queue.Run(gctx) })
 	for name, collector := range collectors {
 		if err := prometheus.Register(collector); err != nil {
 			return err

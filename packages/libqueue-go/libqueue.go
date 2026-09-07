@@ -96,10 +96,17 @@ type Producer struct {
 	maxLen int64
 }
 
-// NewProducer를 만든다. maxLen<=0이면 기본 1,000,000 (MAXLEN ~).
+// DefaultMaxLen — XADD MAXLEN ~ 기본 상한.
+//
+// 상한에 닿으면 배압이 걸리는 것이 아니라 가장 오래된 엔트리가 잘려나간다.
+// 생산자는 성공했다고 믿고 그 메시지는 사라진다. 트림 임계와 경보 임계를 함께
+// 판단해야 하므로 관측 쪽(ops.QueueSnapshot)과 이 값을 공유한다.
+const DefaultMaxLen int64 = 1_000_000
+
+// NewProducer를 만든다. maxLen<=0이면 DefaultMaxLen (MAXLEN ~).
 func NewProducer(rdb redis.Cmdable, maxLen int64) *Producer {
 	if maxLen <= 0 {
-		maxLen = 1_000_000
+		maxLen = DefaultMaxLen
 	}
 	return &Producer{rdb: rdb, maxLen: maxLen}
 }
@@ -127,11 +134,17 @@ func (p *Producer) Publish(ctx context.Context, stream string, env *Envelope) (s
 
 // Consumer는 consumer group 기반 소비자다 (at-least-once).
 type Consumer struct {
-	rdb      redis.Cmdable
-	stream   string
-	group    string
-	consumer string
+	rdb              redis.Cmdable
+	stream           string
+	group            string
+	consumer         string
+	maxEnvelopeBytes int
 }
+
+// LimitEnvelopeBytes makes oversized/malformed entries retryable instead of
+// ACKing them. It bounds decoding, not the Redis client's raw response buffer.
+// Configure before starting the consumer, never concurrently with Fetch.
+func (c *Consumer) LimitEnvelopeBytes(max int) { c.maxEnvelopeBytes = max }
 
 func NewConsumer(rdb redis.Cmdable, stream, group, consumerName string) *Consumer {
 	return &Consumer{rdb: rdb, stream: stream, group: group, consumer: consumerName}
@@ -166,24 +179,43 @@ func (c *Consumer) Fetch(ctx context.Context, count int64, block time.Duration) 
 		}
 		return nil, fmt.Errorf("xreadgroup %s: %w", c.stream, err)
 	}
-	return c.parseStreams(ctx, res), nil
+	var msgs []Message
+	for _, stream := range res {
+		parsed, err := c.parseEntries(ctx, stream.Messages)
+		if err != nil {
+			return nil, err
+		}
+		msgs = append(msgs, parsed...)
+	}
+	return msgs, nil
 }
 
 // Reclaim은 idle이 minIdle을 넘긴 pending 메시지를 회수한다 (크래시 소비자 복구).
 // DEV-sub-01: XAUTOCLAIM, idle 30s.
 func (c *Consumer) Reclaim(ctx context.Context, minIdle time.Duration, count int64) ([]Message, error) {
-	entries, _, err := c.rdb.XAutoClaim(ctx, &redis.XAutoClaimArgs{
+	msgs, _, err := c.ReclaimPage(ctx, minIdle, count, "0-0")
+	return msgs, err
+}
+
+// ReclaimPage preserves scan progress when callers bound each response to one
+// envelope. Restarting every scan at zero can starve later pending entries.
+func (c *Consumer) ReclaimPage(ctx context.Context, minIdle time.Duration, count int64, start string) ([]Message, string, error) {
+	if start == "" {
+		start = "0-0"
+	}
+	entries, next, err := c.rdb.XAutoClaim(ctx, &redis.XAutoClaimArgs{
 		Stream:   c.stream,
 		Group:    c.group,
 		Consumer: c.consumer,
 		MinIdle:  minIdle,
-		Start:    "0-0",
+		Start:    start,
 		Count:    count,
 	}).Result()
 	if err != nil {
-		return nil, fmt.Errorf("xautoclaim %s: %w", c.stream, err)
+		return nil, start, fmt.Errorf("xautoclaim %s: %w", c.stream, err)
 	}
-	return c.parseEntries(ctx, entries), nil
+	msgs, err := c.parseEntries(ctx, entries)
+	return msgs, next, err
 }
 
 // Ack는 처리 완료를 보고한다.
@@ -197,28 +229,26 @@ func (c *Consumer) Ack(ctx context.Context, streamIDs ...string) error {
 	return nil
 }
 
-func (c *Consumer) parseStreams(ctx context.Context, res []redis.XStream) []Message {
-	var msgs []Message
-	for _, s := range res {
-		msgs = append(msgs, c.parseEntries(ctx, s.Messages)...)
-	}
-	return msgs
-}
-
-func (c *Consumer) parseEntries(ctx context.Context, entries []redis.XMessage) []Message {
+func (c *Consumer) parseEntries(ctx context.Context, entries []redis.XMessage) ([]Message, error) {
 	msgs := make([]Message, 0, len(entries))
 	for _, m := range entries {
 		raw, ok := m.Values[envelopeField].(string)
+		if c.maxEnvelopeBytes > 0 && (!ok || len(raw) > c.maxEnvelopeBytes) {
+			return nil, fmt.Errorf("queue envelope exceeds decoding budget or is missing; retained pending")
+		}
 		if !ok {
 			_ = c.Ack(ctx, m.ID) // 포이즌 필: 형식 불명 엔트리는 버린다
 			continue
 		}
 		var env Envelope
 		if err := json.Unmarshal([]byte(raw), &env); err != nil {
+			if c.maxEnvelopeBytes > 0 {
+				return nil, fmt.Errorf("invalid queue envelope; retained pending")
+			}
 			_ = c.Ack(ctx, m.ID)
 			continue
 		}
 		msgs = append(msgs, Message{StreamID: m.ID, Envelope: env})
 	}
-	return msgs
+	return msgs, nil
 }
