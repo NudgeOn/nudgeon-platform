@@ -1,4 +1,12 @@
-/** 위저드 3단계 — 플랫폼별 SDK 연동 스니펫 (PRD-01A 인터페이스 기준, SDK 구현은 S1~) */
+/**
+ * 위저드 3단계 — 플랫폼별 SDK 연동 스니펫.
+ * 시그니처는 실제 SDK 공개 API(각 SDK README)와 같아야 한다 — 2026-09-10 M-2 드라이런에서 네 스니펫 모두
+ * 존재하지 않는 `initialize(key, options)` 형태라 복사해도 컴파일되지 않던 결함을 고쳤다.
+ *  - iOS:     NudgeOn.initialize(config: NudgeOnConfig(sdkKey:, apiHost: URL))
+ *  - Android: NudgeOn.initialize(context, NudgeOnConfig(sdkKey =, apiHost =))
+ *  - RN:      NudgeOn.initialize({ sdkKey, apiHost })            (@nudgeon/react-native)
+ *  - Flutter: NudgeOn.initialize(NudgeOnConfig(sdkKey:, apiHost:)) (package:nudgeon_flutter)
+ */
 
 export const PLATFORMS = ["ios", "android", "rn", "flutter", "curl"] as const;
 export type Platform = (typeof PLATFORMS)[number];
@@ -11,30 +19,59 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
   curl: "curl (지금 바로 테스트)",
 };
 
+/**
+ * 콘솔이 쓰는 API 주소를 SDK·curl이 쓸 절대 주소로 바꾼다.
+ * Safe Boot(`./nudgeon up`)는 `NEXT_PUBLIC_API_URL=/api`(게이트웨이 상대경로)라 그대로 내보내면
+ * curl은 "URL rejected: No host part"로 실패하고 단말 SDK는 접속할 곳이 없다.
+ */
+export function resolveApiUrl(apiUrl: string, origin: string | undefined): string {
+  const trimmed = apiUrl.replace(/\/+$/, "");
+  if (/^https?:\/\//.test(trimmed)) return trimmed;
+  if (!origin) return trimmed;
+  return origin.replace(/\/+$/, "") + (trimmed.startsWith("/") ? trimmed : "/" + trimmed);
+}
+
+/** 단말은 개발 PC의 localhost에 닿지 못한다 — 주소가 로컬이면 스니펫 첫 줄에 안내를 붙인다. */
+export function isLoopback(apiUrl: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(apiUrl);
+}
+
+const DEVICE_HINT: Record<Exclude<Platform, "curl">, string> = {
+  ios: "// 실기기는 localhost에 닿지 못합니다 — 같은 Wi-Fi의 PC IP(예: http://192.168.0.10:PORT)나 HTTPS 터널 주소를 쓰세요.",
+  android: "// 실기기는 localhost에 닿지 못합니다 — 같은 Wi-Fi의 PC IP(예: http://192.168.0.10:PORT)나 HTTPS 터널 주소를 쓰세요. 에뮬레이터는 http://10.0.2.2:PORT",
+  rn: "// 실기기는 localhost에 닿지 못합니다 — 같은 Wi-Fi의 PC IP(예: http://192.168.0.10:PORT)나 HTTPS 터널 주소를 쓰세요. Android 에뮬레이터는 http://10.0.2.2:PORT",
+  flutter: "// 실기기는 localhost에 닿지 못합니다 — 같은 Wi-Fi의 PC IP(예: http://192.168.0.10:PORT)나 HTTPS 터널 주소를 쓰세요. Android 에뮬레이터는 http://10.0.2.2:PORT",
+};
+
 export function snippet(platform: Platform, sdkKeyHint: string, apiUrl: string): string {
+  const hint = platform !== "curl" && isLoopback(apiUrl) ? DEVICE_HINT[platform] + "\n" : "";
   switch (platform) {
     case "ios":
-      return `import NudgeOnSDK
+      return `${hint}import NudgeOnSDK
 
 // AppDelegate 또는 App init
-NudgeOn.initialize("${sdkKeyHint}", options: .init(apiUrl: "${apiUrl}"))
+NudgeOn.initialize(config: NudgeOnConfig(
+    sdkKey: "${sdkKeyHint}",
+    apiHost: URL(string: "${apiUrl}")!
+))
 NudgeOn.track("app_open")`;
     case "android":
-      return `import io.nudgeon.sdk.NudgeOn
+      return `${hint}import io.nudgeon.sdk.NudgeOn
+import io.nudgeon.sdk.NudgeOnConfig
 
 // Application.onCreate()
-NudgeOn.initialize(this, "${sdkKeyHint}", NudgeOnOptions(apiUrl = "${apiUrl}"))
+NudgeOn.initialize(this, NudgeOnConfig(sdkKey = "${sdkKeyHint}", apiHost = "${apiUrl}"))
 NudgeOn.track("app_open")`;
     case "rn":
-      return `import { NudgeOn } from "@nudgeon/react-native";
+      return `${hint}import NudgeOn from "@nudgeon/react-native";
 
-await NudgeOn.initialize("${sdkKeyHint}", { apiUrl: "${apiUrl}" });
-await NudgeOn.track("app_open");`;
+await NudgeOn.initialize({ sdkKey: "${sdkKeyHint}", apiHost: "${apiUrl}" });
+NudgeOn.track("app_open");`;
     case "flutter":
-      return `import 'package:nudgeon_sdk/nudgeon_sdk.dart';
+      return `${hint}import 'package:nudgeon_flutter/nudgeon_flutter.dart';
 
-await NudgeOn.initialize('${sdkKeyHint}', NudgeOnOptions(apiUrl: '${apiUrl}'));
-await NudgeOn.track('app_open');`;
+await NudgeOn.initialize(NudgeOnConfig(sdkKey: '${sdkKeyHint}', apiHost: '${apiUrl}'));
+NudgeOn.track('app_open');`;
     case "curl":
       return `curl -X POST ${apiUrl}/v1/track \\
   -H "Authorization: Bearer ${sdkKeyHint}" \\

@@ -16,6 +16,8 @@ git clone <repo> nudgeon && cd nudgeon
 
 명령은 호스트 전용 `.nudgeon/`에 설치 ID와 시크릿을 원자적으로 만들고, 전용 `deploy/compose.safe.yaml`을 사용해 setup shell과 gateway를 먼저 연 뒤 나머지 서비스를 빌드·기동합니다. 개발 seed는 넣지 않으며 PostgreSQL·ClickHouse·Redis·API·worker·console은 호스트 포트를 열지 않습니다. 기본 진입점은 gateway 하나인 <http://localhost:8080/setup>입니다.
 
+6개 서비스가 모두 준비되면 setup 화면의 **"콘솔에서 시작하기"**(= <http://localhost:8080/signup>)에서 첫 관리자를 만듭니다. 첫 가입이 Owner·기본 앱·SDK Key 생성이고 이후 가입은 잠깁니다. 가입 직후 한 번만 표시되는 SDK Key를 복사한 뒤 온보딩 위저드(`/onboarding`)로 가면 됩니다. 2026-09-10 깨끗한 clone에서 실측: `./nudgeon up` 1분 37초(이미지 레이어 캐시 有) → 6/6 준비 → 가입 → FCM 등록·검증 → curl 첫 이벤트 감지까지 약 6분.
+
 ```bash
 ./nudgeon status       # 컨테이너와 secret-redacted 준비 상태
 ./nudgeon setup-url    # 현재 로컬 setup URL

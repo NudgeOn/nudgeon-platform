@@ -2,14 +2,14 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CredentialsStep } from "./credentials-step";
-import { PLATFORMS, PLATFORM_LABELS, snippet, type Platform } from "./snippets";
+import { PLATFORMS, PLATFORM_LABELS, resolveApiUrl, snippet, type Platform } from "./snippets";
 
 /** 온보딩 위저드 4단계 (PRD-05 3.1) — activation 관문. 목표: 30분 내 1→4 완주. */
 export default function OnboardingPage() {
@@ -174,7 +174,10 @@ function SnippetStep({
   lastEventAt: string | null;
 }) {
   const [platform, setPlatform] = useState<Platform>("curl");
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+  // 상대 주소(/api, Safe Boot)는 브라우저 origin을 붙여 절대 주소로 — 서버 렌더에서는 origin이 없으므로 마운트 후 계산.
+  const configured = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+  const [apiUrl, setApiUrl] = useState(() => resolveApiUrl(configured, undefined));
+  useEffect(() => { setApiUrl(resolveApiUrl(configured, window.location.origin)); }, [configured]);
   void appId;
 
   return (
