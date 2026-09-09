@@ -22,8 +22,8 @@ import (
 // 원래 Worker(push)와 EmailWorker가 이 프로토콜을 250줄씩 따로 들고 있었다. 세 번째 복사를
 // 만들지 않으려고 여기로 추출했고, 채널별 차이는 SendHandler로 받는다.
 //
-// 이관 현황: send.message(알림톡)와 send.email은 이 루프를 쓴다. Worker(push)만 아직
-// 자체 사본을 유지한다 — FCM 실단말 수신이 확인된 뒤 옮긴다.
+// 이관 현황: send.message(알림톡)·send.email·send.push 모두 이 루프를 쓴다. push는
+// FCM/APNs 실단말 수신(M-1, 2026-09-07)이 확인된 뒤 마지막으로 옮겼다(PushWorker).
 
 // SendOutcome — 한 건의 처리 결과. Row·OnTerminal·DLQ가 공유한다.
 type SendOutcome struct {

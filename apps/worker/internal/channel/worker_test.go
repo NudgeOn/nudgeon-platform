@@ -43,15 +43,11 @@ func newTestWorker(t *testing.T, sendErr error) (*Worker, *miniredis.Miniredis, 
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	fk := &clock.Fake{Current: mustTime()}
-	w := &Worker{
-		rdb:       rdb,
-		plugin:    &mockPlugin{sendErr: sendErr},
-		clk:       fk,
-		logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-		credCache: map[string]cachedCred{},
-	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	h := NewPushWorker(nil, nil, &mockPlugin{sendErr: sendErr}, nil, fk, logger)
 	// verified 크리덴셜을 캐시에 심어 pg 조회를 우회 (pg=nil)
-	w.storeCredCache("a1/push_fcm", Credentials{Kind: "push_fcm", JSON: []byte("{}")}, true, w.clk.Now())
+	h.storeCredCache("a1/push_fcm", Credentials{Kind: "push_fcm", JSON: []byte("{}")}, true, fk.Now())
+	w := &Worker{handler: h, loop: NewSendLoop[*PushJob]("send.push", h, nil, rdb, nil, fk, logger)}
 	return w, mr, fk
 }
 
@@ -74,7 +70,7 @@ func testMsg() *libqueue.Message {
 // 동일하게 흐른다 — 발송↔SDK 도달/오픈 연결 (재검증 F).
 func TestHandleOneMessageIDContract(t *testing.T) {
 	w, _, _ := newTestWorker(t, nil)
-	mp := w.plugin.(*mockPlugin)
+	mp := w.handler.plugin.(*mockPlugin)
 	ctx := context.Background()
 
 	row, retry := w.handleOne(ctx, testMsg())
@@ -96,7 +92,7 @@ func TestHandleOneMessageIDContract(t *testing.T) {
 // 백오프 때문에 재시도 사이에 시계를 전진시켜야 다음 처리가 미뤄지지 않는다.
 func TestHandleOneRetryableThenExhaust(t *testing.T) {
 	w, mr, fk := newTestWorker(t, NewSendError(FailureRetryable, "5xx 일시 오류"))
-	w.dlqStore = &controlledDLQStore{} // Explicit successful persistence, never a nil-DB skip.
+	w.handler.dlqStore = &controlledDLQStore{} // Explicit successful persistence, never a nil-DB skip.
 	ctx := context.Background()
 	m := testMsg()
 
@@ -111,8 +107,8 @@ func TestHandleOneRetryableThenExhaust(t *testing.T) {
 		if !mr.Exists("send:retryat:t1:idem-1") {
 			t.Fatalf("시도 %d: 백오프 retryat 미설정", i)
 		}
-		fk.Advance(backoffCap + time.Second)                                                               // 백오프 경과 시뮬
-		w.storeCredCache("a1/push_fcm", Credentials{Kind: "push_fcm", JSON: []byte("{}")}, true, fk.Now()) // 크리덴셜 캐시 갱신(pg 우회)
+		fk.Advance(backoffCap + time.Second)                                                                       // 백오프 경과 시뮬
+		w.handler.storeCredCache("a1/push_fcm", Credentials{Kind: "push_fcm", JSON: []byte("{}")}, true, fk.Now()) // 크리덴셜 캐시 갱신(pg 우회)
 	}
 
 	// 상한 도달 → 소진 종결(ACK), failed/retryable_exhausted 기록, 상태=failed 커밋
@@ -128,7 +124,7 @@ func TestHandleOneRetryableThenExhaust(t *testing.T) {
 // 백오프 대기 중에는 처리를 미룬다(리스 없이, Send 호출 없음). 경과 후 처리.
 func TestHandleOneBackoffDefers(t *testing.T) {
 	w, mr, fk := newTestWorker(t, NewSendError(FailureRetryable, "5xx"))
-	mp := w.plugin.(*mockPlugin)
+	mp := w.handler.plugin.(*mockPlugin)
 	ctx := context.Background()
 	m := testMsg()
 
@@ -152,7 +148,7 @@ func TestHandleOneBackoffDefers(t *testing.T) {
 	}
 	// 백오프 경과 후 → 처리(Send 2회째)
 	fk.Advance(backoffCap + time.Second)
-	w.storeCredCache("a1/push_fcm", Credentials{Kind: "push_fcm", JSON: []byte("{}")}, true, fk.Now())
+	w.handler.storeCredCache("a1/push_fcm", Credentials{Kind: "push_fcm", JSON: []byte("{}")}, true, fk.Now())
 	if _, retry := w.handleOne(ctx, m); !retry {
 		t.Fatal("경과 후 재처리 기대")
 	}
@@ -164,7 +160,7 @@ func TestHandleOneBackoffDefers(t *testing.T) {
 // 전송 성공 후 재전달: 재전송 없이 sent를 재기록(결과 보존 — CH 로그 flush 실패 복구, R-02).
 func TestHandleOneSentThenReemitSent(t *testing.T) {
 	w, mr, _ := newTestWorker(t, nil)
-	mp := w.plugin.(*mockPlugin)
+	mp := w.handler.plugin.(*mockPlugin)
 	ctx := context.Background()
 	m := testMsg()
 

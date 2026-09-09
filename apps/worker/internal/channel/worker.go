@@ -6,13 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
@@ -57,18 +57,46 @@ const (
 	reclaimPeriod   = 10 * time.Second
 )
 
+// pushKeyPrefix — Redis 멱등 키 네임스페이스. 이관 전(send:idem:…)과 같은 값이라
+// 배포 경계에서 인플라이트 발송의 리스·백오프·DLQ 대기 상태가 그대로 이어진다.
+const pushKeyPrefix = "send"
+
+// 멱등 상태 값 (idemKey에 저장) — 리스 소유권·완료·실패를 구분해 결과를 보존한다 (R-02).
+const (
+	statusProcessing = "processing" // 임시 리스(처리 중)
+	statusSent       = "sent"       // 전송 완료 (sent|<provider_id>)
+	statusFailed     = "failed"     // 영구 실패 (failed|<class>)
+)
+
 type cachedCred struct {
 	creds    Credentials
 	loadedAt time.Time
 	found    bool
 }
 
-// Worker — channel 역할: send.push 소비 → 멱등 → 복호화 → 전송 → message_log.
-// TODO(S4): 지수 백오프 재시도 큐, (tenant,app,channel) 파티션 공정 스케줄링, quiet hours·cap 정책 검사.
-type Worker struct {
-	queue     *libqueue.Consumer
-	rdb       redis.Cmdable
-	pg        *pgxpool.Pool
+// pushStore — 핸들러가 PG에 요구하는 것: 크리덴셜 조회, 토큰 invalid 반영, 크리덴셜 error 전환.
+// *pgxpool.Pool이 만족하며, 테스트는 가짜 저장소를 주입한다.
+type pushStore interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
+// PushJob — SendLoop이 한 건을 처리하는 동안 들고 다니는 상태.
+type PushJob struct {
+	P         SendPushPayload
+	MessageID string
+	Kind      string // push_fcm | push_apns — 플랫폼에서 결정된 크리덴셜 종류
+}
+
+// PushWorker — send.push의 SendHandler. 멱등·리스·백오프·DLQ·message_log 적재는
+// SendLoop이 맡고, 이 타입은 푸시 채널에서만 다른 부분을 구현한다:
+// 플랫폼별 크리덴셜(10분 메모리 캐시), 플러그인 호출, 오류 분류, 종결 부수효과
+// (토큰 invalid·앱 삭제 기록·크리덴셜 error 전환), 로그 행.
+//
+// 이관 전에는 SendLoop과 같은 상태기계를 자체 사본으로 들고 있었다(480줄). email·message가
+// 먼저 옮겨 갔고, push는 FCM/APNs 실단말 수신(M-1, 09-07)이 확인된 뒤 마지막으로 옮겼다.
+type PushWorker struct {
+	pg        pushStore
 	dlqStore  dlq.Execer // Optional narrow dependency; defaults to pg.
 	ch        driver.Conn
 	plugin    ChannelPlugin
@@ -76,9 +104,26 @@ type Worker struct {
 	clk       clock.Clock
 	logger    *slog.Logger
 
-	credMu      sync.Mutex
-	credCache   map[string]cachedCred // key: appID+kind
-	lastReclaim time.Time
+	credMu    sync.Mutex
+	credCache map[string]cachedCred // key: appID+kind
+}
+
+func NewPushWorker(pg pushStore, ch driver.Conn, plugin ChannelPlugin, masterKey []byte,
+	clk clock.Clock, logger *slog.Logger) *PushWorker {
+	return &PushWorker{
+		pg: pg, ch: ch, plugin: plugin, masterKey: masterKey, clk: clk, logger: logger,
+		credCache: map[string]cachedCred{},
+	}
+}
+
+var _ SendHandler[*PushJob] = (*PushWorker)(nil)
+
+// Worker — channel 역할(send.push) 진입점. PushWorker를 SendLoop에 끼운 조합이며,
+// 생성자 서명은 이관 전과 같다(cmd/worker·저니 E2E fixture가 그대로 쓴다).
+// TODO(S4): (tenant,app,channel) 파티션 공정 스케줄링, quiet hours·cap 정책 검사.
+type Worker struct {
+	handler *PushWorker
+	loop    *SendLoop[*PushJob]
 }
 
 func NewWorker(
@@ -91,242 +136,156 @@ func NewWorker(
 	clk clock.Clock,
 	logger *slog.Logger,
 ) *Worker {
-	return &Worker{
-		queue: queue, rdb: rdb, pg: pg, ch: ch, plugin: plugin,
-		masterKey: masterKey, clk: clk, logger: logger,
-		credCache: map[string]cachedCred{},
+	var store pushStore
+	if pg != nil { // nil *pgxpool.Pool을 인터페이스에 넣으면 nil 검사가 무력화된다
+		store = pg
 	}
+	h := NewPushWorker(store, ch, plugin, masterKey, clk, logger)
+	return &Worker{handler: h, loop: NewSendLoop[*PushJob]("send.push", h, queue, rdb, ch, clk, logger)}
 }
 
-func (w *Worker) Run(ctx context.Context) error {
-	if err := w.queue.EnsureGroup(ctx); err != nil {
-		return err
-	}
-	w.logger.Info("channel 워커 시작")
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		msgs, err := w.queue.Fetch(ctx, sendFetch, sendBlock)
-		if err != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			w.logger.Error("fetch 실패", "err", err)
-			time.Sleep(time.Second)
-			continue
-		}
-		if w.clk.Now().Sub(w.lastReclaim) > reclaimPeriod {
-			w.lastReclaim = w.clk.Now()
-			if reclaimed, err := w.queue.Reclaim(ctx, sendReclaim, sendFetch); err == nil && len(reclaimed) > 0 {
-				w.logger.Info("pending 회수", "count", len(reclaimed))
-				msgs = append(msgs, reclaimed...)
-			}
-		}
-		if len(msgs) == 0 {
-			continue
-		}
+func (w *Worker) Run(ctx context.Context) error { return w.loop.Run(ctx) }
 
-		if err := processSendBatch(ctx, msgs, w.handleOne, w.flushLog, w.queue.Ack); err != nil {
-			w.logger.Error("발송 배치 완료 실패 — 재시도", "err", err)
-			time.Sleep(time.Second)
-		}
-	}
-}
-
-// handleOne은 한 건을 처리하고 (message_log 행, retry 여부)를 돌려준다.
-// retry=true면 호출자는 ACK하지 않아 reclaim이 재전달(자연 백오프) → 재시도한다.
-// 멱등: 임시 리스로 선점 → 전송/영구실패 시 7d 커밋(재전송 차단), 일시실패 시 리스 해제(재시도 허용).
+// handleOne — 테스트·진단용 단건 처리(SendLoop 위임).
 func (w *Worker) handleOne(ctx context.Context, m *libqueue.Message) ([]any, bool) {
-	env := &m.Envelope
+	return w.loop.handleOne(ctx, m)
+}
+
+func (w *PushWorker) KeyPrefix() string { return pushKeyPrefix }
+
+func (w *PushWorker) Parse(env *libqueue.Envelope) (*PushJob, string, string, bool) {
 	var p SendPushPayload
 	if err := json.Unmarshal(env.Payload, &p); err != nil || p.IdempotencyKey == "" || p.Content.Push == nil {
 		w.logger.Warn("send.push payload 불량 — skip", "err", err, "msg_id", env.ID)
-		return nil, false // 불량 payload는 재처리 무의미 → ACK
+		return nil, "", "", false
 	}
-
 	// 안정 message_id — 발송 시점 생성값을 그대로 사용(재시도에도 불변). 구(舊) 인플라이트 방어로 없으면 생성.
 	messageID := p.MessageID
 	if messageID == "" {
 		messageID = uuid.NewString()
 	}
-	now := w.clk.Now()
-	base := func(status, class, detail string) []any {
-		return w.logRow(env.TenantID, env.AppID, &p, messageID, status, class, detail, "", now)
-	}
-	// sentRow — 전송 성공(및 재전달 시 재기록) 행. provider_message_id로 공급자 콜백과 조인.
-	sentRow := func(providerID, detail string) []any {
-		return w.logRow(env.TenantID, env.AppID, &p, messageID, "sent", "", detail, providerID, now)
-	}
-
-	idemKey := fmt.Sprintf("send:idem:%s:%s", env.TenantID, p.IdempotencyKey)
-	attemptsKey := fmt.Sprintf("send:attempts:%s:%s", env.TenantID, p.IdempotencyKey)
-	retryAtKey := fmt.Sprintf("send:retryat:%s:%s", env.TenantID, p.IdempotencyKey)
-	lease := statusProcessing + "|" + uuid.NewString()
-	resumeDLQ := func(raw string) ([]any, bool) {
-		record, err := finishDLQ(ctx, w.rdb, idemKey, attemptsKey, retryAtKey, raw, func(record pendingDLQ) error {
-			return w.toDLQ(ctx, env, &p, record)
-		})
-		if err != nil {
-			w.logger.Error("DLQ 저장/완료 실패 — pending 유지", "err", err, "idem", p.IdempotencyKey)
-			return nil, true
-		}
-		messageID = record.MessageID
-		now = record.At
-		metrics.ChannelSends.WithLabelValues("failed").Inc()
-		return base("failed", record.Class+"_exhausted", record.Detail), false
-	}
-	startDLQ := func(class, detail string, attempts int) ([]any, bool) {
-		raw, err := beginDLQ(ctx, w.rdb, idemKey, lease, pendingDLQ{MessageID: messageID, Class: class,
-			Detail: detail, Attempts: attempts, At: now})
-		if err != nil {
-			w.logger.Error("DLQ 대기 상태 기록 실패 — pending 유지", "err", err)
-			return nil, true
-		}
-		return resumeDLQ(raw)
-	}
-
-	// commitFailed — 영구 실패 종결(상태에 사유 기록, 재전송 차단).
-	commitFailed := func(class string) {
-		w.rdb.Set(ctx, idemKey, statusFailed+"|"+class, idemCommitTTL)
-		w.rdb.Del(ctx, attemptsKey, retryAtKey)
-	}
-	// retryFail — 상한 내면 백오프 후 재시도(리스 해제), 초과면 DLQ 적재 후 종결.
-	retryFail := func(class, detail string, retryAfter time.Duration) ([]any, bool) {
-		n, err := w.rdb.Incr(ctx, attemptsKey).Result()
-		if err == nil {
-			w.rdb.Expire(ctx, attemptsKey, idemCommitTTL)
-		}
-		if err != nil {
-			return nil, true // Unknown attempt count is not proof of exhaustion.
-		}
-		if n >= maxSendAttempts {
-			return startDLQ(class, detail, int(n))
-		}
-		delay := retryAfter // 429 Retry-After 우선
-		if delay <= 0 {
-			delay = backoff(int(n)) // 없으면 지수 백오프
-		}
-		w.rdb.Set(ctx, retryAtKey, now.Add(delay).Unix(), idemCommitTTL)
-		w.rdb.Del(ctx, idemKey) // 리스 해제 → reclaim이 백오프 이후 재전달
-		return nil, true
-	}
-
-	// 0) 백오프 대기 중이면 처리를 미룬다(리스 없이 → reclaim이 나중에 재전달). Retry-After/지수 백오프 준수.
-	if ts, err := w.rdb.Get(ctx, retryAtKey).Int64(); err == nil && now.Unix() < ts {
-		return nil, true
-	}
-
-	// 1) 멱등 선점 (processing 리스). 실패=이미 종결됐거나 처리 중.
-	acquired, err := w.rdb.SetNX(ctx, idemKey, lease, idemLeaseTTL).Result()
-	if err != nil {
-		w.logger.Error("멱등 선점 실패", "err", err)
-		return nil, true
-	}
-	if !acquired {
-		// 상태를 읽어 전송 결과를 보존한다: sent였다면 CH 로그 flush 실패 후 재전달에도 sent 재기록(중복 전송 없음).
-		val, err := w.rdb.Get(ctx, idemKey).Result()
-		if err != nil {
-			return nil, true
-		}
-		switch {
-		case strings.HasPrefix(val, statusDLQPending):
-			return resumeDLQ(val)
-		case strings.HasPrefix(val, statusSent+"|"):
-			providerID := strings.TrimPrefix(val, statusSent+"|")
-			metrics.ChannelSends.WithLabelValues("duplicate").Inc()
-			return sentRow(providerID, "provider_id="+providerID), false
-		case strings.HasPrefix(val, statusFailed+"|"):
-			return base("failed", strings.TrimPrefix(val, statusFailed+"|"), ""), false
-		default: // A live/legacy lease or unknown state is NOT a terminal result.
-			return nil, true
-		}
-	}
-	// If writing the pending marker failed after the final INCR, do not send
-	// again once the lease expires. Original detail may be unavailable here.
-	priorAttempts, err := w.rdb.Get(ctx, attemptsKey).Int64()
-	if err != nil && !errors.Is(err, redis.Nil) {
-		return nil, true
-	}
-	if priorAttempts >= maxSendAttempts {
-		return startDLQ("retryable", "retry budget already exhausted; prior failure detail unavailable", int(priorAttempts))
-	}
-
-	// 2) 크리덴셜 해석 (verified만, 10분 캐시)
 	kind := "push_fcm"
 	if p.Platform == "ios" {
 		kind = "push_apns"
 	}
-	creds, ok, err := w.credential(ctx, env.AppID, kind)
-	if err != nil {
-		return retryFail("retryable", "크리덴셜 조회 오류: "+err.Error(), 0)
-	}
-	if !ok {
-		commitFailed("credential_missing")
-		return base("failed", "credential_missing", fmt.Sprintf("%s 크리덴셜 미등록/미검증", kind)), false
-	}
+	return &PushJob{P: p, MessageID: messageID, Kind: kind}, p.IdempotencyKey, messageID, true
+}
 
-	// 3) 전송
-	p.Content.Push.MessageID = messageID
-	res, sendErr := w.plugin.Send(ctx, SendRequest{
-		IdempotencyKey: p.IdempotencyKey,
-		Target:         Target{Token: p.PushToken, Platform: p.Platform},
-		Content:        MessageContent{Push: p.Content.Push},
+// Resolve — 플랫폼에 맞는 verified 크리덴셜(10분 메모리 캐시). found=false는 "설정이 안 됐다"이지
+// "장애"가 아니므로 SendLoop이 credential_missing으로 종결한다.
+func (w *PushWorker) Resolve(ctx context.Context, env *libqueue.Envelope, job *PushJob) (Credentials, bool, error) {
+	return w.credential(ctx, env.AppID, job.Kind)
+}
+
+func (w *PushWorker) Send(ctx context.Context, _ *libqueue.Envelope, job *PushJob, creds Credentials) (string, error) {
+	job.P.Content.Push.MessageID = job.MessageID
+	res, err := w.plugin.Send(ctx, SendRequest{
+		IdempotencyKey: job.P.IdempotencyKey,
+		Target:         Target{Token: job.P.PushToken, Platform: job.P.Platform},
+		Content:        MessageContent{Push: job.P.Content.Push},
 		Credentials:    creds,
 	})
-	if sendErr == nil {
-		// 결과(provider_id)를 상태에 보존 → 로그 flush 실패 후 재전달에도 sent 재기록 가능.
-		w.rdb.Set(ctx, idemKey, statusSent+"|"+res.ProviderID, idemCommitTTL)
-		w.rdb.Del(ctx, attemptsKey, retryAtKey)
-		metrics.ChannelSends.WithLabelValues("sent").Inc()
-		return sentRow(res.ProviderID, ""), false
+	if err != nil {
+		return "", err
 	}
+	return res.ProviderID, nil
+}
 
-	class := w.plugin.ClassifyError(sendErr)
-	switch class {
-	case FailureInvalidTarget:
-		// 토큰 피드백 루프 (C-5): 즉시 invalid 반영 → 이후 발송·세그먼트 제외.
-		// active→invalid 전이는 앱 삭제 신호(공급자 UNREGISTERED/410) → app_uninstalls에 기록.
+func (w *PushWorker) Classify(err error) FailureClass { return w.plugin.ClassifyError(err) }
+
+// OnTerminal — 종결 부수효과. 영구 실패 중 두 클래스만 상태를 바꾼다:
+//   - invalid_target: 토큰 피드백 루프 (C-5) — 즉시 invalid 반영 → 이후 발송·세그먼트 제외.
+//     active→invalid 전이는 앱 삭제 신호(공급자 UNREGISTERED/410) → app_uninstalls에 기록.
+//   - credential_auth: 조용한 전량 실패 방지 (C-8) — 크리덴셜 error 전환 → 콘솔 표면화.
+//
+// 지표는 SendLoop이 중앙에서 올리므로 여기서 세지 않는다(중복 계상 방지).
+func (w *PushWorker) OnTerminal(ctx context.Context, env *libqueue.Envelope, job *PushJob, out SendOutcome) {
+	if out.Status != "failed" || w.pg == nil {
+		return
+	}
+	switch out.FailureClass {
+	case FailureInvalidTarget.String():
 		var duid, dpuid, dplat string
 		err := w.pg.QueryRow(ctx, `
 			UPDATE devices SET token_status = 'invalid', updated_at = now()
 			 WHERE app_id = $1 AND push_token = $2 AND token_status = 'active'
-			 RETURNING id, user_id, platform`, env.AppID, p.PushToken).Scan(&duid, &dpuid, &dplat)
+			 RETURNING id, user_id, platform`, env.AppID, job.P.PushToken).Scan(&duid, &dpuid, &dplat)
 		if err == nil {
 			w.recordUninstall(ctx, env.TenantID, env.AppID, dpuid, duid, dplat)
 		} else if !errors.Is(err, pgx.ErrNoRows) {
 			w.logger.Error("토큰 invalid 반영 실패", "err", err)
 		}
-	case FailureCredentialAuth:
-		// 조용한 전량 실패 방지 (C-8 기반): 크리덴셜 error 전환 → 콘솔 표면화
+	case FailureCredentialAuth.String():
 		if _, err := w.pg.Exec(ctx, `
 			UPDATE credentials SET status = 'error', status_detail = $3, updated_at = now()
-			 WHERE app_id = $1 AND kind = $2`, env.AppID, kind, sendErr.Error()); err != nil {
+			 WHERE app_id = $1 AND kind = $2`, env.AppID, job.Kind, out.FailureDetail); err != nil {
 			w.logger.Error("크리덴셜 error 전환 실패", "err", err)
 		}
-		w.invalidateCredCache(env.AppID, kind)
+		w.invalidateCredCache(env.AppID, job.Kind)
 	}
-
-	// 일시 실패(네트워크·5xx·429)만 재시도(429는 Retry-After 반영), 나머지는 종결.
-	// 주의(결과 불명): 요청을 보낸 뒤 응답 전 네트워크 오류면 공급자가 이미 수신했을 수 있으나
-	// 여기서는 retryable로 재시도한다 → at-least-once(드물게 중복 발송 가능). 정확-한-번은 공급자
-	// 멱등키(FCM/APNs 지원 시) 연동으로 별도 강화 (R-02 잔여).
-	if class == FailureRetryable || class == FailureRateLimited {
-		return retryFail(class.String(), sendErr.Error(), RetryAfterOf(sendErr))
-	}
-	commitFailed(class.String())
-	metrics.ChannelSends.WithLabelValues("failed").Inc()
-	return base("failed", class.String(), sendErr.Error()), false
 }
 
-// 멱등 상태 값 (idemKey에 저장) — 리스 소유권·완료·실패를 구분해 결과를 보존한다 (R-02).
-const (
-	statusProcessing = "processing" // 임시 리스(처리 중)
-	statusSent       = "sent"       // 전송 완료 (sent|<provider_id>)
-	statusFailed     = "failed"     // 영구 실패 (failed|<class>)
-)
+// Row — message_log 행. provider_message_id는 sent 행에서만 채워진다(SendOutcome이 보장).
+func (w *PushWorker) Row(env *libqueue.Envelope, job *PushJob, out SendOutcome) []any {
+	p := job.P
+	channel := "push_fcm"
+	if p.Platform == "ios" {
+		channel = "push_apns"
+	}
+	journeyID := zeroUUID
+	if p.JourneyID != nil {
+		journeyID = *p.JourneyID
+	}
+	version, node := uint32(0), uint16(0)
+	if p.JourneyVersion != nil {
+		version = uint32(*p.JourneyVersion)
+	}
+	if p.NodeIndex != nil {
+		node = uint16(*p.NodeIndex)
+	}
+	campaignRef := ""
+	if p.CampaignRef != nil {
+		campaignRef = *p.CampaignRef
+	}
+	detail := out.FailureDetail
+	if out.Status == "failed" && out.FailureClass == "credential_missing" {
+		detail = fmt.Sprintf("%s 크리덴셜 미등록/미검증", job.Kind)
+	}
+	return []any{
+		env.TenantID, env.AppID, out.MessageID, p.IdempotencyKey,
+		journeyID, version, node, campaignRef,
+		p.UserID, p.DeviceID, channel, out.Status, out.FailureClass, detail, out.At, out.ProviderID,
+	}
+}
+
+// DLQ — 재시도 소진분을 send_dlq에 원본 envelope과 함께 적재한다(cmd/dlq로 replay 가능).
+// 영속이 확인되기 전에는 nil을 돌려주지 않는다 — SendLoop은 그때까지 pending을 유지한다.
+func (w *PushWorker) DLQ(ctx context.Context, env *libqueue.Envelope, job *PushJob, out SendOutcome) error {
+	store := w.dlqStore
+	if store == nil && w.pg != nil {
+		store = w.pg
+	}
+	if store == nil {
+		return errors.New("DLQ database is not configured")
+	}
+	envJSON, err := json.Marshal(env)
+	if err != nil {
+		return fmt.Errorf("DLQ envelope encoding failed: %w", err)
+	}
+	var mid any
+	if out.MessageID != "" {
+		mid = out.MessageID
+	}
+	written, err := dlq.Persist(ctx, store, dlq.Entry{TenantID: env.TenantID, AppID: env.AppID, IdempotencyKey: job.P.IdempotencyKey,
+		FailureID: out.FailureID, MessageID: mid, FailureClass: out.FailureClass, FailureDetail: out.FailureDetail, Attempts: out.Attempts, Envelope: envJSON})
+	if err != nil {
+		return err
+	}
+	if written {
+		metrics.ObserveDLQEntry(libqueue.StreamSendPush, out.FailureClass)
+	}
+	return nil
+}
 
 // backoff는 지수 백오프(base*2^(attempt-1), cap)를 돌려준다.
 func backoff(attempt int) time.Duration {
@@ -340,35 +299,7 @@ func backoff(attempt int) time.Duration {
 	return d
 }
 
-// toDLQ는 재시도 소진된 발송을 send_dlq에 적재한다(원본 envelope 포함 → cmd/dlq로 replay 가능).
-func (w *Worker) toDLQ(ctx context.Context, env *libqueue.Envelope, p *SendPushPayload, record pendingDLQ) error {
-	store := w.dlqStore
-	if store == nil && w.pg != nil {
-		store = w.pg
-	}
-	if store == nil {
-		return errors.New("DLQ database is not configured")
-	}
-	envJSON, err := json.Marshal(env)
-	if err != nil {
-		return fmt.Errorf("DLQ envelope encoding failed: %w", err)
-	}
-	var mid any
-	if record.MessageID != "" {
-		mid = record.MessageID
-	}
-	written, err := dlq.Persist(ctx, store, dlq.Entry{TenantID: env.TenantID, AppID: env.AppID, IdempotencyKey: p.IdempotencyKey,
-		FailureID: record.FailureID, MessageID: mid, FailureClass: record.Class, FailureDetail: record.Detail, Attempts: record.Attempts, Envelope: envJSON})
-	if err != nil {
-		return err
-	}
-	if written {
-		metrics.ObserveDLQEntry(libqueue.StreamSendPush, record.Class)
-	}
-	return nil
-}
-
-func (w *Worker) credential(ctx context.Context, appID, kind string) (Credentials, bool, error) {
+func (w *PushWorker) credential(ctx context.Context, appID, kind string) (Credentials, bool, error) {
 	cacheKey := appID + "/" + kind
 	now := w.clk.Now()
 	w.credMu.Lock()
@@ -377,6 +308,9 @@ func (w *Worker) credential(ctx context.Context, appID, kind string) (Credential
 		return c.creds, c.found, nil
 	}
 	w.credMu.Unlock()
+	if w.pg == nil {
+		return Credentials{}, false, errors.New("credential store is not configured")
+	}
 
 	var ciphertext, dekWrapped []byte
 	err := w.pg.QueryRow(ctx, `
@@ -399,48 +333,20 @@ func (w *Worker) credential(ctx context.Context, appID, kind string) (Credential
 	return creds, true, nil
 }
 
-func (w *Worker) storeCredCache(key string, creds Credentials, found bool, at time.Time) {
+func (w *PushWorker) storeCredCache(key string, creds Credentials, found bool, at time.Time) {
 	w.credMu.Lock()
 	w.credCache[key] = cachedCred{creds: creds, found: found, loadedAt: at}
 	w.credMu.Unlock()
 }
 
-func (w *Worker) invalidateCredCache(appID, kind string) {
+func (w *PushWorker) invalidateCredCache(appID, kind string) {
 	w.credMu.Lock()
 	delete(w.credCache, appID+"/"+kind)
 	w.credMu.Unlock()
 }
 
-// logRow — message_log 행. providerID는 sent 행에서만 채운다(그 외 ”).
-func (w *Worker) logRow(tenantID, appID string, p *SendPushPayload, messageID, status, class, detail, providerID string, at time.Time) []any {
-	channel := "push_fcm"
-	if p.Platform == "ios" {
-		channel = "push_apns"
-	}
-	journeyID := "00000000-0000-0000-0000-000000000000"
-	if p.JourneyID != nil {
-		journeyID = *p.JourneyID
-	}
-	version, node := uint32(0), uint16(0)
-	if p.JourneyVersion != nil {
-		version = uint32(*p.JourneyVersion)
-	}
-	if p.NodeIndex != nil {
-		node = uint16(*p.NodeIndex)
-	}
-	campaignRef := ""
-	if p.CampaignRef != nil {
-		campaignRef = *p.CampaignRef
-	}
-	return []any{
-		tenantID, appID, messageID, p.IdempotencyKey,
-		journeyID, version, node, campaignRef,
-		p.UserID, p.DeviceID, channel, status, class, detail, at, providerID,
-	}
-}
-
 // recordUninstall — active 토큰이 공급자 UNREGISTERED/410로 invalid 전이 시 앱 삭제 1건 기록.
-func (w *Worker) recordUninstall(ctx context.Context, tenantID, appID, userID, deviceID, platform string) {
+func (w *PushWorker) recordUninstall(ctx context.Context, tenantID, appID, userID, deviceID, platform string) {
 	if w.ch == nil {
 		return
 	}
@@ -457,24 +363,4 @@ func (w *Worker) recordUninstall(ctx context.Context, tenantID, appID, userID, d
 	if err := batch.Send(); err != nil {
 		w.logger.Error("uninstall 기록 전송 실패", "err", err)
 	}
-}
-
-func (w *Worker) flushLog(ctx context.Context, rows [][]any) error {
-	if len(rows) == 0 {
-		return nil
-	}
-	batch, err := w.ch.PrepareBatch(ctx, `
-		INSERT INTO message_log (tenant_id, app_id, message_id, idempotency_key,
-			journey_id, journey_version, node_index, campaign_ref,
-			user_id, device_id, channel, status, failure_class, failure_detail, sent_at,
-			provider_message_id)`)
-	if err != nil {
-		return err
-	}
-	for _, r := range rows {
-		if err := batch.Append(r...); err != nil {
-			return err
-		}
-	}
-	return batch.Send()
 }
