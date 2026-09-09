@@ -93,6 +93,7 @@ docker compose -f deploy/compose.yaml --env-file deploy/.env --profile app up -d
   `nudgeon_ingest_events_processed_total`, `nudgeon_scheduler_sends_published_total`,
   `nudgeon_channel_sends_total{status}`, `nudgeon_worker_batch_errors_total{role}`.
 - 헬스: api `:8080/healthz`·`/readyz`, worker `:9090/healthz`.
+- 자동 복구: `compose.yaml`·`compose.safe.yaml` 모두 장기 실행 서비스(postgres·clickhouse·redis·api·worker·dlq-monitor·console)에 `restart: unless-stopped`가 걸려 있다. 워커는 DB 연결이 끊기면 스스로 종료하는데(예: PG `i/o timeout`), 이 정책이 없으면 그대로 멈춘 채 남는다 — 2026-09-08 로컬에서 36시간 방치된 사례. `migrator`만 일회성이라 `restart: "no"`.
 
 ## 5. 백업·복구
 
