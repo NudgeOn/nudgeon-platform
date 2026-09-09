@@ -183,8 +183,14 @@ func (l *SendLoop[J]) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 		case strings.HasPrefix(val, statusSent+"|"):
 			providerID := strings.TrimPrefix(val, statusSent+"|")
 			metrics.ChannelSends.WithLabelValues("duplicate").Inc()
+			if l.alreadyLogged(ctx, env, messageID, "sent") {
+				return nil, false // 원본 로그가 살아 있다 — 재기록하면 리포트·계측이 행 수로 과다 집계된다
+			}
 			return l.handler.Row(env, job, out("sent", "", "provider_id="+providerID, providerID, 0)), false
 		case strings.HasPrefix(val, statusFailed+"|"):
+			if l.alreadyLogged(ctx, env, messageID, "failed") {
+				return nil, false
+			}
 			return l.handler.Row(env, job, out("failed", strings.TrimPrefix(val, statusFailed+"|"), "", "", 0)), false
 		default:
 			return nil, true // A lease/unknown state never authorizes ACK.
@@ -253,6 +259,25 @@ func (l *SendLoop[J]) handleOne(ctx context.Context, m *libqueue.Message) ([]any
 	commitFailed(class.String())
 	metrics.ChannelSends.WithLabelValues("failed").Inc()
 	return terminal(out("failed", class.String(), sendErr.Error(), "", 0))
+}
+
+// alreadyLogged — 재전달된 종결 메시지의 message_log 행이 이미 있는지 본다.
+// 재기록은 "CH 플러시 전에 죽어 원본 행이 유실된" 경우를 복구하려는 것인데, 원본이 살아 있을 때도
+// 무조건 재기록하면 같은 message_id의 sent 행이 둘이 되고 리포트 "발송 접수"·계측 MV가 행 수로
+// 과다 집계된다(M-4 카오스 3,000건에서 +9행). 이 경로는 재전달에서만 타므로 CH 점조회 비용은 드물다.
+// 조회 실패면 true를 돌려주지 않는다 — 유실보다 과다 집계가 낫다.
+func (l *SendLoop[J]) alreadyLogged(ctx context.Context, env *libqueue.Envelope, messageID, status string) bool {
+	if l.ch == nil || messageID == "" {
+		return false
+	}
+	row := l.ch.QueryRow(ctx, `SELECT count() FROM message_log
+		WHERE tenant_id = ? AND app_id = ? AND message_id = ? AND status = ?`, env.TenantID, env.AppID, messageID, status)
+	var n uint64
+	if err := row.Scan(&n); err != nil {
+		l.logger.Warn("message_log 중복 확인 실패 — 재기록", "err", err, "message_id", messageID)
+		return false
+	}
+	return n > 0
 }
 
 func (l *SendLoop[J]) flushLog(ctx context.Context, rows [][]any) error {

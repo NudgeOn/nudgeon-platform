@@ -53,6 +53,7 @@ apps/worker/internal/trigger/index.go::163f880e835a   # journeys 전 테넌트 �
 apps/worker/internal/channel/verifier.go::6d313e6d367f   # credentials 전 테넌트 unverified 로드 (검증 워커)
 apps/worker/internal/journey/relay.go::7420584b5880   # journey_outbox by id (outbox PK, 릴레이)
 apps/worker/internal/journey/relay.go::615b9421a94f   # journey_states 재클레임 by claim_token/id (릴레이)
+apps/worker/internal/journey/relay.go::4cfbfcbb297c   # 리퍼: 전 테넌트 claimed 상태 회수 (죽은 워커 복구, SKIP LOCKED) — 상태 전이만 하고 데이터를 읽지 않는다
 
 # --- 운영자 전용 교차 테넌트 대사 도구 (cmd/reconcile) ---
 # 이 도구는 Redis 유실 후 "어느 테넌트에서 중복 발송이 났는가"를 찾는 것이 목적이므로

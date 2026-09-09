@@ -35,7 +35,8 @@ export class AnalyticsController {
     const params = { tid: req.member.tenantId, aid: appId };
 
     const todayRes = await this.ch.query({
-      query: `SELECT status, count() AS n FROM message_log
+      // 행이 아니라 고유 message_id를 센다 — 재전달 재기록으로 같은 발송의 행이 둘일 수 있다(M-4 카오스).
+      query: `SELECT status, uniqExact(message_id) AS n FROM message_log
                WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
                  AND toDate(sent_at) = today()
                GROUP BY status`,
@@ -103,7 +104,7 @@ export class AnalyticsController {
 
     // 발송 결과 분류 (CH message_log)
     const sendRes = await this.ch.query({
-      query: `SELECT status, node_index, count() AS n FROM message_log
+      query: `SELECT status, node_index, uniqExact(message_id) AS n FROM message_log
                WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID} AND journey_id = {jid:UUID}
                  ${versionFilter ? "AND journey_version = {ver:UInt32}" : ""}
                GROUP BY status, node_index ORDER BY node_index`,
