@@ -19,10 +19,15 @@ import (
 )
 
 const (
-	tickInterval  = time.Second
-	claimBatch    = 500
-	relayBatch    = 500
-	claimReap     = 5 * time.Minute // claimed 초과 회수 (DEV-sub-03)
+	tickInterval = time.Second
+	claimBatch   = 500
+	relayBatch   = 500
+	// claimReap — claimed 상태를 죽은 워커에게서 회수하는 창 (DEV-sub-03). 노드 실행마다 claimed_at을
+	// 갱신(하트비트)하므로 한 노드 실행이 이 시간을 넘길 때만 산 워커의 클레임이 회수되며, 그 경우에도
+	// claim_token 펜스(lockClaim)가 이전 워커의 쓰기를 막는다. 5분이던 것을 M-4 카오스(2026-09-10)에서
+	// 크래시 뒤 배치가 최대 6분 늦게 나가는 것을 보고 줄였다.
+	claimReap     = 60 * time.Second
+	reapPeriod    = 15 * time.Second // 리퍼 주기 — 크래시 뒤 회수 지연 상한 ≈ claimReap + reapPeriod
 	entryPageSize = 1000
 )
 

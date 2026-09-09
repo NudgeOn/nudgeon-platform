@@ -83,6 +83,13 @@ func (s *Scheduler) lockClaim(ctx context.Context, c *claimedState, def *Definit
 		}
 		return nil, 0, time.Time{}, tx.Commit(ctx)
 	}
+	// 하트비트 — 이 노드를 실행하는 동안 리퍼가 클레임을 회수하지 않도록 claimed_at을 지금으로 민다.
+	// 행은 위에서 FOR UPDATE로 잠겨 있고 토큰이 맞는 것도 확인했다. 배치 뒤쪽 상태는 claimDue 시각이
+	// 오래됐을 수 있어, 이 갱신이 없으면 긴 배치의 꼬리가 산 워커에게서 회수됐다가 다시 클레임된다.
+	if _, err := tx.Exec(ctx, `UPDATE journey_states SET claimed_at=$4 WHERE tenant_id=$1 AND app_id=$2 AND id=$3 AND claim_token=$5`,
+		c.tenantID, c.appID, c.id, now, c.claimToken); err != nil {
+		return nil, 0, time.Time{}, err
+	}
 	keep = true
 	return tx, seq, now, nil
 }

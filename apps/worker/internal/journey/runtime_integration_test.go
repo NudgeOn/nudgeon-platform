@@ -407,3 +407,34 @@ func TestRuntimeEventDoesNotCrossTenant(t *testing.T) {
 		t.Fatal(status)
 	}
 }
+
+// 하트비트: 노드 실행에 들어간 클레임은 claimed_at이 갱신돼, 클레임 시각 기준으로는 claimReap을 넘겨도
+// 회수되지 않는다. 회수는 진짜로 멈춘 워커(하트비트 없음)에만 걸린다.
+func TestRuntimeHeartbeatKeepsLiveClaimFromReaper(t *testing.T) {
+	f := newRuntimeFixture(t, messageGraph())
+	f.admit("source-1", 1)
+	claims, err := f.s.claimDue(f.ctx)
+	if err != nil || len(claims) != 1 {
+		t.Fatalf("claims %v %v", claims, err)
+	}
+	f.clk.Advance(claimReap - 5*time.Second)
+	def, err := f.s.loadDefinition(f.ctx, claims[0].journeyID, claims[0].version)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, _, _, err := f.s.lockClaim(f.ctx, &claims[0], def) // 노드 실행 진입 = 하트비트
+	if err != nil || tx == nil {
+		t.Fatalf("lockClaim: %v", err)
+	}
+	if err := tx.Commit(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	f.clk.Advance(10 * time.Second) // 클레임 시각 기준 claimReap+5s, 하트비트 기준 10s
+	if n, err := f.s.reapOnce(f.ctx); err != nil || n != 0 {
+		t.Fatalf("live claim reaped: %d %v", n, err)
+	}
+	f.clk.Advance(claimReap)
+	if n, err := f.s.reapOnce(f.ctx); err != nil || n != 1 {
+		t.Fatalf("dead claim not reaped: %d %v", n, err)
+	}
+}

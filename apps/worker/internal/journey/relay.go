@@ -103,32 +103,44 @@ func outboxType(stream string) (string, error) {
 
 // RunReaper는 claimed 상태가 claimReap을 넘기면 회수한다 (죽은 워커 복구 — DEV-sub-03).
 func (s *Scheduler) RunReaper(ctx context.Context) error {
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(reapPeriod)
 	defer ticker.Stop()
+	// 기동 직후 한 번 — 크래시 뒤 재시작한 워커가 자기(또는 다른 죽은 워커)의 클레임을 바로 회수한다.
+	// 산 워커의 클레임은 claimed_at 하트비트 때문에 cutoff에 걸리지 않는다.
+	s.reapAndLog(ctx)
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			n, err := s.reapOnce(ctx)
-			if err != nil {
-				if ctx.Err() != nil {
-					return ctx.Err()
-				}
-				s.logger.Error("리퍼 실패", "err", err)
-				continue
+			if ctx.Err() != nil {
+				return ctx.Err()
 			}
-			if n > 0 {
-				s.logger.Info("claimed 상태 회수", "count", n)
-			}
+			s.reapAndLog(ctx)
 		}
+	}
+}
+
+func (s *Scheduler) reapAndLog(ctx context.Context) {
+	n, err := s.reapOnce(ctx)
+	if err != nil {
+		if ctx.Err() == nil {
+			s.logger.Error("리퍼 실패", "err", err)
+		}
+		return
+	}
+	if n > 0 {
+		s.logger.Info("claimed 상태 회수", "count", n)
 	}
 }
 
 func (s *Scheduler) reapOnce(ctx context.Context) (int64, error) {
 	cutoff := s.clk.Now().Add(-claimReap)
+	// SKIP LOCKED — 죽은 워커의 트랜잭션이 아직 잠근 행(PG가 끊긴 연결을 감지하기 전)에 막혀 나머지 회수까지
+	// 기다리지 않는다. 그 행은 잠금이 풀린 다음 주기에 회수된다. 산 워커가 잠근 행은 실행 중이므로 건너뛰는 게 맞다.
 	tag, err := s.pg.Exec(ctx, `UPDATE journey_states SET status='waiting',claimed_by=NULL,
-		claimed_at=NULL,claim_token=NULL,updated_at=$2 WHERE status='claimed' AND claimed_at<$1`, cutoff, s.clk.Now())
+		claimed_at=NULL,claim_token=NULL,updated_at=$2 WHERE id IN (
+		  SELECT id FROM journey_states WHERE status='claimed' AND claimed_at<$1 FOR UPDATE SKIP LOCKED)`, cutoff, s.clk.Now())
 	return tag.RowsAffected(), err
 }
 

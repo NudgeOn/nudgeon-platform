@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
@@ -27,6 +26,7 @@ import (
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/journey"
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/lifecycle"
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/message"
+	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/pgpool"
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/segment"
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/templatesync"
 	"github.com/nudgeon/nudgeon-platform/apps/worker/internal/trigger"
@@ -88,7 +88,7 @@ func run(role string, logger *slog.Logger) error {
 	rdb := redis.NewClient(redisOpts)
 	defer rdb.Close()
 
-	pg, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	pg, err := pgpool.New(ctx, cfg.DatabaseURL) // idle_in_transaction_session_timeout — 죽은 워커의 잠금을 PG가 푼다
 	if err != nil {
 		return fmt.Errorf("PG 연결: %w", err)
 	}
