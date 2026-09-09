@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"sync"
@@ -133,7 +134,7 @@ func apnsPayload(content *PushContent) map[string]any {
 	if content.Silent {
 		// 무음(백그라운드) 푸시: alert 없이 content-available만 → 사용자 미노출. 삭제 감지 ping.
 		return map[string]any{
-			"aps":  map[string]any{"content-available": 1},
+			"aps":     map[string]any{"content-available": 1},
 			"nudgeon": nudgeon,
 		}
 	}
@@ -160,6 +161,12 @@ func (a *apnsClient) send(ctx context.Context, cred *apnsCredential, deviceToken
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("apns-topic", cred.BundleID)
+	// 크래시 창(전송 완료 → Redis 커밋 전 kill)에서 같은 message_id가 한 번 더 나가면 단말에서 하나로
+	// 접힌다 — M-4 카오스(2026-09-10)에서 3000건 중 1건이 그 창에 걸렸다. apns-id는 UUID여야 한다.
+	if _, err := uuid.Parse(content.MessageID); err == nil {
+		req.Header.Set("apns-id", content.MessageID)
+		req.Header.Set("apns-collapse-id", content.MessageID)
+	}
 	if content.Silent {
 		req.Header.Set("apns-push-type", "background")
 		req.Header.Set("apns-priority", "5") // 무음 푸시는 priority 5 필수 (APNs 규칙)
