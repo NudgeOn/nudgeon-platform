@@ -134,7 +134,7 @@ function JourneyReportView({ appId, id }: { appId: string; id: string }) {
           <div className="jr-row"><span>오픈<small>도달 대비</small></span><strong>{number(delivery.data.opened)}건 · {(delivery.data.open_rate * 100).toFixed(1)}%</strong></div>
           <div className="jr-row"><span>클릭<small>이메일 링크</small></span><strong>{number(delivery.data.clicked)}건</strong></div>
           <div className="jr-row"><span>반송<small>수신 거부·주소 오류</small></span><strong>{number(delivery.data.bounced)}건</strong></div>
-          <p className="jr-footnote">푸시는 SDK가, 이메일은 공급자 웹훅(Resend 등)이 보고합니다. 웹훅을 등록하지 않은 발송기는 도달·오픈이 0으로 남습니다.</p>
+          <p className="jr-footnote">푸시는 SDK가, 이메일은 공급자 웹훅(Resend 등)이 보고합니다. 푸시 도달은 단말 수신(Android)·NSE 도달(iOS)·탭 중 하나라도 보고된 메시지를 셉니다. 웹훅을 등록하지 않은 발송기는 도달·오픈이 0으로 남습니다.</p>
         </>}
       </div>
     </section>

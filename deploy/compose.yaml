@@ -12,6 +12,7 @@ services:
   postgres:
     image: postgres:16
     profiles: [full]
+    restart: unless-stopped
     environment:
       POSTGRES_USER: nudgeon
       POSTGRES_PASSWORD: nudgeon
@@ -32,6 +33,7 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:24.8
     profiles: [full]
+    restart: unless-stopped
     environment:
       CLICKHOUSE_DB: nudgeon
       CLICKHOUSE_USER: nudgeon
@@ -56,6 +58,7 @@ services:
   redis:
     image: redis:7
     profiles: [full]
+    restart: unless-stopped
     # AOF everysec 기본 — 멱등 키·dedup·cap 카운터 보존 (PRD-08 §5 v0.2 개정)
     command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
     ports:
@@ -106,6 +109,7 @@ services:
     image: nudgeon-api
     stop_grace_period: 20s
     profiles: [app]
+    restart: unless-stopped
     depends_on:
       migrator:
         condition: service_completed_successfully
@@ -139,6 +143,7 @@ services:
         GO_TAGS: ${GO_TAGS:-}
     image: nudgeon-worker
     profiles: [app]
+    restart: unless-stopped
     depends_on:
       migrator:
         condition: service_completed_successfully
@@ -160,6 +165,7 @@ services:
   dlq-monitor:
     image: nudgeon-worker
     profiles: [app]
+    restart: unless-stopped
     depends_on:
       migrator:
         condition: service_completed_successfully
@@ -180,6 +186,7 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
     image: nudgeon-console
     profiles: [app]
+    restart: unless-stopped
     depends_on:
       - api
     environment:

@@ -135,9 +135,14 @@ export class AnalyticsController {
   }
 
   /**
-   * 도달·오픈 리포트 (R-15): message_id로 발송(message_log)과 SDK 이벤트($push_delivered/$push_opened)를 조인.
+   * 도달·오픈 리포트 (R-15): message_id로 발송(message_log)과 SDK 이벤트를 조인.
    * - sent = 공급자 접수 고유 message_id (실도달 아님, 분모)
-   * - delivered/opened = SDK 이벤트를 message_id로 조인·중복 제거(uniqExact) — sent된 것만 집계
+   * - delivered = 단말 도착 증거가 하나라도 있는 message_id (uniqExact) — sent된 것만 집계:
+   *   `$push_delivered`(iOS NSE), `$push_received`(Android onMessageReceived · iOS 포그라운드 수신, PRD-04 4장),
+   *   `$push_opened`(탭은 도착의 증거 — NSE 없는 iOS는 이것만 남는다), lifecycle delivered(공급자 콜백).
+   *   IT-8 대사(2026-09-10)에서 `$push_delivered`만 세던 이전 쿼리가 Android 도달을 0으로 만들고
+   *   open_rate가 100%를 넘던 결함을 찾아 고쳤다.
+   * - opened = `$push_opened` ∪ lifecycle opened
    */
   @Get("journeys/:id/delivery")
   async deliveryReport(
@@ -167,12 +172,14 @@ export class AnalyticsController {
                 uniqExactIf(mid, kind = 'clicked') AS clicked,
                 uniqExactIf(mid, kind = 'bounced') AS bounced
               FROM (
-                SELECT JSONExtractString(properties, 'message_id') AS mid,
-                       if(event_name = '$push_delivered', 'delivered', 'opened') AS kind
-                  FROM events
-                 WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
-                   AND event_name IN ('$push_delivered', '$push_opened')
-                   AND JSONExtractString(properties, 'message_id') IN (
+                SELECT JSONExtractString(properties, 'message_id') AS mid, arrayJoin(kinds) AS kind
+                  FROM (
+                    SELECT properties,
+                           if(event_name = '$push_opened', ['delivered', 'opened'], ['delivered']) AS kinds
+                      FROM events
+                     WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
+                       AND event_name IN ('$push_delivered', '$push_received', '$push_opened'))
+                 WHERE JSONExtractString(properties, 'message_id') IN (
                      SELECT toString(message_id) FROM message_log
                       WHERE tenant_id = {tid:UUID} AND app_id = {aid:UUID}
                         AND journey_id = {jid:UUID} AND status = 'sent')
@@ -198,7 +205,7 @@ export class AnalyticsController {
 
     return {
       sent, // 공급자 접수(실도달 아님) — 분모
-      delivered, // SDK $push_delivered ∪ lifecycle delivered (실도달), message_id 중복 제거
+      delivered, // SDK $push_delivered ∪ $push_received ∪ $push_opened ∪ lifecycle delivered (단말 도착 증거), message_id 중복 제거
       opened, // SDK $push_opened ∪ lifecycle opened, 중복 제거
       clicked, // lifecycle clicked (이메일 링크 클릭 등), 중복 제거
       bounced, // lifecycle bounced (반송), 중복 제거

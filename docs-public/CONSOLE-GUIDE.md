@@ -10,7 +10,7 @@
 
 ### 가입 · 로그인
 
-셀프호스팅 기본값은 `MODE=single_tenant`로, 가입 대신 최초 관리자 셋업 화면이 열립니다. `MODE=multi_tenant`이면 가입 시 테넌트·Owner·기본 앱·SDK Key·Server Key가 한 번에 만들어집니다.
+셀프호스팅 기본값은 `MODE=single_tenant`입니다. 이 모드에서는 **첫 가입이 곧 최초 관리자(Owner) 생성**이며 테넌트·기본 앱·SDK Key·Server Key가 함께 만들어지고, 그 뒤로는 가입이 잠깁니다(409). `MODE=multi_tenant`(SaaS)는 가입마다 새 테넌트를 만듭니다. 가입 직후 화면에 SDK Key와 Server Key가 **한 번만** 표시되니 복사해 두세요 — 분실하면 온보딩 1단계의 "SDK Key 회전"으로 새 키를 받습니다.
 
 | 로그인 | 가입 |
 |---|---|
