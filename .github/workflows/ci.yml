@@ -60,15 +60,24 @@ jobs:
       # 반드시 명시적 모듈 경로를 사용한다 (DEV-sub-08 §H).
       - run: go vet ./apps/worker/... ./packages/libqueue-go/...
       - run: go build ./apps/worker/... ./packages/libqueue-go/...
+      # 저니 런타임 통합 테스트(M-3 포함)는 자기 스키마를 만들어 쓰므로 마이그레이션 테스트와 DB를 분리한다.
+      # 이 변수가 없으면 apps/worker/internal/journey의 실 PG 테스트가 전부 skip된다(2026-09-10까지 그랬다).
+      - name: 저니 통합 테스트용 DB 생성
+        run: PGPASSWORD=nudgeon psql -h localhost -U nudgeon -d nudgeon_migrate_test -c 'CREATE DATABASE nudgeon_journey_test'
       - run: go test ./apps/worker/... ./packages/libqueue-go/...
         env:
           NUDGEON_MIGRATE_TEST_DATABASE_URL: postgres://nudgeon:nudgeon@localhost:5432/nudgeon_migrate_test?sslmode=disable
+          NUDGEON_JOURNEY_TEST_DATABASE_URL: postgres://nudgeon:nudgeon@localhost:5432/nudgeon_journey_test?sslmode=disable
       # 위 실행은 패키지당 ok 한 줄이라 skip과 pass를 구분할 수 없다. 실 PG 테스트가
       # 진짜 돌았다는 증거를 로그에 남긴다 — 여기서 "SKIP"이 보이면 서비스 연결이 깨진 것이다.
       - name: 실 PG 마이그레이션 테스트 실행 증거
         run: go test -v -run 'TestPostgres' ./apps/worker/cmd/migrate/ 2>&1 | grep -E '^(--- |ok|FAIL)'
         env:
           NUDGEON_MIGRATE_TEST_DATABASE_URL: postgres://nudgeon:nudgeon@localhost:5432/nudgeon_migrate_test?sslmode=disable
+      - name: 실 PG 저니 런타임 테스트 실행 증거 (M-3 포함)
+        run: go test -count=1 -v -run 'TestLinearJourneyM3|TestRuntime' ./apps/worker/internal/journey/ 2>&1 | grep -E '^(--- |ok|FAIL)'
+        env:
+          NUDGEON_JOURNEY_TEST_DATABASE_URL: postgres://nudgeon:nudgeon@localhost:5432/nudgeon_journey_test?sslmode=disable
 
   compose:
     name: Compose · Safe Boot 검증
