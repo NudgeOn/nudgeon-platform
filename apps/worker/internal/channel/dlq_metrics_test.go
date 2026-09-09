@@ -27,15 +27,15 @@ func TestDLQOperationMetricsCountFailedAttemptsOnly(t *testing.T) {
 	}
 	mr.Set("send:idem:t1:idem-1", "processing|owner")
 	p := pendingDLQ{MessageID: "synthetic", Class: "retryable", Attempts: 5, At: fk.Now()}
-	if _, err := beginDLQ(ctx, w.rdb, "send:idem:t1:idem-1", "processing|stale", p); err == nil {
+	if _, err := beginDLQ(ctx, w.loop.rdb, "send:idem:t1:idem-1", "processing|stale", p); err == nil {
 		t.Fatal("stale owner succeeded")
 	}
-	raw, err := beginDLQ(ctx, w.rdb, "send:idem:t1:idem-1", "processing|owner", p)
+	raw, err := beginDLQ(ctx, w.loop.rdb, "send:idem:t1:idem-1", "processing|owner", p)
 	if err != nil {
 		t.Fatal(err)
 	}
 	finish := func(value string, persist func(pendingDLQ) error) error {
-		_, err := finishDLQ(ctx, w.rdb, "send:idem:t1:idem-1", "attempts", "retryat", value, persist)
+		_, err := finishDLQ(ctx, w.loop.rdb, "send:idem:t1:idem-1", "attempts", "retryat", value, persist)
 		return err
 	}
 	if finish("dlq_pending|invalid", func(pendingDLQ) error { t.Fatal("invalid state persisted"); return nil }) == nil {
@@ -46,8 +46,8 @@ func TestDLQOperationMetricsCountFailedAttemptsOnly(t *testing.T) {
 			t.Fatal("store error swallowed")
 		}
 	}
-	failing := &failCommitRedis{Cmdable: w.rdb, fail: true}
-	w.rdb = failing
+	failing := &failCommitRedis{Cmdable: w.loop.rdb, fail: true}
+	w.loop.rdb = failing
 	if finish(raw, func(pendingDLQ) error { return nil }) == nil {
 		t.Fatal("finalize error swallowed")
 	}

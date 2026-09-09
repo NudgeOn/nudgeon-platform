@@ -65,11 +65,11 @@ func TestDLQPersistenceFailureResumesWithoutResending(t *testing.T) {
 			w, mr, fk := newTestWorker(t, NewSendError(FailureRetryable, "5xx"))
 			failedAt := fk.Now()
 			store := &controlledDLQStore{err: errors.New("database write denied")}
-			w.dlqStore = store
+			w.handler.dlqStore = store
 			h := &retryHandler{store: store}
-			loop := NewSendLoop[string]("test", h, nil, w.rdb, nil, w.clk, w.logger)
+			loop := NewSendLoop[string]("test", h, nil, w.loop.rdb, nil, w.loop.clk, w.loop.logger)
 			handle := w.handleOne
-			sends := func() int { return w.plugin.(*mockPlugin).sends }
+			sends := func() int { return w.handler.plugin.(*mockPlugin).sends }
 			if mode == "sendloop" {
 				handle = loop.handleOne
 				sends = func() int { return h.sends }
@@ -130,13 +130,13 @@ func TestNonterminalStateNeverAuthorizesACK(t *testing.T) {
 			w, mr, _ := newTestWorker(t, nil)
 			mr.Set("send:idem:t1:idem-1", state)
 			h := &retryHandler{}
-			loop := NewSendLoop[string]("test", h, nil, w.rdb, nil, w.clk, w.logger)
+			loop := NewSendLoop[string]("test", h, nil, w.loop.rdb, nil, w.loop.clk, w.loop.logger)
 			for _, handle := range []func(context.Context, *libqueue.Message) ([]any, bool){w.handleOne, loop.handleOne} {
 				if row, retry := handle(context.Background(), testMsg()); row != nil || !retry {
 					t.Fatal("nonterminal state authorized ACK")
 				}
 			}
-			if w.plugin.(*mockPlugin).sends != 0 || h.sends != 0 {
+			if w.handler.plugin.(*mockPlugin).sends != 0 || h.sends != 0 {
 				t.Fatal("nonterminal state resent")
 			}
 		})
@@ -147,15 +147,15 @@ func TestNonterminalStateNeverAuthorizesACK(t *testing.T) {
 // the DLQ write after the processing lease expires, never send a sixth time.
 func TestExhaustedCounterSkipsProvider(t *testing.T) {
 	w, mr, _ := newTestWorker(t, nil)
-	w.dlqStore = &controlledDLQStore{}
+	w.handler.dlqStore = &controlledDLQStore{}
 	mr.Set("send:attempts:t1:idem-1", "5")
-	if row, retry := w.handleOne(context.Background(), testMsg()); retry || row == nil || w.plugin.(*mockPlugin).sends != 0 {
+	if row, retry := w.handleOne(context.Background(), testMsg()); retry || row == nil || w.handler.plugin.(*mockPlugin).sends != 0 {
 		t.Fatal("exhausted push sent again")
 	}
 	mr.Del("send:idem:t1:idem-1")
 	mr.Set("send:attempts:t1:idem-1", "5")
 	h := &retryHandler{store: &controlledDLQStore{}}
-	loop := NewSendLoop[string]("test", h, nil, w.rdb, nil, w.clk, w.logger)
+	loop := NewSendLoop[string]("test", h, nil, w.loop.rdb, nil, w.loop.clk, w.loop.logger)
 	if row, retry := loop.handleOne(context.Background(), testMsg()); retry || row == nil || h.sends != 0 {
 		t.Fatal("exhausted send loop sent again")
 	}
@@ -186,9 +186,9 @@ func (r *failCommitRedis) Eval(ctx context.Context, script string, keys []string
 func TestRedisFinalizeFailureLeavesSameDLQCyclePending(t *testing.T) {
 	w, mr, _ := newTestWorker(t, NewSendError(FailureRetryable, "5xx"))
 	store := &controlledDLQStore{}
-	w.dlqStore = store
-	rdb := &failCommitRedis{Cmdable: w.rdb, fail: true}
-	w.rdb = rdb
+	w.handler.dlqStore = store
+	rdb := &failCommitRedis{Cmdable: w.loop.rdb, fail: true}
+	w.loop.rdb = rdb
 	mr.Set("send:attempts:t1:idem-1", "4")
 	if row, retry := w.handleOne(context.Background(), testMsg()); row != nil || !retry {
 		t.Fatal("Redis commit failure authorized ACK")
@@ -197,7 +197,7 @@ func TestRedisFinalizeFailureLeavesSameDLQCyclePending(t *testing.T) {
 	if row, retry := w.handleOne(context.Background(), testMsg()); row == nil || retry {
 		t.Fatal("Redis commit recovery failed")
 	}
-	if len(store.ids) != 2 || store.ids[0] != store.ids[1] || w.plugin.(*mockPlugin).sends != 1 {
+	if len(store.ids) != 2 || store.ids[0] != store.ids[1] || w.handler.plugin.(*mockPlugin).sends != 1 {
 		t.Fatal("changed cycle or resend during Redis recovery")
 	}
 }
@@ -205,7 +205,7 @@ func TestRedisFinalizeFailureLeavesSameDLQCyclePending(t *testing.T) {
 func TestStaleLeaseCannotReplaceDLQState(t *testing.T) {
 	w, mr, _ := newTestWorker(t, nil)
 	mr.Set("send:idem:t1:idem-1", "processing|new-owner")
-	_, err := beginDLQ(context.Background(), w.rdb, "send:idem:t1:idem-1", "processing|old-owner", pendingDLQ{MessageID: "mid", Class: "retryable", Attempts: 5, At: mustTime()})
+	_, err := beginDLQ(context.Background(), w.loop.rdb, "send:idem:t1:idem-1", "processing|old-owner", pendingDLQ{MessageID: "mid", Class: "retryable", Attempts: 5, At: mustTime()})
 	if !errors.Is(err, errDLQStateChanged) {
 		t.Fatalf("err=%v", err)
 	}
@@ -219,7 +219,7 @@ func TestPersistentDLQMarkerSurvivesOriginalLeaseTTL(t *testing.T) {
 	mr.Set("send:attempts:t1:idem-1", "4")
 	_, _ = w.handleOne(context.Background(), testMsg())
 	mr.FastForward(8 * 24 * time.Hour)
-	if row, retry := w.handleOne(context.Background(), testMsg()); row != nil || !retry || w.plugin.(*mockPlugin).sends != 1 {
+	if row, retry := w.handleOne(context.Background(), testMsg()); row != nil || !retry || w.handler.plugin.(*mockPlugin).sends != 1 {
 		t.Fatal("DLQ marker expired into a fresh send")
 	}
 }
@@ -230,14 +230,14 @@ func TestConcurrentDLQFinalizersHaveOneStateCommit(t *testing.T) {
 	mr.Set(key, "processing|owner")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	raw, err := beginDLQ(ctx, w.rdb, key, "processing|owner", pendingDLQ{MessageID: "mid-1", Class: "retryable", Attempts: 5, At: mustTime()})
+	raw, err := beginDLQ(ctx, w.loop.rdb, key, "processing|owner", pendingDLQ{MessageID: "mid-1", Class: "retryable", Attempts: 5, At: mustTime()})
 	if err != nil {
 		t.Fatal(err)
 	}
 	entered, release, results := make(chan string, 2), make(chan struct{}), make(chan error, 2)
 	for i := 0; i < 2; i++ {
 		go func() {
-			_, err := finishDLQ(ctx, w.rdb, key, "attempts", "retryat", raw, func(p pendingDLQ) error {
+			_, err := finishDLQ(ctx, w.loop.rdb, key, "attempts", "retryat", raw, func(p pendingDLQ) error {
 				entered <- p.FailureID
 				select {
 				case <-release:

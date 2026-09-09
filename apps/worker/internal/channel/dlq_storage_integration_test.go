@@ -138,8 +138,8 @@ func TestDLQStoragePostgresRedis(t *testing.T) {
 						return NewSendLoop[string]("storage-qa", h, nil, rdb, nil, clk, logger).handleOne
 					}
 					w := NewWorker(nil, rdb, writer, nil, plugin, nil, clk, logger)
-					w.dlqStore = store
-					w.storeCredCache(storageApp+"/push_fcm", Credentials{Kind: "push_fcm", JSON: []byte("{}")}, true, clk.Now())
+					w.handler.dlqStore = store
+					w.handler.storeCredCache(storageApp+"/push_fcm", Credentials{Kind: "push_fcm", JSON: []byte("{}")}, true, clk.Now())
 					return w.handleOne
 				}
 				queue := libqueue.NewConsumer(rdb, stream, group, "before-"+idem)
