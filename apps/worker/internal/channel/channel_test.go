@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ecdsa"
@@ -10,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -166,5 +168,40 @@ func TestClassifyAPNSError(t *testing.T) {
 		if got := classifyAPNSError(c.status, []byte(c.body), 0).Class; got != c.want {
 			t.Errorf("APNs %d %s: %v 기대, %v", c.status, c.body, c.want, got)
 		}
+	}
+}
+
+type captureRoundTripper struct{ req *http.Request }
+
+func (c *captureRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	c.req = r
+	return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Apns-Id": []string{"apns-resp"}}, Body: io.NopCloser(strings.NewReader(""))}, nil
+}
+
+// 크래시 창에서 같은 message_id가 두 번 나가도 단말에서 하나로 접히도록 apns-id·apns-collapse-id를 message_id로 보낸다 (M-4).
+func TestAPNSSendSetsIdempotentHeaders(t *testing.T) {
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	der, _ := x509.MarshalPKCS8PrivateKey(key)
+	p8 := string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}))
+	cred := &apnsCredential{P8: p8, KeyID: "K", TeamID: "T", BundleID: "io.nudgeon.demo", Environment: "sandbox"}
+	rt := &captureRoundTripper{}
+	client := newAPNSClient(&http.Client{Transport: rt}, &clock.Fake{Current: time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC)})
+
+	mid := "6d2e1c8a-4f1b-4c33-9a1e-0d3c2b6f7a90"
+	if _, err := client.send(context.Background(), cred, "tok", &PushContent{Title: "t", Body: "b", MessageID: mid}); err != nil {
+		t.Fatal(err)
+	}
+	if got := rt.req.Header.Get("apns-id"); got != mid {
+		t.Errorf("apns-id = %q, want message_id", got)
+	}
+	if got := rt.req.Header.Get("apns-collapse-id"); got != mid {
+		t.Errorf("apns-collapse-id = %q, want message_id", got)
+	}
+	// message_id가 UUID가 아니면(구형 인플라이트) 헤더를 만들지 않는다 — APNs는 apns-id를 UUID로만 받는다.
+	if _, err := client.send(context.Background(), cred, "tok", &PushContent{Title: "t", Body: "b", MessageID: "legacy-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if rt.req.Header.Get("apns-id") != "" || rt.req.Header.Get("apns-collapse-id") != "" {
+		t.Error("비UUID message_id에 apns-id/collapse-id를 붙였다")
 	}
 }
