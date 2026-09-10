@@ -177,6 +177,7 @@ function SnippetStep({
   lastEventAt: string | null;
 }) {
   const t = useTranslations("onboarding.snippet");
+  const th = useTranslations("onboarding.snippetHints");
   const [platform, setPlatform] = useState<Platform>("curl");
   // 상대 주소(/api, Safe Boot)는 브라우저 origin을 붙여 절대 주소로 — 서버 렌더에서는 origin이 없으므로 마운트 후 계산.
   const configured = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -194,12 +195,12 @@ function SnippetStep({
             className="h-8 px-3 text-xs"
             onClick={() => setPlatform(p)}
           >
-            {PLATFORM_LABELS[p]}
+            {p === "curl" ? th("curlLabel") : PLATFORM_LABELS[p]}
           </Button>
         ))}
       </div>
       <pre className="overflow-x-auto rounded-md bg-muted p-4 text-xs">
-        {snippet(platform, "pk_YOUR_SDK_KEY", apiUrl)}
+        {snippet(platform, "pk_YOUR_SDK_KEY", apiUrl, platform === "curl" ? undefined : th(`device.${platform}`))}
       </pre>
       {received ? (
         <p className="text-sm text-primary">

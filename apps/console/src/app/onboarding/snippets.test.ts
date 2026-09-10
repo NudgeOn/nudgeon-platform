@@ -32,8 +32,11 @@ describe("snippet", () => {
   it("로컬 주소면 단말 SDK 스니펫에만 도달 불가 안내를 붙인다", () => {
     expect(isLoopback("http://localhost:18080/api")).toBe(true);
     expect(isLoopback("https://ingest.example.com")).toBe(false);
-    expect(snippet("android", "pk_x", "http://localhost:18080/api")).toMatch(/^\/\/ 실기기는 localhost에 닿지 못합니다/);
-    expect(snippet("curl", "pk_x", "http://localhost:18080/api")).not.toContain("실기기");
-    expect(snippet("ios", "pk_x", "https://ingest.example.com")).not.toContain("실기기");
+    const hint = "실기기는 localhost에 닿지 못합니다";
+    expect(snippet("android", "pk_x", "http://localhost:18080/api", hint)).toMatch(/^\/\/ 실기기는 localhost에 닿지 못합니다\n/);
+    expect(snippet("curl", "pk_x", "http://localhost:18080/api", hint)).not.toContain("실기기");
+    expect(snippet("ios", "pk_x", "https://ingest.example.com", hint)).not.toContain("실기기");
+    // 안내문이 없으면(호출 측이 번역을 못 넘긴 경우) 스니펫은 깨끗해야 한다
+    expect(snippet("android", "pk_x", "http://localhost:18080/api")).not.toMatch(/^\/\//);
   });
 });

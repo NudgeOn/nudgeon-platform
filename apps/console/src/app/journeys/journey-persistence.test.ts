@@ -146,7 +146,7 @@ describe("journey draft persistence", () => {
     const api = client();
     api.validate.mockResolvedValueOnce({ ...validation, revision: "another-editors-revision" });
     const session = createJourneyDraftSession(api, appId);
-    await expect(session.validate(input())).rejects.toThrow("다른 편집 내용");
+    await expect(session.validate(input())).rejects.toThrow("persistence.revisionMismatch");
     await expect(session.validate(input())).resolves.toEqual({ ...validation, id: journeyId });
     expect(api.create).toHaveBeenCalledTimes(1);
     expect(api.update).toHaveBeenCalledTimes(1);

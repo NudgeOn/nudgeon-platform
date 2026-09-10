@@ -14,9 +14,23 @@ export function entryEdgeId(definition: GraphDefinition): string {
 export type PublishedABNodes = Record<string, { variants: Extract<JourneyNode, { type: "ab_split" }>["variants"] }>;
 export type JourneyCapabilities = { graph_v2: boolean; supported_node_types: string[] };
 
+/** 사용자 메시지는 키로만 만든다 — 렌더 지점에서 next-intl `t(key, params)`(네임스페이스 journeyEditor)로 번역한다. */
+export interface GraphMessage { key: string; params?: Record<string, string | number> }
+export class GraphOperationError extends Error {
+  readonly key: string;
+  readonly params?: Record<string, string | number>;
+  constructor(key: string, params?: Record<string, string | number>) {
+    super(key);
+    this.name = "GraphOperationError";
+    this.key = key;
+    this.params = params;
+  }
+}
+const fail = (key: string, params?: Record<string, string | number>) => new GraphOperationError(key, params);
+
 /** Refuse malformed topology without flattening or silently repairing stored drafts. */
-export function graphReadIssue(definition: GraphDefinition): string | null {
-  const fail = "저장된 단계 연결을 읽을 수 없습니다. 원본을 보존했으며 관리자 확인이 필요합니다.";
+export function graphReadIssue(definition: GraphDefinition): GraphMessage | null {
+  const fail: GraphMessage = { key: "graph.readIssue" };
   if (!Array.isArray(definition.nodes) || !definition.nodes.length || !Array.isArray(definition.edges)) return fail;
   const ids = definition.nodes.map((node) => node.id);
   if (ids.some((id) => typeof id !== "string" || !id) || new Set(ids).size !== ids.length ||
@@ -28,7 +42,7 @@ export function graphReadIssue(definition: GraphDefinition): string | null {
     const outputs = new Set<string>();
     const indegree = new Map(ids.map((id) => [id, 0]));
     for (const node of definition.nodes) {
-      if (!NODE_TOOLS.some((tool) => tool.type === node.type)) return "현재 콘솔에서 지원하지 않는 단계가 포함되어 있습니다. 원본은 변경하지 않았습니다.";
+      if (!NODE_TOOLS.some((tool) => tool.type === node.type)) return { key: "graph.unsupportedNode" };
       if (node.type === "message") {
         // 채널은 푸시·이메일·알림톡 셋 중 하나. 알림톡을 빼면 알림톡 저니가 통째로
         // "연결을 읽을 수 없음"으로 잠긴다 — 워커 쪽에도 같은 누락이 있었다.
@@ -66,13 +80,14 @@ export function graphReadIssue(definition: GraphDefinition): string | null {
   return null;
 }
 
-export function nodeTitle(node: JourneyNode): string {
+/** 제목이 비어 있으면 단계 종류 라벨로 대신한다 — `typeLabel`(번역기)을 넘기면 그것을 우선한다. */
+export function nodeTitle(node: JourneyNode, typeLabel?: (type: JourneyNode["type"]) => string): string {
   if (node.type === "message") {
     if (node.push?.title?.trim()) return node.push.title;
     if (node.email?.subject?.trim()) return node.email.subject;
   }
   if (node.type === "event_wait" && node.event_name.trim()) return node.event_name;
-  return NODE_TOOLS.find((tool) => tool.type === node.type)?.label ?? node.type;
+  return typeLabel?.(node.type) ?? node.type;
 }
 
 export function outgoingEdges(definition: GraphDefinition, id: string): GraphEdge[] {
@@ -98,11 +113,11 @@ export function reachableNodes(definition: GraphDefinition, start = definition.s
 
 /** Split exactly one path; inserting a decision initially preserves the old continuation on every output. */
 export function insertOnEdge(definition: GraphDefinition, edgeId: string, node: JourneyNode): GraphDefinition {
-  if (!node.id || definition.nodes.some((existing) => existing.id === node.id)) throw new Error("새 단계의 ID가 올바르지 않습니다.");
+  if (!node.id || definition.nodes.some((existing) => existing.id === node.id)) throw fail("graph.invalidNodeId");
   const next = structuredClone(definition);
   const edge = next.edges.find((item) => item.id === edgeId);
   const atEntry = edgeId === entryEdgeId(definition);
-  if (!atEntry && !edge) throw new Error("추가할 경로를 다시 선택해 주세요.");
+  if (!atEntry && !edge) throw fail("graph.reselectPath");
   const target = atEntry ? next.start_node_id : edge!.target;
   if (edge) edge.target = node.id;
   else next.start_node_id = node.id;
@@ -113,23 +128,23 @@ export function insertOnEdge(definition: GraphDefinition, edgeId: string, node: 
   return next;
 }
 
-export function connectionIssue(definition: GraphDefinition, source: string, port: string, target: string | null): string | null {
+export function connectionIssue(definition: GraphDefinition, source: string, port: string, target: string | null): GraphMessage | null {
   const node = definition.nodes.find((item) => item.id === source);
-  if (!node || !outputPorts(node).some((item) => item.id === port)) return "연결할 경로를 찾을 수 없습니다.";
-  if (target && !definition.nodes.some((item) => item.id === target)) return "연결할 단계를 찾을 수 없습니다.";
-  if (target === source || (target && reachableNodes(definition, target).has(source))) return "이전 단계로 되돌아가는 연결은 만들 수 없습니다.";
+  if (!node || !outputPorts(node).some((item) => item.id === port)) return { key: "graph.portNotFound" };
+  if (target && !definition.nodes.some((item) => item.id === target)) return { key: "graph.targetNotFound" };
+  if (target === source || (target && reachableNodes(definition, target).has(source))) return { key: "graph.backwardConnection" };
   const next = structuredClone(definition);
   next.edges = next.edges.filter((edge) => edge.source !== source || edge.source_port !== port);
   next.edges.push({ id: "preview", source, source_port: port, target });
   const before = reachableNodes(definition);
   const after = reachableNodes(next);
-  if ([...before].some((id) => !after.has(id))) return "이 연결은 기존 단계를 흐름에서 분리합니다. 단계 삭제에서 영향을 먼저 확인해 주세요.";
+  if ([...before].some((id) => !after.has(id))) return { key: "graph.detachesNodes" };
   return null;
 }
 
 export function connectRoute(definition: GraphDefinition, source: string, port: string, target: string | null): GraphDefinition {
   const issue = connectionIssue(definition, source, port, target);
-  if (issue) throw new Error(issue);
+  if (issue) throw fail(issue.key, issue.params);
   const next = structuredClone(definition);
   const edge = next.edges.find((item) => item.source === source && item.source_port === port);
   if (edge) edge.target = target;
@@ -162,7 +177,7 @@ export function canMoveNode(definition: GraphDefinition, id: string, offset: -1 
 /** Rewire adjacent linear nodes without changing their IDs, configuration or neighboring branches. */
 export function moveLinearNode(definition: GraphDefinition, id: string, offset: -1 | 1): GraphDefinition {
   const pair = movablePair(definition, id, offset);
-  if (!pair) throw new Error("같은 경로의 메시지·시간 대기 사이에서만 순서를 바꿀 수 있습니다.");
+  if (!pair) throw fail("graph.moveOnlyLinear");
   const [first, second] = pair;
   const next = structuredClone(definition);
   const firstOut = next.edges.find((edge) => edge.source === first.id)!;
@@ -183,11 +198,11 @@ export interface RemovalPreview {
 
 export function previewRemoval(definition: GraphDefinition, id: string, keepPort?: string): RemovalPreview {
   const node = definition.nodes.find((item) => item.id === id);
-  if (!node) throw new Error("삭제할 단계를 찾을 수 없습니다.");
+  if (!node) throw fail("graph.removeTargetNotFound");
   const outputs = outgoingEdges(definition, id);
-  if (outputs.length > 1 && !keepPort) throw new Error("삭제 후 보존할 경로를 선택해 주세요.");
+  if (outputs.length > 1 && !keepPort) throw fail("graph.chooseKeepPath");
   const kept = outputs.find((edge) => !keepPort || edge.source_port === keepPort);
-  if (!kept) throw new Error("보존할 다음 경로를 찾을 수 없습니다.");
+  if (!kept) throw fail("graph.keepPathNotFound");
   const next = structuredClone(definition);
   const beforeReachable = reachableNodes(definition);
   const descendants = reachableNodes(definition, id);
@@ -198,7 +213,7 @@ export function previewRemoval(definition: GraphDefinition, id: string, keepPort
   const removedIds = new Set([id, ...[...beforeReachable].filter((item) => !afterReachable.has(item))]);
   next.nodes = next.nodes.filter((item) => !removedIds.has(item.id));
   next.edges = next.edges.filter((edge) => !removedIds.has(edge.source) && (!edge.target || !removedIds.has(edge.target)));
-  if (!next.nodes.length || !next.start_node_id) throw new Error("저니에는 최소 하나의 단계가 필요합니다.");
+  if (!next.nodes.length || !next.start_node_id) throw fail("graph.needOneNode");
   return {
     definition: next,
     removed: definition.nodes.filter((item) => removedIds.has(item.id)),
@@ -209,8 +224,8 @@ export function previewRemoval(definition: GraphDefinition, id: string, keepPort
 
 export function renewExperiment(definition: GraphDefinition, id: string, replacementId = newJourneyId()): GraphDefinition {
   const node = definition.nodes.find((item) => item.id === id);
-  if (node?.type !== "ab_split") throw new Error("A/B 분기를 선택해 주세요.");
-  if (definition.nodes.some((item) => item.id === replacementId)) throw new Error("실험 ID가 중복됩니다.");
+  if (node?.type !== "ab_split") throw fail("graph.selectAbSplit");
+  if (definition.nodes.some((item) => item.id === replacementId)) throw fail("graph.duplicateExperimentId");
   const next = structuredClone(definition);
   next.nodes = next.nodes.map((item) => item.id === id ? { ...item, id: replacementId } : item);
   next.edges = next.edges.map((edge) => ({ ...edge,

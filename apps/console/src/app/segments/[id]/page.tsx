@@ -3,12 +3,14 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { SegmentDSL } from "@nudgeon/segment-dsl";
 import { useAppId } from "../../use-app-id";
 import { api } from "@/lib/api";
 import { SegmentBuilder } from "../SegmentBuilder";
 
 export default function EditSegmentPage() {
+  const t = useTranslations("segmentBuilder");
   const appId = useAppId();
   const params = useParams<{ id: string }>();
   const seg = useQuery({
@@ -18,10 +20,10 @@ export default function EditSegmentPage() {
   });
 
   if (!appId || seg.isPending) {
-    return <main className="p-8 text-sm text-muted-foreground">불러오는 중…</main>;
+    return <main className="p-8 text-sm text-muted-foreground">{t("loading")}</main>;
   }
   if (seg.isError) {
-    return <main className="p-8 text-sm text-destructive">세그먼트를 찾을 수 없습니다.</main>;
+    return <main className="p-8 text-sm text-destructive">{t("notFound")}</main>;
   }
 
   return (
@@ -29,10 +31,10 @@ export default function EditSegmentPage() {
       <header className="mb-6">
         <p className="text-sm text-muted-foreground">
           <Link href="/segments" className="underline">
-            ← 세그먼트
+            {t("backToSegments")}
           </Link>
         </p>
-        <h1 className="mt-2 text-2xl font-bold">세그먼트 편집</h1>
+        <h1 className="mt-2 text-2xl font-bold">{t("editTitle")}</h1>
         {seg.data.status === "broken" && seg.data.status_detail && (
           <p className="mt-1 text-sm text-destructive">broken: {seg.data.status_detail}</p>
         )}

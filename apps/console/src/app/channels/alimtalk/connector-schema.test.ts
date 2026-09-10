@@ -233,17 +233,17 @@ describe("planCredential", () => {
 describe("fieldDestination", () => {
   it("이름이 슬롯과 다르면 둘 다 밝힌다 (조용히 버리지 않는다)", () => {
     const [appKey] = schemaFields(nhnSchema);
-    expect(fieldDestination(appKey!)).toBe("크리덴셜에 app_key(으)로 저장 · api_key 슬롯에도 함께");
+    expect(fieldDestination(appKey!)).toEqual({ key: "destination.withSlot", params: { name: "app_key", slot: "api_key" } });
   });
 
   it("이름이 슬롯과 같으면 한 마디로 끝낸다", () => {
     const [secretKey] = schemaFields({ type: "object", properties: { secret_key: { type: "string" } } });
-    expect(fieldDestination(secretKey!)).toBe("크리덴셜에 이 이름 그대로 저장");
+    expect(fieldDestination(secretKey!)).toEqual({ key: "destination.plain" });
   });
 
   it("슬롯이 없는 필드도 제 이름으로 저장된다고 말한다", () => {
     const [seed] = schemaFields({ type: "object", properties: { signing_seed: { type: "string" } } });
-    expect(fieldDestination(seed!)).toBe("크리덴셜에 이 이름 그대로 저장");
+    expect(fieldDestination(seed!)).toEqual({ key: "destination.plain" });
   });
 });
 

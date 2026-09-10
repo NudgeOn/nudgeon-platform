@@ -1,7 +1,8 @@
 {
   "app": {
     "title": "NudgeOn Console",
-    "description": "NudgeOn — admin console for the customer engagement platform"
+    "description": "NudgeOn — admin console for the customer engagement platform",
+    "localeSwitcherLabel": "Language"
   },
   "login": {
     "title": "NudgeOn Console",
@@ -120,6 +121,15 @@
       "apnsLabel": "APNs — p8 key",
       "apnsFailed": "Registration failed — check your input",
       "apnsSubmit": "Register APNs"
+    },
+    "snippetHints": {
+      "curlLabel": "curl (test right now)",
+      "device": {
+        "ios": "Real devices can't reach localhost — use your PC's LAN IP on the same Wi-Fi (e.g. http://192.168.0.10:PORT) or an HTTPS tunnel URL.",
+        "android": "Real devices can't reach localhost — use your PC's LAN IP on the same Wi-Fi (e.g. http://192.168.0.10:PORT) or an HTTPS tunnel URL. Emulator: http://10.0.2.2:PORT",
+        "rn": "Real devices can't reach localhost — use your PC's LAN IP on the same Wi-Fi (e.g. http://192.168.0.10:PORT) or an HTTPS tunnel URL. Android emulator: http://10.0.2.2:PORT",
+        "flutter": "Real devices can't reach localhost — use your PC's LAN IP on the same Wi-Fi (e.g. http://192.168.0.10:PORT) or an HTTPS tunnel URL. Android emulator: http://10.0.2.2:PORT"
+      }
     }
   },
   "logs": {
@@ -380,5 +390,1001 @@
     "messages": "Message history",
     "noMessages": "No messages sent",
     "activity": "Recent activity"
+  },
+  "alimtalk": {
+    "backToDashboard": "← Dashboard",
+    "title": "AlimTalk settings",
+    "subtitle": "Pick a vendor → enter settings → sender profile → approved templates. Journey AlimTalk nodes go out through the vendor wired here.",
+    "loading": "Loading…",
+    "error": {
+      "noApp": "App not found",
+      "noWiring": "No connector is wired"
+    },
+    "field": {
+      "secret": "(secret)"
+    },
+    "destination": {
+      "withSlot": "Stored in credentials as {name} · also in the {slot} slot",
+      "plain": "Stored in credentials under this exact name"
+    },
+    "report": {
+      "accepted": "accepted",
+      "sent": "sent",
+      "delivered": "delivered",
+      "read": "read",
+      "failed": "failed",
+      "none": "No reported states are declared — delivery results can't be collected.",
+      "summary": "Reports {supported}",
+      "summaryUnsupported": "Reports {supported} · no {unsupported}"
+    },
+    "messageType": {
+      "BA": "Basic",
+      "EX": "Extended info",
+      "AD": "Ad add-on",
+      "MI": "Mixed",
+      "unknown": "Unknown"
+    },
+    "adTemplateNotice": "Advertising template — night-time sending (21:00–08:00) is restricted and opt-outs apply.",
+    "missingInVendorNotice": "Gone from the vendor's template list — deleted on the vendor side or the sender profile changed. This template can't be sent.",
+    "templateStatus": {
+      "approved": "Approved",
+      "pending": "In review",
+      "rejected": "Rejected",
+      "unknown": "Unknown status",
+      "missingInVendor": "Missing at vendor",
+      "blockedWithVendor": "{label} (vendor status {vendorStatus})"
+    },
+    "vendor": {
+      "title": "Vendor",
+      "loading": "Loading connectors…",
+      "loadFailed": "Couldn't load the connector list.",
+      "none": "No AlimTalk connector is installed in this deployment. Put a vendor manifest in <code>deploy/connectors/</code>, mount the same directory into the API and worker, then reopen this page.",
+      "selectLabel": "AlimTalk vendor"
+    },
+    "wiring": {
+      "checking": "Checking wiring…",
+      "none": "No vendor is wired yet. Enter settings below and save to send through this vendor.",
+      "current": "Currently wired:",
+      "enabled": "sending on",
+      "disabled": "sending off",
+      "viewingOther": "You're viewing a different vendor. Saving will change the wiring."
+    },
+    "setup": {
+      "title": "Settings · {name}",
+      "credentials": "Vendor credentials",
+      "noCredentialSchema": "This connector's manifest has no credentials schema — check the deployment's manifest.",
+      "config": "App settings (not secret)",
+      "nothingToSave": "Nothing to save. Fill in the fields above.",
+      "required": "Required: {fields}",
+      "saving": "Saving…",
+      "save": "Save settings",
+      "wire": "Wire this vendor",
+      "stop": "Stop sending",
+      "resume": "Resume sending",
+      "saved": "Saved — the worker is verifying (a few seconds). Check the status below.",
+      "saveFailed": "Save failed",
+      "stopped": "Sending stopped.",
+      "resumed": "Sending resumed.",
+      "changeFailed": "Change failed",
+      "pollingNote": "This vendor collects results by polling, so there's no webhook to register. The worker periodically re-queries unresolved sends to fill in delivered/failed."
+    },
+    "summary": {
+      "unknownVendor": "Unknown vendor",
+      "version": "version {version}",
+      "inProcess": "built into worker",
+      "remoteHttp": "remote HTTP",
+      "openConsole": "Open vendor console",
+      "docs": "Integration docs"
+    },
+    "verify": {
+      "checking": "Checking verification…",
+      "none": "No AlimTalk credentials registered.",
+      "label": "Verification:",
+      "verified": "Verified",
+      "error": "Verification failed",
+      "pending": "Verifying (checks every 5s)"
+    },
+    "webhook": {
+      "title": "Webhook URL to register in the vendor console",
+      "hint": "Register this URL in the vendor's result callback settings so delivered/failed are counted.",
+      "copy": "Copy",
+      "copied": "Copied"
+    },
+    "externalLink": {
+      "newTab": "(opens in a new tab)"
+    },
+    "senders": {
+      "title": "Sender profiles",
+      "empty": "No sender profiles yet. Add the sender profile key issued by Kakao Business Message.",
+      "noChannelName": "(no channel name)",
+      "default": "Default",
+      "disabled": "Disabled",
+      "remove": "Remove",
+      "addTitle": "Add sender profile",
+      "keyLabel": "Sender profile key ({n} chars)",
+      "keyPlaceholder": "senderKey issued by Kakao",
+      "keyCount": "{n}/{max} chars",
+      "keyLengthError": "The sender profile key must be {n} characters.",
+      "channelName": "Channel name (optional)",
+      "channelNamePlaceholder": "@nudgeon",
+      "setDefault": "Set as default sender profile",
+      "adding": "Adding…",
+      "add": "Add sender profile",
+      "added": "Sender profile added.",
+      "addFailed": "Add failed",
+      "removed": "Sender profile removed. Cached templates for this profile are removed too.",
+      "removeFailed": "Remove failed"
+    },
+    "templates": {
+      "title": "Approved templates",
+      "sync": "Sync",
+      "syncing": "Requesting…",
+      "syncRequested": "Sync requested — refresh the list in a few seconds.",
+      "syncFailed": "Sync request failed.",
+      "needSender": "Add a sender profile first. Templates belong to a sender profile (Kakao channel).",
+      "empty": "No cached templates. Run a sync to pull approved templates from the vendor.",
+      "col": {
+        "code": "Code",
+        "name": "Name",
+        "type": "Type",
+        "status": "Approval",
+        "variables": "Variables"
+      },
+      "missingKeptNote": "It stays in the list because unsynced templates skip pre-send validation — removing it would silently disable that guard. Check whether any journey still references this template.",
+      "noName": "(no name)",
+      "adBadge": "Ad",
+      "vendorStatus": "vendor {status}",
+      "noVariables": "None"
+    }
+  },
+  "emailTemplates": {
+    "backToDashboard": "← Dashboard",
+    "title": "Email templates",
+    "subtitle": "HTML templates · '{{variable}}' personalization · live preview · test send",
+    "externalLink": "(opens in a new tab)",
+    "list": {
+      "title": "Templates",
+      "new": "+ New template",
+      "empty": "No templates yet.",
+      "pick": "Select a template on the left or create a new one."
+    },
+    "editor": {
+      "defaultHtml": "'<h1>Hello {{name}}</h1>\n<p>Welcome to NudgeOn.</p>'",
+      "defaultVars": "name=Jane Doe",
+      "requestFailed": "Request failed",
+      "edit": "Edit template",
+      "new": "New template",
+      "name": "Name",
+      "subject": "Subject ('{{variables}}' allowed)",
+      "subjectPlaceholder": "Welcome, '{{name}}'",
+      "html": "HTML body ('{{variables}}' allowed)",
+      "saving": "Saving…",
+      "save": "Save",
+      "confirmDelete": "Delete this template?",
+      "delete": "Delete"
+    },
+    "test": {
+      "title": "Preview · Test send",
+      "vars": "Preview variables (key=value, one per line)",
+      "subjectPreview": "Subject preview:",
+      "to": "Test recipient email",
+      "provider": "Provider",
+      "autoProvider": "Auto (active provider)",
+      "sending": "Sending…",
+      "send": "Send test",
+      "queued": "Test send queued — check your inbox / provider logs",
+      "noProvider": "No verified email provider — register and verify one under ‘Email provider’ on the left first.",
+      "providerHint": "If no provider is selected, the active (most recently verified) one is used. Configured providers: {providers}"
+    },
+    "provider": {
+      "title": "Email provider",
+      "registered": "Registered — the worker is verifying (a few seconds). Check status in the list.",
+      "registerFailed": "Registration failed",
+      "registeredList": "Registered:",
+      "status": {
+        "verified": "verified",
+        "error": "verification failed",
+        "pending": "verifying"
+      },
+      "verifyFailed": "{provider} verification failed: {detail}",
+      "preset": {
+        "smtp": "Generic SMTP",
+        "ses": "AWS SES (SMTP)",
+        "resend_smtp": "Resend (SMTP)",
+        "nhn": "NHN Cloud (API)",
+        "resend": "Resend (API)"
+      },
+      "resend": {
+        "checkDomain": "Check domain status",
+        "setup": "Set up Resend",
+        "apiKeys": "Create API key",
+        "domains": "Verify sending domain",
+        "webhooks": "Register webhook",
+        "emails": "Send logs",
+        "smtpFixed": "Host <code>smtp.resend.com</code> · port <code>465</code> (TLS) · username <code>resend</code> are fixed.",
+        "getKey": "Get a key",
+        "setupWebhook": "Set up webhook",
+        "verifyDomain": "Verify domain"
+      },
+      "field": {
+        "host": "Host",
+        "port": "Port",
+        "username": "Username",
+        "password": "Password",
+        "region": "Region",
+        "sesUsername": "SMTP username (SES)",
+        "sesPassword": "SMTP password (SES)",
+        "resendSmtpPassword": "Password = Resend API key",
+        "resendApiKey": "Resend API key",
+        "webhookSecret": "Webhook signing secret (optional)",
+        "fromEmail": "From email",
+        "fromName": "From name"
+      },
+      "registering": "Registering…",
+      "register": "Register / replace provider"
+    },
+    "webhook": {
+      "title": "Register Resend webhook (delivered · opened · clicked · bounced stats)",
+      "guide": "In the Resend dashboard go to Webhooks → Add Endpoint, register the URL below, and paste the issued Signing secret into ‘Webhook signing secret’ above.",
+      "copied": "Copied",
+      "copy": "Copy",
+      "events": "Events to enable: {events}",
+      "open": "Open Resend webhooks page"
+    }
+  },
+  "journeyEditor": {
+    "model": {
+      "tools": {
+        "message": {
+          "label": "Push message",
+          "description": "Send a notification to customers"
+        },
+        "delay": {
+          "label": "Wait",
+          "description": "Wait for a set amount of time"
+        },
+        "branch": {
+          "label": "Condition",
+          "description": "Split by whether a condition is met"
+        },
+        "event_wait": {
+          "label": "Wait for event",
+          "description": "Event or timeout"
+        },
+        "ab_split": {
+          "label": "A/B split",
+          "description": "Split customers by ratio"
+        }
+      },
+      "unit": {
+        "1": "sec",
+        "60": "min",
+        "3600": "hr",
+        "86400": "day"
+      },
+      "duration": {
+        "unset": "Wait time not set",
+        "1": "{count, number}s",
+        "60": "{count, number}m",
+        "3600": "{count, number}h",
+        "86400": "{count, number}d"
+      },
+      "check": {
+        "nameRequired": "Enter a journey name.",
+        "nameTooLong": "Journey names can be up to 200 characters.",
+        "delay": "Set the wait time to a whole number of at least 1 second.",
+        "eventWaitTimeout": "Set the event wait timeout to a whole number of at least 1 second.",
+        "abWeight": "Enter each A/B path ratio as a whole number from 1 to 99%.",
+        "reentry": "Set the re-entry wait to a whole number of at least 1 day.",
+        "nonFiniteNumber": "Check the numbers and lookback windows in your conditions. A numeric field is empty."
+      }
+    },
+    "inspector": {
+      "kinds": {
+        "entry": {
+          "title": "Entry",
+          "description": "Who starts this journey, and when?",
+          "helper": "Customers who enter go through each step in canvas order."
+        },
+        "exit": {
+          "title": "Exit & re-entry",
+          "description": "Decide what happens after the goal is reached.",
+          "helper": "Without an exit event, the journey completes after the last step."
+        },
+        "message": {
+          "title": "Message",
+          "description": "Write what you want to tell your customers.",
+          "helper": "Select another step on the canvas to see its settings."
+        },
+        "delay": {
+          "title": "Wait",
+          "description": "Leave some time before the next step.",
+          "helper": "After the set time passes, the journey continues to the next step."
+        },
+        "branch": {
+          "title": "Condition",
+          "description": "Split the next path by customer conditions.",
+          "helper": "Customers who meet the condition and those who don't each follow one path."
+        },
+        "event_wait": {
+          "title": "Wait for event",
+          "description": "Wait for the customer's next action.",
+          "helper": "When the event arrives, the matched path runs; when the time limit passes, the timeout path runs."
+        },
+        "ab_split": {
+          "title": "A/B split",
+          "description": "Split customers by ratio to compare.",
+          "helper": "Each customer follows exactly one path. Assignments in the running version are kept."
+        }
+      },
+      "empty": {
+        "label": "Step settings",
+        "title": "Select a step",
+        "body": "Select the entry or a step on the canvas to see its settings here."
+      },
+      "header": {
+        "stepOrdinal": "Step {n, number}",
+        "entryEyebrow": "Journey start",
+        "exitEyebrow": "Journey end",
+        "readOnly": "Read only",
+        "manage": "Manage step",
+        "manageLabel": "Manage selected step",
+        "moveUp": "Move step up",
+        "moveUpTitle": "Move up",
+        "moveDown": "Move step down",
+        "moveDownTitle": "Move down",
+        "remove": "Delete step",
+        "minOneStep": "At least one step is required"
+      },
+      "entry": {
+        "type": "Start type",
+        "blast": "Segment blast",
+        "trigger": "On event",
+        "segment": "Target segment",
+        "loadingSegments": "Loading segments…",
+        "chooseSegment": "Select a segment",
+        "savedSegment": "Saved segment",
+        "unavailableSuffix": "unavailable",
+        "loadFailed": "Couldn't load segments.",
+        "retry": "Reload",
+        "keepSelection": "Your saved selection is kept.",
+        "unavailableHelp": "This segment is currently unavailable. Choose another target.",
+        "noSegments": "No segments available. Create a target segment first.",
+        "blastHelp": "Customers in the selected segment start the journey together.",
+        "lastCount": "Last count",
+        "lastCountValue": "{count, number}<small> people</small>",
+        "triggerEvent": "Entry event",
+        "triggerPlaceholder": "e.g. product_viewed",
+        "triggerHelp": "Enter the exact event name your app collects.",
+        "segmentPreserved": "The existing segment filter is preserved. Segment filters for trigger entry aren't supported yet.",
+        "category": "Message category",
+        "marketing": "Marketing",
+        "transactional": "Transactional",
+        "marketingHelp": "Applies opt-in, quiet hours and frequency caps.",
+        "transactionalHelp": "Transactional messages skip opt-in, quiet hours and frequency caps. Choose based on the message's purpose."
+      },
+      "exit": {
+        "conversionEvent": "Goal event",
+        "optional": "Optional",
+        "conversionPlaceholder": "e.g. purchase_completed",
+        "conversionHelp": "When this event occurs, the customer leaves the journey. Leave empty to run through the last step.",
+        "reentry": "Re-entry",
+        "keepExisting": "Keep existing setting",
+        "never": "Never re-enter",
+        "always": "Always allow",
+        "afterDays": "Allow after a period",
+        "reentryHelp": "When the same customer may enter this journey again.",
+        "reentryTriggerOnly": "Re-entry policy applies only to journeys that start on an event.",
+        "reentryDays": "Re-entry wait",
+        "daysAfter": "days later",
+        "reentryDaysKept": "The saved value is kept; switch to event entry to edit it.",
+        "reentryDaysHelp": "Customers can re-enter after the set period.",
+        "reentryDaysInvalid": "Enter a whole number between 1 and 106751 days.",
+        "completionTitle": "Natural completion",
+        "completionBody": "The journey completes after the last step."
+      },
+      "message": {
+        "channel": "Channel",
+        "channelLabel": "Delivery channel",
+        "channels": {
+          "push": "Push",
+          "email": "Email",
+          "alimtalk": "Alimtalk"
+        }
+      },
+      "push": {
+        "title": "Title",
+        "titlePlaceholder": "Say a warm hello",
+        "body": "Body",
+        "bodyPlaceholder": "Write what you want to tell your customers.",
+        "variableHelp": "Use the name variable in title and body",
+        "previewLabel": "Push notification preview",
+        "previewTitle": "Notification preview",
+        "now": "now",
+        "titleFallback": "Message title",
+        "bodyFallback": "Your message will appear here.",
+        "caption": "Preview only · actual rendering varies by device.",
+        "preserved": "Existing image URL and deep link are preserved. Journey sends currently deliver only title and body."
+      },
+      "email": {
+        "zipFailed": "Couldn't load the ZIP template.",
+        "subject": "Subject ('{{variables}}' allowed)",
+        "subjectPlaceholder": "Hello '{{first_name}}'",
+        "sourceMode": "Authoring mode",
+        "htmlMode": "Write HTML",
+        "zipMode": "ZIP template",
+        "html": "HTML body ('{{variables}}' allowed)",
+        "htmlPlaceholder": "<h1>Hello '{{first_name}}'</h1>",
+        "importedEditable": "You can keep editing the imported template here.",
+        "applied": "Applied to current HTML",
+        "notApplied": "Not applied yet",
+        "fileCount": "{count, number} files",
+        "preview": "Preview",
+        "checking": "Checking ZIP archive…",
+        "importTitle": "Import ZIP template",
+        "checkingBody": "Checking file count, size and HTML safety.",
+        "importBody": "Upload index.html with images and CSS as a single ZIP.",
+        "loading": "Loading…",
+        "chooseZip": "Choose ZIP file",
+        "chooseAnother": "Choose another ZIP file",
+        "previewHelp": "Before applying, review desktop and mobile previews in a separate view.",
+        "provider": "Sender",
+        "autoProvider": "Automatic (active sender)",
+        "noProvider": "No verified email sender — register and verify one under ‘Email templates > Email senders’ first."
+      },
+      "delay": {
+        "duration": "Wait time",
+        "amountPlaceholder": "Enter a number",
+        "unit": "Unit",
+        "help": "Waits the set time, then moves to the next step.",
+        "invalid": "Enter a wait time that is a whole number of at least 1 second.",
+        "summary": "Time spent waiting at this step",
+        "checkTime": "Check the time",
+        "totalSeconds": "{count, number} seconds total",
+        "lastWarning": "The last step is a wait. After it passes, the journey ends without further sends."
+      }
+    },
+    "decision": {
+      "ops": {
+        "eq": "equals",
+        "neq": "does not equal",
+        "gt": "greater than",
+        "gte": "at least",
+        "lt": "less than",
+        "lte": "at most",
+        "in": "is one of",
+        "contains": "array contains",
+        "exists": "has a value",
+        "not_exists": "has no value",
+        "before": "before date",
+        "after": "after date",
+        "in_last_days": "within last N days",
+        "not_in_last_days": "not within last N days"
+      },
+      "logicAnd": "All must match · AND",
+      "logicOr": "Any may match · OR",
+      "editorLabel": "Customer branch conditions",
+      "groupsIntro": "Groups below:",
+      "groupLogicLabel": "How groups combine",
+      "group": "Condition group {n, number}",
+      "groupConditionLogicLabel": "How conditions combine in group {n, number}",
+      "removeGroup": "Delete group",
+      "removeGroupLabel": "Delete condition group {n, number}",
+      "condition": "Condition {n, number}",
+      "removeConditionLabel": "Delete condition {n, number} in group {group, number}",
+      "conditionRef": "Group {group, number} condition {n, number}",
+      "addCondition": "Add condition",
+      "addGroup": "Add condition group",
+      "editorHelp": "Evaluated once when the customer reaches the branch, using profile attributes and collected behavior. Behavior aggregates may lag.",
+      "fieldLabel": {
+        "type": "{label} type",
+        "attributeKey": "{label} attribute name",
+        "op": "{label} comparison",
+        "eventName": "{label} event name",
+        "performed": "{label} performed",
+        "windowDays": "{label} lookback days",
+        "valueType": "{label} value type",
+        "value": "{label} value",
+        "list": "{label} value list"
+      },
+      "existingCondition": "Existing condition · {type}",
+      "typeAttribute": "Profile attribute",
+      "typeEvent": "Event behavior",
+      "attributeKeyPlaceholder": "e.g. country, plan",
+      "containsHelp": "Checks whether a string-array attribute contains this value.",
+      "eventPlaceholder": "e.g. purchase_completed",
+      "existingOp": "Existing operator · {op}",
+      "performed": "performed",
+      "notPerformed": "not performed",
+      "windowPrefix": "in the last",
+      "windowSuffix": "days",
+      "unsupportedEventOp": "Branches support only performed / not performed. The existing condition is kept until you change the selection.",
+      "unsupportedCondition": "This condition isn't supported in branches. The existing value is preserved; change the type to edit it.",
+      "keepExistingValue": "Keep existing value",
+      "valueString": "Text",
+      "valueNumber": "Number",
+      "valueBoolean": "True/false",
+      "booleanTrue": "true",
+      "booleanFalse": "false",
+      "valuePlaceholder": "Value to compare",
+      "listPlaceholder": "e.g. KR, JP, US",
+      "listHelp": "A comma-separated list of strings."
+    },
+    "eventWait": {
+      "event": "Event to wait for",
+      "timeout": "Time limit",
+      "required": "Required",
+      "unit": "Unit",
+      "timeoutHelp": "Waits up to {duration}.",
+      "timeoutInvalid": "Enter a time limit that is a whole number of at least 1 second.",
+      "receiptNote": "Only events first received by the server after reaching this step count. Re-sent events received before arrival are excluded.",
+      "offlineTitle": "Actions performed earlier on the device also count if they were offline and first reach the server after the wait starts.",
+      "offlineLabel": "Offline events ⓘ"
+    },
+    "abSplit": {
+      "pathName": "Path {n, number}",
+      "policy": "The same customer gets the same path even after re-entry.",
+      "pathLabelField": "Path {n, number} name",
+      "pathWeightField": "Path {n, number} ratio",
+      "removePathLabel": "Delete A/B path {n, number}",
+      "removeBlocked": "Delete the steps reachable only from this path first",
+      "removePathTitle": "Delete path · remaining ratio is split evenly",
+      "total": "Total ratio",
+      "addPath": "Add path",
+      "maxPaths": "up to 4",
+      "lockedHelp": "Paths and ratios of an activated experiment are fixed. Path names and targets can still be edited.",
+      "weightHelp": "Each ratio is a whole number of at least 1%, totaling 100%. Adding or removing a path splits ratios evenly.",
+      "renew": "Start a new experiment",
+      "experimentId": "Experiment ID · {id}"
+    },
+    "route": {
+      "title": "Next step connections",
+      "portNext": "Next step for the {port} path",
+      "missing": "Connection required",
+      "exit": "End journey",
+      "help": "Paths may merge into a shared next step. Connections that create a cycle or cut off another step can't be selected."
+    },
+    "alimtalk": {
+      "sender": "Sender profile",
+      "chooseSender": "Select sender profile",
+      "defaultSuffix": "(default)",
+      "noSenders": "No sender profiles registered — add one under ‘Alimtalk settings’ first.",
+      "template": "Approved template",
+      "chooseTemplate": "Select template",
+      "unnamed": "(unnamed)",
+      "templateMeta": "Type {type} · {count, number} variables",
+      "noTemplates": "No cached templates for this sender profile — sync under ‘Alimtalk settings > Approved templates’.",
+      "orphaned": "Template <c>{code}</c> referenced by this journey isn't in this sender profile's cache. It was removed at the vendor or belongs to another sender profile — as is, nothing will be sent.",
+      "notApproved": "The selected template isn't approved ({reason}) — switch to an approved template.",
+      "variableMapping": "Variable mapping",
+      "variablePlaceholder": "'{{profile_attribute}}' or fixed text",
+      "unmapped": "Unmapped",
+      "profileAttribute": "Profile attribute",
+      "literal": "Fixed text",
+      "variableHelp": "Write <c>'{{first_name}}'</c> to insert the profile value at send time.",
+      "missingVariables": "Variables without values: {list} — Alimtalk rejects empty values, so every send will fail.",
+      "staleVariables": "Mappings this template no longer uses: {list} — not used when sending.",
+      "preview": "Alimtalk preview",
+      "previewCaption": "The approved body with mapped values inserted. Variables without values stay as <c>'#{name}'</c>.",
+      "fallback": "Fallback (optional)",
+      "fallbackToggle": "Send an SMS if Alimtalk fails",
+      "fallbackType": "Fallback type",
+      "sms": "SMS (short)",
+      "lms": "LMS (long)",
+      "fallbackTitle": "Fallback title",
+      "fallbackTitlePlaceholder": "LMS title",
+      "fallbackText": "Fallback text",
+      "fallbackTextPlaceholder": "Text for customers who didn't receive the Alimtalk",
+      "fallbackHelp": "If the vendor supports fallback, it handles it directly. The sender number is set in the app settings under Alimtalk settings.",
+      "vendorNote": "The delivery vendor is set by the app's Alimtalk channel wiring — it isn't chosen in the journey, so switching vendors keeps this journey working."
+    },
+    "emailSheet": {
+      "title": "Preview before applying template",
+      "close": "Close preview",
+      "fileInfo": "Uploaded ZIP info",
+      "checked": "Checked",
+      "chooseAnother": "Choose another ZIP",
+      "checks": "ZIP check results",
+      "entryChecked": "{path} found",
+      "noExternalScripts": "No external scripts",
+      "imagesInlined": "{count, number} local images were inlined into the HTML.",
+      "imagePathsFixed": "Image paths resolved",
+      "showFiles": "Show {count, number} files",
+      "warnings": "Items cleaned up in the preview",
+      "previewSection": "Email template preview",
+      "viewport": "Preview width",
+      "refresh": "Refresh",
+      "iframeTitle": "{name} email preview",
+      "footerHint": "You can still edit the HTML after applying.",
+      "cancel": "Cancel",
+      "apply": "Use this template"
+    },
+    "ui": {
+      "breadcrumbs": "Current location",
+      "brandDashboard": "NudgeOn dashboard",
+      "journeys": "Campaigns · Journeys",
+      "journeyExit": "Journey exit",
+      "next": "Next",
+      "status": {
+        "draft": "Draft",
+        "active": "Active",
+        "paused": "Paused",
+        "archived": "Archived"
+      },
+      "port": {
+        "true": "Met",
+        "false": "Not met",
+        "matched": "Event occurred",
+        "timeout": "Timed out",
+        "next": "Next"
+      }
+    },
+    "gate": {
+      "loadingTitle": "Loading your workspace",
+      "loadingBody": "Checking which app the journey belongs to.",
+      "loginTitle": "Sign-in required",
+      "errorTitle": "Couldn't load apps",
+      "loginBody": "Sign in and open the journey again.",
+      "errorBody": "Check your connection and try again.",
+      "login": "Sign in",
+      "retry": "Try again",
+      "noAppTitle": "Connect an app first",
+      "noAppBody": "Once your app is set up, you can build customer journeys.",
+      "connectApp": "Connect app"
+    },
+    "new": {
+      "preparingTitle": "Preparing the editor",
+      "preparingBody": "Checking which journey steps this server supports.",
+      "errorTitle": "Couldn't prepare the editor",
+      "loginBody": "Sign in again to create a journey.",
+      "errorBody": "Couldn't determine server support. Try again in a moment.",
+      "unsupportedTitle": "Graph journeys aren't supported",
+      "unsupportedBody": "This server can't create graph journeys yet. Ask your administrator to check API and worker support.",
+      "backToList": "Back to journeys"
+    },
+    "detail": {
+      "loadingTitle": "Loading the journey",
+      "loadingBody": "Preparing the saved flow and messages.",
+      "errorTitle": "Couldn't load the journey",
+      "errorBody": "Check your sign-in and the journey status. Nothing saved has changed.",
+      "backToList": "Back to list"
+    },
+    "editor": {
+      "apiError": {
+        "400": "Check your input. Connections or required fields may be invalid.",
+        "401": "Sign-in required. Sign in again and retry.",
+        "403": "You don't have permission to edit this journey.",
+        "404": "This journey can't be edited. Check its current status.",
+        "409": "The saved content or journey status changed, or the name is taken. Review and validate again.",
+        "default": "The request didn't complete. Check your connection and try again."
+      },
+      "requestFailed": "The request didn't complete. Please try again.",
+      "readErrorTitle": "Check the journey connections",
+      "readErrorBody": "Couldn't read the saved flow. The original was left unchanged.",
+      "durationCheck": "Check settings",
+      "durationNone": "None",
+      "zeroSeconds": "0s",
+      "feedback": {
+        "fieldEdit": "Step settings changed",
+        "inserted": "Added a {type} step.",
+        "undone": "Reverted to before: {description}.",
+        "connected": "Changed the next-step connection.",
+        "moved": "Reordered steps.",
+        "removed": "Deleted {count, number} steps.",
+        "renewed": "Created a new A/B experiment. Adjust the split and save."
+      },
+      "editTitle": "Edit journey",
+      "newTitle": "Create journey",
+      "nameLabel": "Journey name",
+      "namePlaceholder": "New journey name",
+      "state": {
+        "busy": "Working…",
+        "dirty": "Unsaved",
+        "saved": "Saved"
+      },
+      "undoTitle": "Revert the last edit",
+      "undo": "Undo",
+      "saving": "Saving…",
+      "saveDraft": "Save draft",
+      "validating": "Validating…",
+      "validateActivate": "Validate & activate",
+      "readOnly": "Read only",
+      "pausing": "Pausing…",
+      "pauseAndEdit": "Pause and edit",
+      "viewReport": "View report",
+      "pausedNote": "Wait timeouts keep running while paused. Existing customers continue on the version they entered with after resume.",
+      "unsupportedNote": "This server doesn't support graph journey editing, or support couldn't be determined. The saved flow is shown read-only.",
+      "dismiss": "Dismiss",
+      "validationLabel": "Validation results",
+      "validationTitle": "Review before activating",
+      "paletteLabel": "Journey step tools",
+      "addStep": "Add step",
+      "paletteHint1": "Inserted after the selected step.",
+      "paletteHint2": "On a branch, pick a path.",
+      "entrySettings": "Entry conditions",
+      "exitSettings": "Exit · re-entry",
+      "summaryLabel": "Journey summary",
+      "summaryMessages": "Messages",
+      "countUnit": "msgs",
+      "summaryWaitTitle": "Configured wait range along one path. Excludes quiet hours and processing delays.",
+      "summaryWait": "Wait per path ⓘ",
+      "onePathPerCustomer": "One path per customer",
+      "activation": {
+        "title": "Activate this journey?",
+        "entryMode": "Entry mode",
+        "estimatedAudience": "Estimated audience",
+        "onEvent": "Starts when the event fires",
+        "approxCount": "About {count} people",
+        "unknownCount": "Audience size unavailable",
+        "description": "Once active, real push sends start according to the entry conditions and chosen paths.",
+        "back": "Go back and review",
+        "activating": "Activating…",
+        "confirm": "Activate journey"
+      }
+    },
+    "canvas": {
+      "needsSetup": "Needs setup",
+      "start": "Start",
+      "connectPort": "Connect the {port} path",
+      "insertAfter": "Add a step after {label}",
+      "insertHere": "Add a step here",
+      "chooseStep": "Choose a step to add",
+      "addTo": "Add to {label}",
+      "controls": "Canvas view controls",
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in",
+      "zoomLevel": "Current zoom {percent, number} percent",
+      "fitView": "Fit whole flow",
+      "switchToScroll": "Switch to page scrolling",
+      "enableMove": "Enable canvas move mode",
+      "moveOn": "Move mode on",
+      "move": "Move canvas",
+      "entry": {
+        "eventLabel": "Event entry",
+        "customerLabel": "Customer entry",
+        "setEvent": "Set entry event",
+        "selectedSegment": "Selected segment",
+        "selectSegment": "Choose a target segment",
+        "detail": "Customers enter the journey when the conditions match.",
+        "aria": "Entry condition settings"
+      },
+      "node": {
+        "alimtalkLabel": "AlimTalk message",
+        "selectTemplate": "Choose an approved template",
+        "alimtalkDetail": "AlimTalk · approved template",
+        "emailLabel": "Email message",
+        "newEmail": "New email message",
+        "emailDetail": "Email · {provider}",
+        "activeProvider": "active provider",
+        "newPush": "New push message",
+        "writeMessage": "Select the message and write its content.",
+        "branchTitle": "{mode} · {count, number} conditions",
+        "allGroups": "All groups match",
+        "anyGroup": "Any group matches",
+        "setEvent": "Set the event to wait for",
+        "upTo": "Up to {duration}",
+        "abTitle": "{count, number} paths · fixed per customer"
+      },
+      "exit": {
+        "detail": "Ends after the chosen path completes",
+        "aria": "Exit condition settings"
+      },
+      "afterEntry": "After customer entry",
+      "region": "Journey flow canvas",
+      "heading": "Journey flow",
+      "headingNote": "{count} steps · one path per customer",
+      "minimap": "Journey overview: drag to move, scroll to zoom"
+    },
+    "dialogs": {
+      "cancel": "Cancel",
+      "remove": {
+        "title": "Preview step deletion",
+        "description": "Review the flow after deleting “{title}”.",
+        "checkPath": "Check the path to delete.",
+        "keepPath": "Path to keep after deletion",
+        "removedCount": "{count, number} steps will be deleted",
+        "sharedKept": "Shared steps {titles} and everything after them are kept.",
+        "note": "Only steps that become unreachable on the unselected paths are deleted with it. You can undo afterwards.",
+        "confirm": "Review and delete"
+      },
+      "path": {
+        "title": "Which path should it go on?",
+        "description": "Choose where to add the {type} step."
+      },
+      "renew": {
+        "title": "Start a new A/B experiment?",
+        "description": "A new experiment ID is issued for this split.",
+        "body1": "Customers on the newly activated version are reassigned by the split. You can change the number of paths and the split afterwards.",
+        "body2": "Customers already in progress keep their existing version and assignment. Current connections and messages are copied as is.",
+        "confirm": "Create experiment"
+      }
+    },
+    "graph": {
+      "readIssue": "Couldn't read the saved step connections. The original was preserved; an administrator should review it.",
+      "unsupportedNode": "This journey contains a step type this console doesn't support. The original was left unchanged.",
+      "invalidNodeId": "The new step's ID is invalid.",
+      "reselectPath": "Select the path to add to again.",
+      "portNotFound": "Couldn't find the path to connect.",
+      "targetNotFound": "Couldn't find the step to connect to.",
+      "backwardConnection": "Connections back to an earlier step aren't allowed.",
+      "detachesNodes": "This connection would detach existing steps from the flow. Check the impact under step deletion first.",
+      "moveOnlyLinear": "Only adjacent message and wait steps on the same path can be reordered.",
+      "removeTargetNotFound": "Couldn't find the step to delete.",
+      "chooseKeepPath": "Choose which path to keep after deletion.",
+      "keepPathNotFound": "Couldn't find the next path to keep.",
+      "needOneNode": "A journey needs at least one step.",
+      "selectAbSplit": "Select an A/B split.",
+      "duplicateExperimentId": "The experiment ID is already in use."
+    },
+    "persistence": {
+      "revisionMismatch": "Other edits were applied after saving. Review the content and validate again."
+    },
+    "zip": {
+      "unsafePath": "The ZIP contains an unsafe file path.",
+      "tooManyFiles": "A ZIP can contain at most {max, number} files.",
+      "entryTooLarge": "The ZIP contains a file larger than 8MB.",
+      "expandedTooLarge": "Uncompressed files must total 15MB or less.",
+      "suspiciousRatio": "A file has an unusually high compression ratio and was not opened.",
+      "nestedZip": "A ZIP can't contain another ZIP file.",
+      "cannotOpenCorrupt": "Couldn't open the ZIP. Make sure it isn't corrupted.",
+      "duplicatePath": "The ZIP contains two or more files with the same path.",
+      "cannotOpenFormat": "Couldn't open the ZIP. Make sure it's a standard ZIP file.",
+      "noHtml": "No HTML file found in the ZIP.",
+      "multipleHtml": "Several HTML files found. Rename the entry file to index.html.",
+      "unsafeHtml": "HTML with executable code or forms can't be used. Remove the scripts.",
+      "noDomParser": "This browser can't build the HTML preview.",
+      "cssNotUtf8": "{path} must be UTF-8 CSS.",
+      "zipTooLarge": "The ZIP must be 5MB or smaller.",
+      "noUsableFiles": "The ZIP has no usable files.",
+      "htmlNotUtf8": "{path} must be UTF-8 HTML.",
+      "finalTooLarge": "The final HTML including images must be 1,000,000 characters or fewer.",
+      "selectZip": "Choose a .zip file.",
+      "warning": {
+        "removedStyleImport": "Removed external style imports.",
+        "blockedExternalAssets": "Blocked image and font URLs outside the ZIP in the preview.",
+        "missingReference": "{reference} wasn't found and isn't shown.",
+        "removedExternalStylesheet": "Removed stylesheets outside the ZIP.",
+        "blockedExternalImages": "Blocked images outside the ZIP in the preview."
+      }
+    },
+    "report": {
+      "versionUnreadable": "This version's connections can't be displayed. The original definition and execution stats are unchanged.",
+      "arrived": "Arrived",
+      "waiting": "Waiting",
+      "waitingNow": "Waiting",
+      "completed": "Completed",
+      "failed": "Failed",
+      "times": "{count}×",
+      "countOf": "{count}",
+      "stepN": "Step {n, number}",
+      "type": {
+        "message": "Message",
+        "push": "Push message",
+        "email": "Email message",
+        "delay": "Fixed wait",
+        "branch": "Condition branch",
+        "event_wait": "Event wait",
+        "ab_split": "A/B split"
+      },
+      "state": {
+        "active": "Active",
+        "waiting": "Waiting",
+        "claimed": "Processing",
+        "completed": "Completed",
+        "exited": "Exited",
+        "failed": "Failed"
+      },
+      "send": {
+        "sent": "Accepted",
+        "failed": "Failed",
+        "duplicate": "Deduplicated",
+        "skipped_quiet_hours": "Skipped: quiet hours",
+        "skipped_cap": "Skipped: frequency cap",
+        "skipped_unreachable": "Skipped: unreachable"
+      },
+      "errorTitle": "Couldn't load the report",
+      "errorBody": "Check your connection and try again.",
+      "backToEditor": "Back to editor",
+      "loading": "Loading journey results…",
+      "editorLink": "Journey editor",
+      "version": "Version",
+      "versionSelect": "Report version",
+      "notActivated": "Not activated",
+      "current": "current",
+      "refresh": "Refresh report",
+      "overviewLabel": "Execution summary",
+      "unit": {
+        "times": "runs",
+        "count": "sent"
+      },
+      "summary": {
+        "executions": "Journey runs",
+        "executionsNote": "Runs including re-entries",
+        "waiting": "Currently waiting",
+        "waitingNote": "Fixed, event, and send-policy waits",
+        "completed": "Completed",
+        "completedNote": "Runs that reached the exit",
+        "sends": "Sends accepted",
+        "sendsNote": "Accepted by the sending service · not actual delivery"
+      },
+      "unpublished": "Results appear after the first activation.",
+      "legacyVersion": "This version predates path instrumentation. Step and path stats aren't available; only existing run and send records are shown.",
+      "workspaceLabel": "Results per path",
+      "canvasTitle": "Paths customers took",
+      "canvasHint": "Select a step to see details",
+      "exploreTitle": "Explore the flow",
+      "exploreHint": "Select a step on the canvas to see condition pass counts, event-wait outcomes, and A/B assignments.",
+      "noNodeMetrics": "No step stats for this version.",
+      "abPath": "{users} unique customers · actual split {percent}%",
+      "decidedPath": "{percent}% of decided paths",
+      "abFootnote": "The configured split is a target. With few customers the actual split may differ, and re-entries keep their assignment.",
+      "states": {
+        "title": "Run states",
+        "subtitle": "Per run instance",
+        "empty": "No customers have entered yet."
+      },
+      "sends": {
+        "title": "Send outcomes",
+        "viewJourney": "View journey",
+        "empty": "No send records yet.",
+        "footnote": "Sends are per device; some skip records are per customer. Don't read them as customer counts or actual delivery/open counts."
+      },
+      "delivery": {
+        "title": "Delivery & engagement",
+        "subtitle": "SDK events · provider callbacks",
+        "error": "Couldn't load delivery stats.",
+        "loading": "Loading delivery stats…",
+        "delivered": "Delivered",
+        "deliveredNote": "Reached device or inbox",
+        "opened": "Opened",
+        "openedNote": "vs. delivered",
+        "clicked": "Clicked",
+        "clickedNote": "Email links",
+        "bounced": "Bounced",
+        "bouncedNote": "Unsubscribed or bad address",
+        "footnote": "Push is reported by the SDK; email by provider webhooks (e.g. Resend). A push counts as delivered if device receipt (Android), NSE receipt (iOS), or a tap was reported. Providers without a webhook stay at 0 delivered/opened."
+      }
+    }
+  },
+  "segmentBuilder": {
+    "loading": "Loading…",
+    "backToSegments": "← Segments",
+    "newTitle": "New segment",
+    "editTitle": "Edit segment",
+    "notFound": "Segment not found.",
+    "name": "Segment name",
+    "groupJoin": "Combine groups:",
+    "group": "Condition group {n}",
+    "removeGroup": "Remove group",
+    "addAttribute": "+ Attribute",
+    "addEvent": "+ Behavior",
+    "addChannel": "+ Push reachable",
+    "addGroup": "+ Add condition group",
+    "preview": {
+      "title": "Estimated audience",
+      "error": "Condition error — check your inputs",
+      "approx": "about {count, number} users",
+      "note": "uniqCombined estimate (±2%)",
+      "sample": "Sample"
+    },
+    "saving": "Saving…",
+    "save": "Save",
+    "create": "Create segment",
+    "saveFailed": "Save failed — check for a duplicate name or condition errors",
+    "condition": {
+      "attributeKey": "Attribute key",
+      "value": "Value",
+      "eventName": "Event name",
+      "recent": "in the last",
+      "days": "days",
+      "pushReachable": "Push reachable (opt-in + permission + valid token)",
+      "device": "Device condition (S4)"
+    },
+    "summary": {
+      "attribute": "attribute",
+      "event": "event",
+      "pushReachable": "Push reachable",
+      "days": "{n} days"
+    }
   }
 }
