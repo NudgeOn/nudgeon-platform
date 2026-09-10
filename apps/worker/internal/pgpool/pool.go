@@ -4,6 +4,7 @@ package pgpool
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -27,5 +28,10 @@ func New(ctx context.Context, url string) (*pgxpool.Pool, error) {
 		cfg.ConnConfig.RuntimeParams = map[string]string{}
 	}
 	cfg.ConnConfig.RuntimeParams["idle_in_transaction_session_timeout"] = IdleInTransactionTimeout
+	// 스케줄러 틱이 노드를 병렬 실행하고(journey.tickConcurrency) 릴레이·채널·수집이 같은 풀을 쓴다.
+	// pgxpool 기본값(max(4, NumCPU))은 컨테이너에서 4까지 내려가 병렬 실행이 풀 대기로 직렬화된다.
+	if cfg.MaxConns < 32 && !strings.Contains(url, "pool_max_conns") {
+		cfg.MaxConns = 32
+	}
 	return pgxpool.NewWithConfig(ctx, cfg)
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -47,18 +48,53 @@ type claimedState struct {
 // staleSendThreshold — 예정보다 이만큼 넘게 늦은 marketing 발송은 skip (재개 등, PRD-03 9장 Q1).
 const staleSendThreshold = 24 * time.Hour
 
+// tickConcurrency — 한 틱 안에서 노드를 동시에 실행하는 고루틴 수. 상태는 고객 단위 잠금(lockCustomer)과
+// claim_token 펜스로 서로 격리돼 있어 병렬 실행이 안전하다(다중 인스턴스와 같은 전제).
+// O-3 실측(2026-09-10, 1만 상태 동시 기상): 순차 실행은 ≈310건/s라 p99 31.7s였다.
+const tickConcurrency = 16
+
+// tickOnce — 기상 도래분을 클레임해 실행한다. 배치가 가득 찼으면(claimBatch) 다음 틱을 기다리지 않고
+// 바로 다시 클레임한다 — 큰 동시 기상이 1초 틱 간격에 묶여 늘어지지 않도록.
 func (s *Scheduler) tickOnce(ctx context.Context) error {
-	claimed, err := s.claimDue(ctx)
-	if err != nil {
-		return err
-	}
-	for _, c := range claimed {
-		if err := s.executeNode(ctx, &c); err != nil {
-			s.logger.Error("노드 실행 실패", "state", c.id, "err", err)
-			s.failClaim(ctx, &c, err)
+	for {
+		claimed, err := s.claimDue(ctx)
+		if err != nil {
+			return err
+		}
+		s.executeClaimed(ctx, claimed)
+		if len(claimed) < claimBatch || ctx.Err() != nil {
+			return nil
 		}
 	}
-	return nil
+}
+
+func (s *Scheduler) executeClaimed(ctx context.Context, claimed []claimedState) {
+	if len(claimed) == 0 {
+		return
+	}
+	workers := tickConcurrency
+	if len(claimed) < workers {
+		workers = len(claimed)
+	}
+	jobs := make(chan *claimedState)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for c := range jobs {
+				if err := s.executeNode(ctx, c); err != nil {
+					s.logger.Error("노드 실행 실패", "state", c.id, "err", err)
+					s.failClaim(ctx, c, err)
+				}
+			}
+		}()
+	}
+	for i := range claimed {
+		jobs <- &claimed[i]
+	}
+	close(jobs)
+	wg.Wait()
 }
 
 func (s *Scheduler) claimDue(ctx context.Context) ([]claimedState, error) {
