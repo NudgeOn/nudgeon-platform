@@ -1,11 +1,12 @@
 import {
   ConflictException,
+  NotFoundException,
   Inject,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
 import * as argon2 from "argon2";
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 import { CONFIG, PG } from "../infra/infra.module";
 import type { AppConfig } from "../config";
 import { generateApiKey } from "./api-key.service";
@@ -40,64 +41,60 @@ export class AuthService {
 
   async signup(input: SignupInput) {
     if (this.mode === "single_tenant") {
-      // 셀프호스팅은 부트스트랩 경로로만 계정 생성 (가입 비활성)
-      const existing = await this.countMembers();
-      if (existing > 0) {
-        throw new ConflictException("셀프호스팅 모드에서는 추가 가입이 비활성화됩니다");
-      }
+      // 셀프호스팅은 설치 claim → setup(bootstrap) 경로로만 계정을 만든다. 설치 전후 모두 가입은 없다 (Slice B).
+      throw new NotFoundException("셀프호스팅 모드에서는 가입이 없습니다 — /setup 에서 설치를 완료하세요");
     }
     const client = await this.pg.connect();
     try {
       await client.query("BEGIN");
-      const dup = await client.query(
-        `SELECT 1 FROM members WHERE lower(email) = lower($1)`,
-        [input.email],
-      );
-      if (dup.rowCount) throw new ConflictException("이미 가입된 이메일입니다");
-
-      const tenant = await client.query(
-        `INSERT INTO tenants (name) VALUES ($1) RETURNING id`,
-        [input.tenantName],
-      );
-      const tenantId: string = tenant.rows[0].id;
-
-      const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
-      const member = await client.query(
-        `INSERT INTO members (tenant_id, email, password_hash, name, role, status)
-         VALUES ($1, lower($2), $3, $4, 'owner', 'active') RETURNING id`,
-        [tenantId, input.email, passwordHash, input.name],
-      );
-      const memberId: string = member.rows[0].id;
-
-      // 기본 앱 + 키 발급 — 온보딩 위저드(S2)의 출발점
-      const app = await client.query(
-        `INSERT INTO apps (tenant_id, name) VALUES ($1, $2) RETURNING id`,
-        [tenantId, "Default App"],
-      );
-      const appId: string = app.rows[0].id;
-      const sdkKey = generateApiKey("sdk");
-      const serverKey = generateApiKey("server");
-      await client.query(
-        `INSERT INTO api_keys (tenant_id, app_id, kind, scope, prefix, key_hash)
-         VALUES ($1, $2, 'sdk', 'full', $3, $4), ($1, $2, 'server', 'full', $5, $6)`,
-        [tenantId, appId, sdkKey.prefix, sdkKey.hash, serverKey.prefix, serverKey.hash],
-      );
-
+      const result = await this.createWorkspace(client, input);
       await client.query("COMMIT");
-      return {
-        tenantId,
-        memberId,
-        appId,
-        // 키 원문은 이 응답에서 1회만 노출 (PRD-06 3장)
-        sdkKey: sdkKey.key,
-        serverKey: serverKey.key,
-      };
+      return result;
     } catch (e) {
       await client.query("ROLLBACK");
       throw e;
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * 테넌트·Owner·기본 앱·키를 한 트랜잭션 안에서 만든다. 호출자가 BEGIN/COMMIT을 소유한다 —
+   * signup(멀티테넌트)과 설치 setup(single_tenant, installation 행 잠금과 같은 트랜잭션)이 공유한다.
+   */
+  async createWorkspace(client: PoolClient, input: SignupInput & { appName?: string }) {
+    const dup = await client.query(`SELECT 1 FROM members WHERE lower(email) = lower($1)`, [input.email]);
+    if (dup.rowCount) throw new ConflictException("이미 가입된 이메일입니다");
+
+    const tenant = await client.query(`INSERT INTO tenants (name) VALUES ($1) RETURNING id`, [input.tenantName]);
+    const tenantId: string = tenant.rows[0].id;
+
+    const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
+    const member = await client.query(
+      `INSERT INTO members (tenant_id, email, password_hash, name, role, status)
+       VALUES ($1, lower($2), $3, $4, 'owner', 'active') RETURNING id`,
+      [tenantId, input.email, passwordHash, input.name],
+    );
+    const memberId: string = member.rows[0].id;
+
+    // 기본 앱 + 키 발급 — 온보딩 위저드(S2)의 출발점
+    const app = await client.query(`INSERT INTO apps (tenant_id, name) VALUES ($1, $2) RETURNING id`, [tenantId, input.appName ?? "Default App"]);
+    const appId: string = app.rows[0].id;
+    const sdkKey = generateApiKey("sdk");
+    const serverKey = generateApiKey("server");
+    await client.query(
+      `INSERT INTO api_keys (tenant_id, app_id, kind, scope, prefix, key_hash)
+       VALUES ($1, $2, 'sdk', 'full', $3, $4), ($1, $2, 'server', 'full', $5, $6)`,
+      [tenantId, appId, sdkKey.prefix, sdkKey.hash, serverKey.prefix, serverKey.hash],
+    );
+    return {
+      tenantId,
+      memberId,
+      appId,
+      // 키 원문은 이 응답에서 1회만 노출 (PRD-06 3장)
+      sdkKey: sdkKey.key,
+      serverKey: serverKey.key,
+    };
   }
 
   async verifyLogin(email: string, password: string) {

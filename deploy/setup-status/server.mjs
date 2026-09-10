@@ -12,6 +12,7 @@ const files = new Map(
       ["/setup/", "setup.html", "text/html; charset=utf-8"],
       ["/setup.js", "setup.js", "text/javascript; charset=utf-8"],
       ["/setup-diagnostics.mjs", "setup-diagnostics.mjs", "text/javascript; charset=utf-8"],
+      ["/setup-wizard.mjs", "setup-wizard.mjs", "text/javascript; charset=utf-8"],
       ["/setup.css", "setup.css", "text/css; charset=utf-8"],
     ].map(async ([route, file, type]) => [
       route,

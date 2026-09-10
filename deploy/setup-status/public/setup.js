@@ -4,6 +4,9 @@ import {
   recoveryActions,
   safeDiagnostic,
 } from "/setup-diagnostics.mjs";
+import { initWizard } from "/setup-wizard.mjs";
+
+let wizardStarted = false;
 
 const names = {
   postgres: "PostgreSQL",
@@ -132,7 +135,8 @@ function render(status) {
   renderHelp(safeStatus);
 
   if (safeStatus.state === "ready") {
-    elements.summary.textContent = "모든 서비스가 준비됐어요. 관리자 계정 만들기는 다음 설치 단계에서 이어집니다.";
+    elements.summary.textContent = "모든 서비스가 준비됐어요. 아래에서 설치 소유권을 확인하고 첫 Owner를 만드세요.";
+    if (!wizardStarted) { wizardStarted = true; initWizard().catch((e) => console.error("wizard", e)); }
   } else if (safeStatus.state === "blocked") {
     elements.summary.textContent = "준비 확인에서 멈춘 서비스가 있어요. 아래 쉬운 방법부터 따라 해보세요.";
   } else {

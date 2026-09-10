@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
@@ -19,6 +19,7 @@ export default function LoginPage() {
   // 2FA 활성 계정 — 1단계 응답이 totp_required면 2단계 코드 입력으로 전환
   const [needTotp, setNeedTotp] = useState(false);
 
+  const bootstrap = useQuery({ queryKey: ["bootstrap-status"], queryFn: () => api.auth.bootstrapStatus(), staleTime: 60_000 });
   const login = useMutation({
     mutationFn: () => api.auth.login({ email, password, totp: needTotp ? totp : undefined }),
     onSuccess: (result) => {
@@ -123,7 +124,15 @@ export default function LoginPage() {
                 ← 처음으로
               </button>
             )}
-            {!needTotp && (
+            {!needTotp && bootstrap.data?.mode === "single_tenant" && bootstrap.data.state !== "secured" && (
+              <p className="text-center text-sm text-muted-foreground">
+                아직 설치가 끝나지 않았어요.{" "}
+                <a href="/setup" className="text-primary underline">
+                  설치 화면에서 첫 Owner 만들기
+                </a>
+              </p>
+            )}
+            {!needTotp && bootstrap.data?.mode !== "single_tenant" && (
               <p className="text-center text-sm text-muted-foreground">
                 계정이 없나요?{" "}
                 <Link href="/signup" className="text-primary underline">

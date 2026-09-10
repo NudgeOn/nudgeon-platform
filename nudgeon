@@ -112,7 +112,8 @@ create_state() {
   write_value "$temp/secrets/database_url" 644 "postgres://nudgeon:${postgres_password}@postgres:5432/nudgeon"
   write_value "$temp/secrets/clickhouse_url" 644 "http://nudgeon:${clickhouse_password}@clickhouse:8123/nudgeon"
   write_value "$temp/secrets/redis_url" 644 "redis://:${redis_password}@redis:6379"
-  write_value "$temp/secrets/setup_token" 600 "$(random_hex 32)"
+  # 다른 file secret과 같이 644 — API 컨테이너(USER node)가 읽어 해시만 DB에 올린다. 디렉터리가 700이라 호스트의 다른 사용자는 못 읽는다.
+  write_value "$temp/secrets/setup_token" 644 "$(random_hex 32)"
   write_value "$temp/installation_id" 600 "$(random_hex 16)"
   {
     printf 'appendonly yes\n'
@@ -201,6 +202,24 @@ setup_url() {
   printf 'http://localhost:%s/setup\n' "$DEFAULT_PORT"
 }
 
+# 설치 코드가 붙은 URL — 이 TTY에만 보여준다. 코드는 fragment(#)라 요청 URL·access log·Referer에 남지 않고,
+# 브라우저가 읽자마자 history에서 지운 뒤 claim API로 교환한다 (Slice B S1).
+setup_url_with_token() {
+  token=$(cat "$SECRETS_DIR/setup_token" 2>/dev/null || true)
+  [ -n "$token" ] || fail "setup 토큰이 없습니다. './nudgeon setup-token rotate'로 새로 만드세요."
+  printf 'http://localhost:%s/setup#token=%s\n' "$DEFAULT_PORT" "$token"
+}
+
+# 설치 코드 분실·유출 시: 새 코드를 만들고 API를 다시 띄운다. 이전 코드와 진행 중이던 claim lease는 즉시 폐기된다.
+setup_token_rotate() {
+  require_state
+  preflight_docker
+  write_value "$SECRETS_DIR/setup_token" 644 "$(random_hex 32)"
+  compose restart api >/dev/null  # API는 기동 시에만 토큰 파일을 읽어 해시를 등록한다
+  note "setup 토큰을 교체했습니다. 이전 코드와 claim lease는 폐기됩니다."
+  note "새 설치 URL: $(setup_url_with_token)"
+}
+
 wait_for_gateway() {
   require_command curl
   attempts=0
@@ -263,7 +282,7 @@ doctor_checks() {
   do
     expect_mode "$file" 644 || bad=1
   done
-  expect_mode "$SECRETS_DIR/setup_token" 600 || bad=1
+  expect_mode "$SECRETS_DIR/setup_token" 644 || bad=1
   expect_mode "$STATE_DIR/installation_id" 600 || bad=1
   expect_mode "$ENV_FILE" 600 || bad=1
   [ "$bad" -eq 0 ] || fail "상태 디렉터리 또는 시크릿 파일 권한을 수정한 뒤 다시 실행해 주세요."
@@ -316,6 +335,8 @@ up() {
     fail "일부 서비스가 시작되지 않았습니다. 이미 열린 setup 화면 또는 './nudgeon status'에서 확인해 주세요."
   fi
   note "상태 확인: ./nudgeon status"
+  note "설치 진행(첫 Owner 만들기): $(setup_url_with_token)"
+  note "위 URL의 설치 코드는 이 터미널에만 표시됩니다. 다시 보려면 './nudgeon setup-url --token'."
 }
 
 down() {
@@ -337,7 +358,9 @@ Usage: ./nudgeon <command>
 Commands:
   up          Generate secrets and start the safe self-host stack
   status      Show containers and redacted setup status
-  setup-url   Print the local Slice-A setup shell URL
+  setup-url   Print the local setup shell URL (--token: include the one-time install code)
+  setup-token rotate
+              Replace the install code; revokes the old code and any in-progress claim
   doctor      Validate Docker, Compose, port, and secret permissions
   logs [svc]  Show recent container logs
   down        Stop containers without deleting data or secrets
@@ -355,7 +378,8 @@ if [ "$#" -gt 0 ]; then shift; fi
 case "$command" in
   up) up "$@" ;;
   status) status "$@" ;;
-  setup-url) require_state; setup_url ;;
+  setup-url) require_state; if [ "${1:-}" = "--token" ]; then setup_url_with_token; else setup_url; fi ;;
+  setup-token) case "${1:-}" in rotate) setup_token_rotate ;; *) usage; exit 2 ;; esac ;;
   doctor) doctor ;;
   logs) logs "$@" ;;
   down) down ;;

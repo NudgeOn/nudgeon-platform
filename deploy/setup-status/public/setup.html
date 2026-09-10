@@ -66,10 +66,51 @@
         <div>
           <p class="eyebrow">SERVER READY</p>
           <h2>NudgeOn 서버가 준비됐어요</h2>
-          <p>서버 실행까지 확인했어요. 콘솔 가입 화면에서 첫 관리자(Owner)와 기본 앱·SDK Key를 만들면 온보딩 위저드(SDK Key → 채널 크리덴셜 → 첫 이벤트 → 테스트 발송)로 이어집니다. 첫 가입 이후에는 가입이 잠깁니다.</p>
-          <p class="next-note">안전한 설치 소유권 claim 위저드는 준비 중이며, 지금은 이 화면이 localhost에서만 열린다는 점으로 보호됩니다.</p>
+          <p id="next-copy">서버 실행까지 확인했어요. 이제 설치 소유권을 확인하고 첫 Owner를 만듭니다.</p>
+          <p class="next-note" id="install-state-note"></p>
         </div>
-        <a id="open-console" class="next-link" href="/signup">콘솔에서 시작하기 →</a>
+      </section>
+
+      <!-- S1. Claim installation — 설치 코드는 URL fragment로만 오고, 읽는 즉시 history에서 지운다. -->
+      <section id="claim" class="wizard" hidden>
+        <p class="eyebrow">STEP 1 · CLAIM</p>
+        <h2>설치 소유권 확인</h2>
+        <p>이 서버를 띄운 사람만 첫 Owner를 만들 수 있도록, <code>./nudgeon up</code>이 터미널에 보여준 설치 코드가 필요합니다.
+          링크로 들어왔다면 자동으로 확인합니다. 코드를 잃었다면 <code>./nudgeon setup-url --token</code> 또는 <code>./nudgeon setup-token rotate</code>.</p>
+        <form id="claim-form" autocomplete="off">
+          <label for="claim-token">설치 코드</label>
+          <input id="claim-token" name="token" type="password" inputmode="text" minlength="32" required autocomplete="off" spellcheck="false" />
+          <button type="submit" class="primary">코드 확인</button>
+          <span id="claim-result" role="status" aria-live="polite"></span>
+        </form>
+      </section>
+
+      <!-- S2. Create Owner and workspace — Bootstrap cookie(15분) 안에서 한 번만 성공한다. -->
+      <section id="owner" class="wizard" hidden>
+        <p class="eyebrow">STEP 2 · OWNER</p>
+        <h2>첫 Owner와 워크스페이스</h2>
+        <p id="lease-note" class="next-note" aria-live="polite"></p>
+        <form id="owner-form" autocomplete="on">
+          <div class="grid">
+            <label>워크스페이스 이름<input name="workspace_name" required maxlength="100" placeholder="우리 회사" /></label>
+            <label>첫 앱 이름<input name="app_name" required maxlength="100" value="Default App" /></label>
+            <label>이름<input name="owner_name" required maxlength="100" autocomplete="name" /></label>
+            <label>이메일<input name="owner_email" type="email" required autocomplete="username" /></label>
+            <label>비밀번호 (8자 이상)<input name="owner_password" type="password" minlength="8" required autocomplete="new-password" /></label>
+            <label>시간대<input name="timezone" required maxlength="64" /></label>
+          </div>
+          <button type="submit" class="primary">Owner 만들고 설치 잠그기</button>
+          <span id="owner-result" role="status" aria-live="polite"></span>
+        </form>
+      </section>
+
+      <!-- 완료: 키 원문은 여기서 한 번만 보인다. -->
+      <section id="secured" class="wizard" hidden>
+        <p class="eyebrow">SECURED</p>
+        <h2>설치가 잠겼어요</h2>
+        <p>Owner 계정과 워크스페이스·앱이 만들어졌고, 설치 코드는 폐기됐습니다. 아래 키는 <strong>지금 한 번만</strong> 표시됩니다. 분실하면 콘솔의 키 회전으로 새로 발급합니다.</p>
+        <dl id="secured-keys" class="keys"></dl>
+        <a id="open-console" class="next-link" href="/onboarding">콘솔 온보딩으로 →</a>
       </section>
 
       <footer>

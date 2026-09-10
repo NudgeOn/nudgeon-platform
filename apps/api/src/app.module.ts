@@ -6,6 +6,7 @@ import { ApiKeyService } from "./auth/api-key.service";
 import { AuthController } from "./auth/auth.controller";
 import { BootstrapController } from "./auth/bootstrap.controller";
 import { AuthService } from "./auth/auth.service";
+import { BootstrapService } from "./auth/bootstrap.service";
 import { SessionService } from "./auth/session.service";
 import { TotpService } from "./auth/totp.service";
 import { TotpController, MemberTotpController } from "./auth/totp.controller";
@@ -80,6 +81,7 @@ import { PermissionGuard } from "./authz/permission.guard";
     RateLimitService,
     ApiKeyService,
     AuthService,
+    BootstrapService,
     SessionService,
     TotpService,
     AuditService,
