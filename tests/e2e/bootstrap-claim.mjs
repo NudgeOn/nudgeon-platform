@@ -61,6 +61,12 @@ const main = async () => {
   const cookie = cookieOf(claim, "nudgeon_bootstrap");
   ok(!!cookie, "claim OK");
 
+  // 세션 연장: holder만, 만료 전만
+  const ext = await req("POST", "/v1/bootstrap/extend", { cookie });
+  ok(ext.status === 204 && !!ext.headers.get("x-bootstrap-expires-at"), `extend → ${ext.status}, 새 만료 시각`);
+  ok((await req("POST", "/v1/bootstrap/extend")).status === 401, "cookie 없는 extend → 401");
+  ok(typeof (await req("GET", "/v1/bootstrap/status")).json.master_key_fingerprint === "string", "status에 마스터키 fingerprint");
+
   // setup: cookie 없음 → 401, key 없음 → 400
   const body = { workspace_name: "설치 리허설", app_name: "First App", timezone: "Asia/Seoul", owner: { name: "Owner", email: `owner-${Date.now()}@example.com`, password: "password123" } };
   ok((await req("POST", "/v1/bootstrap/setup", { headers: { "Idempotency-Key": randomUUID() }, body })).status === 401, "cookie 없는 setup → 401");
@@ -90,6 +96,7 @@ const main = async () => {
   ok((await req("GET", "/v1/bootstrap/setup-result", { cookie, headers: { "Idempotency-Key": randomUUID() } })).status === 401, "다른 key로 setup-result → 401");
   ok((await req("POST", "/v1/auth/signup", { body: { email: "y@example.com", password: "password123", name: "y", tenant_name: "y" } })).status === 404, "설치 뒤 signup → 404");
 
+  ok((await req("POST", "/v1/bootstrap/extend", { cookie })).status === 401, "secured 뒤 extend → 401");
   console.log("\nBOOTSTRAP CLAIM/SETUP E2E (Slice B): PASS");
 };
 main().catch((e) => { console.error(e.message); process.exit(1); });

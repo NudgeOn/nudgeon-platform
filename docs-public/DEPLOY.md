@@ -109,7 +109,8 @@ scripts/backup.sh /backups/$(date +%F)     # PG(pg_dump -Fc) + CH(테이블별 N
 PG_CONTAINER=… CH_CONTAINER=… REDIS_CONTAINER=… scripts/restore.sh /backups/2026-09-10   # 마이그레이션만 적용된 빈 스택에
 ```
 
-- 복원 순서: 빈 스택을 `up -d postgres clickhouse redis migrator`로 띄워 스키마를 만든 뒤 `restore.sh`, 그 다음 **같은 `NUDGEON_MASTER_KEY`로** api·worker를 띄운다. 마스터키는 백업에 들어가지 않으므로 백업과 함께 안전하게 보관한다.
+- 복원 순서: 빈 스택을 `up -d postgres clickhouse redis migrator`로 띄워 스키마를 만든 뒤 `restore.sh`, 그 다음 **같은 `NUDGEON_MASTER_KEY`로** api·worker를 띄운다. 마스터키는 DB 백업에 들어가지 않는다.
+- **복구 번들(Safe Boot)**: `NUDGEON_RECOVERY_PASSPHRASE=… ./nudgeon secrets backup [file]`이 `.nudgeon`(마스터키·시크릿·설치 ID)을 AES-256-CBC(PBKDF2 60만회)로 내보낸다. DB 백업과 **다른 곳**에 보관한다. 빈 호스트에서는 `./nudgeon secrets restore <file>` → `./nudgeon up` → `scripts/restore.sh`. `./nudgeon doctor`는 번들을 한 번도 내보내지 않았으면 `CRIT`를 낸다. setup 화면과 `GET /v1/bootstrap/status`의 `master_key_fingerprint`가 번들의 것과 같아야 한다.
 - 계측 MV 대상(`usage_*`)은 덤프하지 않는다. 복원 시 원본 테이블 INSERT가 MV를 다시 채운다.
 - Redis(appendonly)는 `restore.sh`가 임시 `appendonly no` 서버로 RDB를 올린 뒤 AOF로 다시 쓴다. 큐·멱등 키·빈도 제한 상태가 복원되지만, 백업 시점 이후의 큐 항목은 PG outbox 재발행으로 메꿔지고 중복 발송 0%를 보장하지는 않는다.
 - **2026-09-10 리허설**(`tests/ops/backup-restore/run.mjs`, 로컬 docker, PG 78k행·CH 19.7k행·Redis 19.5k키): 백업 6초, 빈 스택+복원+기동 26초. PG 28·CH 10 테이블 행 수 일치, 원본 세션 쿠키로 복원 API 200, 크리덴셜 17건 복호화·재검증. 다른 서버·관리형 DB로의 복원과 WAL 아카이빙·증분 백업은 아직 없다.

@@ -10,7 +10,7 @@
 | Slice | 현재 상태 | 지금 제공되는 범위 / 남은 경계 |
 |---|---|---|
 | A — Safe boot | **Preview 구현** | `./nudgeon up/status/setup-url/doctor/logs/down`, 자동 로컬 시크릿, dev seed 없는 전용 Compose, loopback gateway, same-origin API 경로, setup-status shell, API·worker readiness가 소스에 있다. 현재는 source build이며 versioned release image와 clean-host 출시 증거는 남아 있다. |
-| B — Atomic Bootstrap | **구현 (2026-09-10)** | `installation` 싱글턴 상태, 설치 코드 claim(15분 Bootstrap cookie, 동시 claim 1 lease), 원자 setup + `secured` 잠금, `Idempotency-Key` replay·`setup-result`, `./nudgeon setup-token rotate`, single_tenant signup 404. 미구현: master key fingerprint·recovery bundle(`secrets backup`), 세션 연장 CTA, public base URL 검증. |
+| B — Atomic Bootstrap | **구현 (2026-09-10)** | `installation` 싱글턴 상태, 설치 코드 claim(15분 Bootstrap cookie, 동시 claim 1 lease), 원자 setup + `secured` 잠금, `Idempotency-Key` replay·`setup-result`, `./nudgeon setup-token rotate`, single_tenant signup 404. 09-10 추가: master key fingerprint(status API·setup 화면·CLI 동일 규칙), `./nudgeon secrets backup/restore`(암호화 번들, doctor CRIT), Bootstrap 세션 연장(`POST /v1/bootstrap/extend` + 만료 2분 전 CTA). 미구현: public base URL 검증, Health 화면의 "복구 키 백업 미확인" 표시. |
 | C — Resumable activation | **미구현** | 서버 저장형 onboarding 진행 상태와 재개·skip이 필요하다. |
 | D — Test Inbox | **미구현** | 외부 provider 없이 lifecycle `received`까지 증명하는 sandbox connector가 필요하다. |
 | E — One real channel | **미구현** | FCM/APNs guided credential 검증과 단일 대상 실제 테스트가 필요하다. |

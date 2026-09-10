@@ -107,6 +107,18 @@ export class BootstrapController {
     res.setHeader("X-Bootstrap-Expires-At", expiresAt.toISOString());
   }
 
+  /** Bootstrap 세션 연장 (만료 2분 전 CTA). 같은 cookie holder만, 만료 전에만. */
+  @Post("extend")
+  @HttpCode(204)
+  async extend(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    this.harden(res);
+    this.single();
+    this.assertLoopbackOrTls(req);
+    const expiresAt = await this.bootstrap.extend(req.cookies?.[BOOTSTRAP_COOKIE]);
+    res.cookie(BOOTSTRAP_COOKIE, req.cookies?.[BOOTSTRAP_COOKIE], { httpOnly: true, sameSite: "strict", secure: req.header("x-forwarded-proto") === "https", expires: expiresAt, path: "/" });
+    res.setHeader("X-Bootstrap-Expires-At", expiresAt.toISOString());
+  }
+
   /** Owner·workspace·app 원자 생성. Idempotency-Key 필수 — commit 뒤 응답 유실은 같은 key로 재요청. */
   @Post("setup")
   @HttpCode(201)

@@ -18,16 +18,28 @@ const api = async (method, path, { body, headers } = {}) => {
 };
 const message = (json, fallback) => (json && (json.message ?? json.error)) ? (Array.isArray(json.message) ? json.message.join(", ") : String(json.message ?? json.error)) : fallback;
 
+let statusCache = null;
 let leaseTimer = null;
+let leaseExpiresAt = null;
+async function extendLease() {
+  const r = await api("POST", "extend");
+  if (!r.ok) { $("#lease-note").textContent = "연장에 실패했어요. 만료되면 설치 코드를 다시 확인해 주세요(입력한 내용은 비밀번호 빼고 유지)."; return; }
+  watchLease(r.headers.get("x-bootstrap-expires-at") ?? new Date(Date.now() + 15 * 60_000).toISOString());
+}
 function watchLease(expiresAtIso) {
   clearInterval(leaseTimer);
+  leaseExpiresAt = expiresAtIso;
   const note = $("#lease-note");
   const tick = () => {
-    const left = Math.round((new Date(expiresAtIso).getTime() - Date.now()) / 1000);
+    const left = Math.round((new Date(leaseExpiresAt).getTime() - Date.now()) / 1000);
     if (left <= 0) { note.textContent = "Bootstrap 세션이 만료됐어요. 설치 코드를 다시 확인해 주세요."; clearInterval(leaseTimer); show("claim"); return; }
-    note.textContent = left <= 120
-      ? `⚠ 이 세션은 ${left}초 뒤 만료됩니다. 만료되면 설치 코드를 다시 확인해야 해요(입력한 내용은 비밀번호 빼고 유지).`
-      : `이 브라우저가 설치 lease를 갖고 있어요 (${Math.floor(left / 60)}분 남음).`;
+    if (left <= 120) {
+      note.textContent = `⚠ 이 세션은 ${left}초 뒤 만료됩니다. `;
+      const b = document.createElement("button"); b.type = "button"; b.className = "text-button"; b.id = "extend-lease"; b.textContent = "15분 연장";
+      b.addEventListener("click", extendLease); note.append(b);
+    } else {
+      note.textContent = `이 브라우저가 설치 lease를 갖고 있어요 (${Math.floor(left / 60)}분 남음).`;
+    }
   };
   tick(); leaseTimer = setInterval(tick, 1000);
 }
@@ -71,6 +83,7 @@ function renderSecured(json) {
   if (json.sdk_key) rows.push(["SDK Key (앱에 내장)", json.sdk_key]);
   if (json.server_key) rows.push(["Server Key (백엔드 전용 — 비밀)", json.server_key]);
   if (!json.sdk_key) rows.push(["키", "이전 응답에서 이미 표시됐어요. 콘솔 → 앱 설정 → 키 회전으로 새로 받을 수 있어요."]);
+  if (statusCache?.master_key_fingerprint) rows.push(["마스터키 fingerprint", statusCache.master_key_fingerprint]);
   for (const [k, v] of rows) { const dt = document.createElement("dt"); dt.textContent = k; const dd = document.createElement("dd"); dd.textContent = v; dl.append(dt, dd); }
   sessionStorage.removeItem(DRAFT_KEY);
   show("secured");
@@ -107,6 +120,7 @@ export async function initWizard() {
   if (m) history.replaceState(null, "", location.pathname + location.search);
   const status = await api("GET", "status");
   const st = status.json ?? {};
+  statusCache = st;
   const note = $("#install-state-note");
   if (st.mode !== "single_tenant") { note.textContent = "멀티테넌트 모드 — 콘솔 가입으로 시작하세요."; $("#next-step").querySelector("div").insertAdjacentHTML("beforeend", '<p><a class="next-link" href="/signup">콘솔에서 시작하기 →</a></p>'); return; }
   if (st.state === "secured") { note.textContent = "설치가 이미 완료됐어요."; $("#next-step").querySelector("div").insertAdjacentHTML("beforeend", '<p><a class="next-link" href="/login">콘솔 로그인 →</a></p>'); return; }
