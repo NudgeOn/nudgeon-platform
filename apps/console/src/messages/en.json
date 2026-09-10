@@ -1,0 +1,125 @@
+{
+  "app": {
+    "title": "NudgeOn Console",
+    "description": "NudgeOn — admin console for the customer engagement platform"
+  },
+  "login": {
+    "title": "NudgeOn Console",
+    "subtitle": "Sign in to your account",
+    "subtitleTotp": "Enter the 6-digit code from your authenticator app",
+    "email": "Email",
+    "password": "Password",
+    "totpCode": "Verification code",
+    "totpPlaceholder": "6-digit code or backup code",
+    "totpBackupHint": "Lost your device? Enter a backup code (XXXXX-XXXXX).",
+    "checking": "Checking…",
+    "verify": "Verify",
+    "submit": "Sign in",
+    "backToStart": "← Start over",
+    "errorTotp": "The code is invalid or the account is locked",
+    "errorCredentials": "Incorrect email or password",
+    "errorGeneric": "Sign-in failed. Please try again shortly.",
+    "installPending": "Installation isn't finished yet.",
+    "installLink": "Create the first Owner on the setup screen",
+    "noAccount": "No account yet?",
+    "signup": "Sign up"
+  },
+  "signup": {
+    "title": "Get started with NudgeOn",
+    "subtitle": "Create your organization and start collecting right away",
+    "tenantName": "Organization name",
+    "name": "Name",
+    "email": "Email",
+    "password": "Password (8+ characters)",
+    "creating": "Creating…",
+    "submit": "Create organization",
+    "haveAccount": "Already have an account?",
+    "login": "Sign in",
+    "errorDuplicate": "This email is already registered",
+    "errorGeneric": "Sign-up failed. Please check your input.",
+    "doneTitle": "Sign-up complete — save your API keys",
+    "doneDescription": "These keys are shown only once (reissue only by rotating).",
+    "sdkKey": "SDK Key (embedded in the app)",
+    "serverKey": "Server Key (backend only — secret)",
+    "goConsole": "Go to console"
+  },
+  "dashboard": {
+    "loading": "Loading…",
+    "title": "NudgeOn Console",
+    "logout": "Sign out",
+    "stat": {
+      "sentToday": "Sent today",
+      "failedToday": "Failed today",
+      "skippedToday": "Skipped today",
+      "activeJourneys": "Active journeys",
+      "dau": "DAU (today)",
+      "mau": "MAU (30 days)",
+      "uninstalls": "Uninstalls (30 days) {rate}%",
+      "sends30d": "Sends (30 days)"
+    },
+    "getStarted": "Get started",
+    "getStartedDescription": "SDK Key → register credentials → detect first event → test send (4 steps)",
+    "openOnboarding": "Open onboarding wizard",
+    "nav": {
+      "segments": "Segments",
+      "journeys": "Campaigns · Journeys",
+      "logs": "Message log",
+      "users": "User search",
+      "data": "Data",
+      "settings": "App settings",
+      "emailTemplates": "Email templates",
+      "alimtalk": "Alimtalk settings",
+      "sweep": "Run uninstall detection sweep",
+      "sweeping": "Detecting uninstalls…",
+      "team": "Team",
+      "audit": "Audit log"
+    }
+  },
+  "onboarding": {
+    "loading": "Loading…",
+    "appLoadError": "Couldn't load app information.",
+    "loginAgain": "Sign in again",
+    "backToDashboard": "← Dashboard",
+    "title": "Get started — {app}",
+    "subtitle": "Complete the 4 steps to send your first push.",
+    "step1": "Prepare the SDK Key",
+    "step2": "Register channel credentials (push · email)",
+    "step3": "Integrate the SDK — receive the first event",
+    "step4": "Test send",
+    "keys": {
+      "ownerOnly": "Only Owners/Admins can view API keys.",
+      "useIssuedKey": "Use the <strong>SDK Key</strong> issued at sign-up",
+      "noReshow": ". The raw key is never shown again — if you lost it, rotate to issue a new one (the old key stays valid for 30 days).",
+      "newKeyOnce": "New SDK Key — shown only once",
+      "rotate": "Rotate SDK Key (issue a new one)"
+    },
+    "snippet": {
+      "received": "First event received",
+      "waiting": "Waiting for the first event… (checks every 5s)"
+    },
+    "testPush": {
+      "pushTitle": "NudgeOn test",
+      "pushBody": "Congratulations — your send pipeline is connected!",
+      "instruction": "Enter the external_id of a user who has completed <code>identify</code> + <code>registerForPush</code> in the app.",
+      "send": "Send test",
+      "queued": "Queued for {count} device(s)",
+      "failed": "Send failed — check the user's token (active), OS permission (granted), and credential status"
+    },
+    "credentials": {
+      "emailOptional": "Email channel (optional) — register SMTP, AWS SES, Resend (SMTP/API) or NHN Cloud to use email nodes in journeys.",
+      "none": "No credentials registered yet.",
+      "email": "Email",
+      "alimtalk": "Kakao Alimtalk",
+      "verified": "Verified ✓",
+      "verifyFailed": "Verification failed",
+      "verifying": "Verifying…",
+      "invalidJson": "Not valid JSON",
+      "fcmLabel": "FCM — service account JSON",
+      "fcmFailed": "Registration failed — check the JSON fields (project_id, private_key, client_email)",
+      "fcmSubmit": "Register FCM",
+      "apnsLabel": "APNs — p8 key",
+      "apnsFailed": "Registration failed — check your input",
+      "apnsSubmit": "Register APNs"
+    }
+  }
+}

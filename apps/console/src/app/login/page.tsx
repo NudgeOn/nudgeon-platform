@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { ApiError } from "@nudgeon/api-client";
 import { api } from "@/lib/api";
@@ -12,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
+  const t = useTranslations("login");
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,19 +42,19 @@ export default function LoginPage() {
   const errorMessage =
     login.error instanceof ApiError && login.error.status === 401
       ? needTotp
-        ? "인증 코드가 올바르지 않거나 잠금되었습니다"
-        : "이메일 또는 비밀번호가 올바르지 않습니다"
+        ? t("errorTotp")
+        : t("errorCredentials")
       : login.error
-        ? "로그인에 실패했습니다. 잠시 후 다시 시도해주세요."
+        ? t("errorGeneric")
         : null;
 
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>NudgeOn 콘솔</CardTitle>
+          <CardTitle>{t("title")}</CardTitle>
           <CardDescription>
-            {needTotp ? "인증 앱의 6자리 코드를 입력하세요" : "계정으로 로그인하세요"}
+            {needTotp ? t("subtitleTotp") : t("subtitle")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -66,7 +68,7 @@ export default function LoginPage() {
             {!needTotp && (
               <>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="email">이메일</Label>
+                  <Label htmlFor="email">{t("email")}</Label>
                   <Input
                     id="email"
                     type="email"
@@ -77,7 +79,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="password">비밀번호</Label>
+                  <Label htmlFor="password">{t("password")}</Label>
                   <Input
                     id="password"
                     type="password"
@@ -91,25 +93,25 @@ export default function LoginPage() {
             )}
             {needTotp && (
               <div className="flex flex-col gap-2">
-                <Label htmlFor="totp">인증 코드</Label>
+                <Label htmlFor="totp">{t("totpCode")}</Label>
                 <Input
                   id="totp"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   autoFocus
-                  placeholder="6자리 코드 또는 백업 코드"
+                  placeholder={t("totpPlaceholder")}
                   required
                   value={totp}
                   onChange={(e) => setTotp(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  기기를 분실했다면 백업 코드(XXXXX-XXXXX)를 입력하세요.
+                  {t("totpBackupHint")}
                 </p>
               </div>
             )}
             {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
             <Button type="submit" disabled={login.isPending}>
-              {login.isPending ? "확인 중…" : needTotp ? "인증" : "로그인"}
+              {login.isPending ? t("checking") : needTotp ? t("verify") : t("submit")}
             </Button>
             {needTotp && (
               <button
@@ -121,22 +123,22 @@ export default function LoginPage() {
                   login.reset();
                 }}
               >
-                ← 처음으로
+                {t("backToStart")}
               </button>
             )}
             {!needTotp && bootstrap.data?.mode === "single_tenant" && bootstrap.data.state !== "secured" && (
               <p className="text-center text-sm text-muted-foreground">
-                아직 설치가 끝나지 않았어요.{" "}
+                {t("installPending")}{" "}
                 <a href="/setup" className="text-primary underline">
-                  설치 화면에서 첫 Owner 만들기
+                  {t("installLink")}
                 </a>
               </p>
             )}
             {!needTotp && bootstrap.data?.mode !== "single_tenant" && (
               <p className="text-center text-sm text-muted-foreground">
-                계정이 없나요?{" "}
+                {t("noAccount")}{" "}
                 <Link href="/signup" className="text-primary underline">
-                  가입하기
+                  {t("signup")}
                 </Link>
               </p>
             )}
