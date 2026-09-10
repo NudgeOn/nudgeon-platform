@@ -14,6 +14,7 @@ import type { Pool, PoolClient } from "pg";
 import { CONFIG, PG } from "../infra/infra.module";
 import type { AppConfig } from "../config";
 import { AuthService } from "./auth.service";
+import { masterKeyFingerprint } from "../crypto/envelope";
 
 /**
  * 설치 소유권 claim → 최초 Owner 원자 생성 → 영구 잠금 (Slice B, docs-public/DOCKER-SETUP-WIZARD-PRD.md 7·8장).
@@ -99,10 +100,11 @@ export class BootstrapService implements OnModuleInit {
     }
   }
 
-  async status(): Promise<{ mode: string; state: InstallationState; installation_id?: string; version: string; setup_token_configured: boolean; needs_setup: boolean }> {
+  async status(): Promise<{ mode: string; state: InstallationState; installation_id?: string; version: string; setup_token_configured: boolean; needs_setup: boolean; master_key_fingerprint?: string }> {
     if (this.cfg.mode !== "single_tenant") {
       return { mode: "multi_tenant", state: "secured", version: this.cfg.version, setup_token_configured: false, needs_setup: false };
     }
+    const fingerprint = masterKeyFingerprint();
     const { rows } = await this.pg.query(`SELECT installation_id, state, setup_token_hash FROM installation`).catch(() => ({ rows: [] as Array<Record<string, unknown>> }));
     const row = rows[0];
     if (!row) return { mode: "single_tenant", state: "recovery_required", version: this.cfg.version, setup_token_configured: false, needs_setup: true };
@@ -113,6 +115,7 @@ export class BootstrapService implements OnModuleInit {
       version: this.cfg.version,
       setup_token_configured: !!row.setup_token_hash,
       needs_setup: row.state !== "secured",
+      master_key_fingerprint: fingerprint, // 원문이 아니다 — ./nudgeon secrets backup의 fingerprint와 대조용
     };
   }
 
@@ -191,6 +194,28 @@ export class BootstrapService implements OnModuleInit {
       );
       await client.query("COMMIT");
       return { result, keys: { sdk_key: created.sdkKey, server_key: created.serverKey }, replayed: false };
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
+  /** Bootstrap 세션 연장 — 같은 cookie holder가 만료 전에 부르면 lease를 15분 더 준다 (S1 수용 기준 "연장 CTA"). */
+  async extend(cookie: string | undefined): Promise<Date> {
+    if (!cookie) throw new UnauthorizedException("Bootstrap cookie가 없습니다");
+    const client = await this.pg.connect();
+    try {
+      await client.query("BEGIN");
+      const { rows } = await client.query(`SELECT state, claim_session_hash, claim_expires_at FROM installation FOR UPDATE`);
+      const row = rows[0];
+      if (!row || row.state !== "claimed" || !same(row.claim_session_hash, sha256(cookie))) throw new UnauthorizedException("이 세션은 설치 lease를 갖고 있지 않습니다");
+      if (!row.claim_expires_at || new Date(row.claim_expires_at) <= new Date()) throw new UnauthorizedException("Bootstrap 세션이 만료됐습니다 — 설치 코드를 다시 교환하세요");
+      const expiresAt = new Date(Date.now() + CLAIM_TTL_MS);
+      await client.query(`UPDATE installation SET claim_expires_at=$1, record_version=record_version+1, updated_at=now()`, [expiresAt]);
+      await client.query("COMMIT");
+      return expiresAt;
     } catch (e) {
       await client.query("ROLLBACK");
       throw e;

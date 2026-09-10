@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 /**
@@ -24,6 +24,16 @@ export function loadMasterKey(env: NodeJS.ProcessEnv = process.env): Buffer {
     return key;
   }
   throw new Error("마스터키 미설정 — NUDGEON_MASTER_KEY 또는 KMS_MASTER_KEY_FILE 필요");
+}
+
+/**
+ * 마스터키 fingerprint — 원문 없이 "같은 키인지" 대조하는 값. `./nudgeon secrets backup`이 같은 규칙으로
+ * 계산해 보여준다: sha256(base64 원문 텍스트, 공백 제거) → base64 앞 16자.
+ */
+export function masterKeyFingerprint(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const text = env.NUDGEON_MASTER_KEY?.trim() || (env.KMS_MASTER_KEY_FILE ? readFileSync(env.KMS_MASTER_KEY_FILE, "utf8").trim() : "");
+  if (!text) return undefined;
+  return createHash("sha256").update(text).digest("base64").slice(0, 16);
 }
 
 function seal(key: Buffer, plaintext: Buffer): Buffer {

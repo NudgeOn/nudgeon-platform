@@ -295,11 +295,55 @@ doctor_checks() {
   note "PASS  Gateway is the only service with a published port"
 }
 
+# 마스터키 fingerprint — 원문 없이 "같은 키인지"를 대조한다 (setup 화면·status API가 같은 값을 보여준다).
+master_key_fingerprint() {
+  [ -s "$SECRETS_DIR/nudgeon_master_key" ] || return 1
+  printf '%s' "$(cat "$SECRETS_DIR/nudgeon_master_key")" | openssl dgst -sha256 -binary | openssl base64 -A | cut -c1-16
+}
+
+# 복구 번들 — .nudgeon 전체(설치 ID·시크릿·마스터키·setup 토큰)를 암호문으로 내보낸다. 이 파일과 암호가
+# 있어야 DB 백업의 크리덴셜을 풀 수 있다(scripts/backup.sh는 마스터키를 포함하지 않는다). 백업이 끝나면
+# 마커를 남겨 doctor가 "복구 키 백업 미확인"을 내리지 않는다.
+secrets_backup() {
+  require_state
+  require_command openssl
+  out=${1:-"nudgeon-recovery-$(date +%Y%m%d-%H%M%S).tar.enc"}
+  [ -n "${NUDGEON_RECOVERY_PASSPHRASE:-}" ] || fail "NUDGEON_RECOVERY_PASSPHRASE 환경변수로 번들 암호를 주세요 (12자 이상 권장)."
+  tar -C "$STATE_DIR" -cf - installation_id secrets | \
+    openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass env:NUDGEON_RECOVERY_PASSPHRASE -out "$out"
+  chmod 600 "$out"
+  date -u +%Y-%m-%dT%H:%M:%SZ >"$STATE_DIR/recovery_backup_confirmed_at"
+  chmod 600 "$STATE_DIR/recovery_backup_confirmed_at"
+  note "복구 번들: $out (마스터키 fingerprint $(master_key_fingerprint))"
+  note "이 파일과 암호를 DB 백업과 다른 곳에 보관하세요. 복원: NUDGEON_RECOVERY_PASSPHRASE=… ./nudgeon secrets restore $out"
+}
+
+# 빈 호스트에서 시크릿을 되살린다 — 기존 .nudgeon이 있으면 덮어쓰지 않는다.
+secrets_restore() {
+  require_command openssl
+  in=${1:?복구 번들 경로}
+  [ -n "${NUDGEON_RECOVERY_PASSPHRASE:-}" ] || fail "NUDGEON_RECOVERY_PASSPHRASE 환경변수로 번들 암호를 주세요."
+  [ ! -d "$SECRETS_DIR" ] || fail "$SECRETS_DIR 가 이미 있습니다. 덮어쓰지 않습니다 — 먼저 옮기거나 지우세요."
+  mkdir -p "$STATE_DIR"; chmod 700 "$STATE_DIR"
+  plain="$STATE_DIR/.restore.$$.tar"
+  if ! openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:NUDGEON_RECOVERY_PASSPHRASE -in "$in" -out "$plain" 2>/dev/null; then
+    rm -f "$plain"; fail "복구 번들을 풀지 못했습니다 — 암호가 틀리거나 파일이 손상됐습니다."
+  fi
+  tar -C "$STATE_DIR" -xf "$plain"; rm -f "$plain"
+  chmod 700 "$SECRETS_DIR"
+  note "시크릿을 복원했습니다 (마스터키 fingerprint $(master_key_fingerprint)). './nudgeon up'으로 기동한 뒤 scripts/restore.sh로 DB를 넣으세요."
+}
+
 doctor() {
   require_state
   preflight_docker
   preflight_runtime
   doctor_checks
+  if [ -s "$STATE_DIR/recovery_backup_confirmed_at" ]; then
+    note "PASS  Recovery bundle exported at $(cat "$STATE_DIR/recovery_backup_confirmed_at") (master key $(master_key_fingerprint))"
+  else
+    note "CRIT  Recovery bundle never exported — run: NUDGEON_RECOVERY_PASSPHRASE=… ./nudgeon secrets backup"
+  fi
 }
 
 status() {
@@ -361,6 +405,11 @@ Commands:
   setup-url   Print the local setup shell URL (--token: include the one-time install code)
   setup-token rotate
               Replace the install code; revokes the old code and any in-progress claim
+  secrets backup [file]
+              Export an encrypted recovery bundle of .nudgeon (master key, secrets, install id)
+              — needs NUDGEON_RECOVERY_PASSPHRASE
+  secrets restore <file>
+              Restore .nudgeon from a bundle on an empty host — needs NUDGEON_RECOVERY_PASSPHRASE
   doctor      Validate Docker, Compose, port, and secret permissions
   logs [svc]  Show recent container logs
   down        Stop containers without deleting data or secrets
@@ -380,6 +429,7 @@ case "$command" in
   status) status "$@" ;;
   setup-url) require_state; if [ "${1:-}" = "--token" ]; then setup_url_with_token; else setup_url; fi ;;
   setup-token) case "${1:-}" in rotate) setup_token_rotate ;; *) usage; exit 2 ;; esac ;;
+  secrets) sub=${1:-}; shift 2>/dev/null || true; case "$sub" in backup) secrets_backup "$@" ;; restore) secrets_restore "$@" ;; *) usage; exit 2 ;; esac ;;
   doctor) doctor ;;
   logs) logs "$@" ;;
   down) down ;;
