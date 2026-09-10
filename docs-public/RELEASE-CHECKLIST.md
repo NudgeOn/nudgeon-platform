@@ -31,7 +31,7 @@
 
 | # | 항목 | 필요한 것 | 완료 조건 |
 |---|---|---|---|
-| B-1 | SDK 0.1.2 배포 (0.1.1은 미게시라 건너뜀) | Android: 태그 0.1.2의 bundle 워크플로 산출물을 Central Portal에 업로드. RN: npm, Flutter: pub.dev 첫 배포 자격증명 | 4 SDK 공개 좌표로 신규 앱 설치·시작·실수신 |
+| B-1 | SDK 0.1.2 배포 — 워크플로 준비 완료, 자격증명만 남음 | Android: 시크릿 `CENTRAL_USERNAME`/`CENTRAL_PASSWORD` → *Publish to Maven Central* 실행 → 좌표 PR #12. RN: 시크릿 `NPM_TOKEN` → *Publish to npm* 재실행. Flutter: 첫 게시는 사람이 `flutter pub publish`(pub.dev 정책) → Automated publishing 켜기. iOS 완료 | 4 SDK 공개 좌표로 신규 앱 설치·시작·실수신 |
 | B-2 | 실단말 재검증 | Fold3·iPhone 연결 | 0.1.2 SDK로 M-1 재현 + 중복 표시 억제 + Android SDK 알림 표시(3상태) 확인 |
 | B-3 | 외부인 온보딩 (M-2) | 외부 개발자 3명 | 문서만으로 30분 내 4단계 완주 |
 | B-4 | 관리형 DB (M-9) | RDS·ElastiCache·외부 CH 접근 | TLS·인증·재연결·migration 경합 E2E 통과 |
