@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
 import { useAppId } from "../use-app-id";
@@ -10,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 export default function UsersPage() {
+  const t = useTranslations("users");
   const appId = useAppId();
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
@@ -24,10 +26,10 @@ export default function UsersPage() {
       <header className="mb-6">
         <p className="text-sm text-muted-foreground">
           <Link href="/" className="underline">
-            ← 대시보드
+            {t("backToDashboard")}
           </Link>
         </p>
-        <h1 className="mt-2 text-2xl font-bold">유저 검색</h1>
+        <h1 className="mt-2 text-2xl font-bold">{t("title")}</h1>
       </header>
 
       <form
@@ -38,24 +40,24 @@ export default function UsersPage() {
         }}
       >
         <Input
-          placeholder="external_id 또는 email (완전 일치)"
+          placeholder={t("placeholder")}
           value={input}
           onChange={(e) => setInput(e.target.value)}
         />
-        <Button type="submit">검색</Button>
+        <Button type="submit">{t("search")}</Button>
       </form>
 
       {search.data && (
         <div className="flex flex-col gap-2">
           {search.data.users.length === 0 && (
-            <p className="text-sm text-muted-foreground">일치하는 유저가 없습니다.</p>
+            <p className="text-sm text-muted-foreground">{t("empty")}</p>
           )}
           {search.data.users.map((u) => (
             <Link key={u.id} href={`/users/${u.id}`}>
               <Card className="transition-colors hover:border-primary">
                 <CardContent className="flex items-center justify-between p-4 text-sm">
                   <div>
-                    <div className="font-medium">{u.external_id ?? "(익명)"}</div>
+                    <div className="font-medium">{u.external_id ?? t("anonymous")}</div>
                     <div className="text-xs text-muted-foreground">{u.email ?? u.id}</div>
                   </div>
                   <span className="text-xs text-muted-foreground">

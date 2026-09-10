@@ -121,5 +121,264 @@
       "apnsFailed": "등록 실패 — 입력값을 확인하세요",
       "apnsSubmit": "APNs 등록"
     }
+  },
+  "logs": {
+    "backToDashboard": "← 대시보드",
+    "title": "메시지 로그",
+    "failureBanner": "⚠ 최근 1시간 실패율 {rate}% — 크리덴셜 상태를 확인하세요",
+    "status": {
+      "all": "전체",
+      "sent": "발송",
+      "failed": "실패",
+      "duplicate": "중복거부",
+      "skipped_unreachable": "도달불가"
+    },
+    "col": {
+      "time": "시각",
+      "user": "유저",
+      "channel": "채널",
+      "status": "상태",
+      "failure": "실패 사유"
+    },
+    "empty": "로그가 없습니다."
+  },
+  "users": {
+    "backToDashboard": "← 대시보드",
+    "title": "유저 검색",
+    "placeholder": "external_id 또는 email (완전 일치)",
+    "search": "검색",
+    "empty": "일치하는 유저가 없습니다.",
+    "anonymous": "(익명)"
+  },
+  "segments": {
+    "backToDashboard": "← 대시보드",
+    "title": "세그먼트",
+    "new": "새 세그먼트",
+    "loading": "불러오는 중…",
+    "empty": "아직 세그먼트가 없습니다. 첫 세그먼트를 만들어보세요.",
+    "approxCount": "약 {count}명",
+    "notEvaluated": "미평가",
+    "updated": "수정"
+  },
+  "audit": {
+    "backToDashboard": "← 대시보드",
+    "title": "감사 로그",
+    "loading": "불러오는 중…",
+    "noPermission": "감사 로그 조회 권한이 없습니다.",
+    "recent": "최근 감사 기록 ({count})",
+    "col": {
+      "time": "시각 (UTC)",
+      "actor": "행위자",
+      "action": "동작",
+      "target": "대상",
+      "detail": "상세"
+    },
+    "loadingEntries": "감사 로그 불러오는 중…",
+    "empty": "기록이 없습니다.",
+    "footnote": "로그인·2FA·팀·키·크리덴셜·조직 설정 등 보안 민감 동작이 기록됩니다. 최신 200건 표시."
+  },
+  "data": {
+    "backToDashboard": "← 대시보드",
+    "title": "데이터",
+    "tabAttributes": "속성 사전",
+    "tabErrors": "수집 오류",
+    "attr": {
+      "key": "키",
+      "type": "타입",
+      "segments": "참조 세그먼트",
+      "lastSeen": "최근 수신",
+      "delete": "삭제",
+      "referenced": "참조 중인 세그먼트가 있습니다: {segments} — 다시 삭제를 누르면 강제 삭제됩니다.",
+      "empty": "아직 수집된 커스텀 속성이 없습니다."
+    },
+    "errors": {
+      "title": "수집 오류 (타입 불일치·스키마 오류 거부 건)",
+      "time": "시각",
+      "endpoint": "엔드포인트",
+      "reason": "사유",
+      "detail": "상세",
+      "empty": "수집 오류가 없습니다. 👍"
+    }
+  },
+  "team": {
+    "backToDashboard": "← 대시보드",
+    "title": "팀 관리",
+    "loading": "불러오는 중…",
+    "noPermission": "팀 관리 권한이 없습니다.",
+    "requestFailed": "요청에 실패했습니다",
+    "members": "멤버 ({count})",
+    "col": {
+      "email": "이메일",
+      "name": "이름",
+      "role": "역할",
+      "status": "상태",
+      "actions": "작업"
+    },
+    "totpOn": "사용",
+    "totpOff": "미사용",
+    "confirmReset": "{email}의 2FA를 리셋할까요? (해당 멤버 세션도 폐기됩니다)",
+    "reset2fa": "2FA 리셋",
+    "confirmRemove": "{email}을(를) 제거할까요? (세션 폐기·재로그인 차단)",
+    "remove": "제거",
+    "loadingMembers": "멤버 불러오는 중…",
+    "rules": "· 최소 1명의 Owner는 강등·삭제할 수 없습니다. · Owner 역할 지정/관리는 Owner만 가능합니다. · 역할 변경·제거 시 해당 멤버의 세션은 즉시 폐기됩니다.",
+    "invite": {
+      "title": "멤버 추가",
+      "password": "초기 비밀번호",
+      "adding": "추가 중…",
+      "add": "추가",
+      "note": "셀프호스팅: 관리자가 초기 비밀번호를 지정합니다(이메일 초대 링크는 후속)."
+    }
+  },
+  "settings": {
+    "loading": "불러오는 중…",
+    "backToDashboard": "← 대시보드",
+    "title": "설정",
+    "forced": {
+      "title": "2단계 인증 등록이 필요합니다",
+      "body": "조직 정책에 따라 2FA 등록을 완료해야 콘솔을 사용할 수 있습니다. 아래에서 인증 앱을 등록하세요."
+    },
+    "timezone": "시간대",
+    "quiet": {
+      "title": "조용시간 (Quiet Hours)",
+      "start": "시작",
+      "end": "종료",
+      "policy": "정책",
+      "delay": "다음 허용 시각에 발송",
+      "skip": "발송 생략",
+      "note": "거래성(transactional) 메시지는 조용시간을 우회합니다. 정보통신망법 야간 광고 제한(21~08시) 준수 장치입니다."
+    },
+    "cap": {
+      "title": "발송 빈도 제한 (Frequency Cap)",
+      "max": "유저당 최대",
+      "per24h": "건 / 24시간"
+    },
+    "saving": "저장 중…",
+    "save": "저장",
+    "saved": "✓ 저장됨",
+    "saveFailed": "저장 실패",
+    "loadingApp": "앱 설정 불러오는 중…",
+    "twofa": {
+      "title": "2단계 인증 (2FA)",
+      "on": "사용 중",
+      "off": "미사용",
+      "protected": "인증 앱으로 로그인 2단계를 보호하고 있습니다.",
+      "disablePlaceholder": "코드로 해제",
+      "disable": "2FA 해제",
+      "badCode": "코드가 올바르지 않습니다",
+      "intro": "인증 앱(Google Authenticator 등)으로 로그인 보안을 강화하세요.",
+      "setup": "2FA 설정",
+      "enrollHint": "인증 앱에 아래 키를 추가한 뒤 6자리 코드를 입력하세요.",
+      "otpauth": "otpauth 링크로 추가",
+      "codePlaceholder": "6자리 코드",
+      "confirm": "확인·활성화",
+      "activated": "2FA가 활성화되었습니다.",
+      "backupHint": "백업 코드를 안전한 곳에 보관하세요. 각 코드는 1회만 사용됩니다.",
+      "done": "완료"
+    },
+    "org": {
+      "title": "조직 보안",
+      "require2fa": "전체 2단계 인증 강제",
+      "require2faHint": "켜면 미등록 멤버는 다음 로그인부터 2FA 등록을 완료해야 콘솔을 사용할 수 있습니다.",
+      "danger": "위험 구역 — 조직 삭제",
+      "scheduled": "삭제 예약됨. 파기 예정:",
+      "restore": "삭제 취소(복구)",
+      "graceHint": "요청 후 7일 유예 기간 내 복구 가능. 이후 영구 파기됩니다.",
+      "confirmDelete": "정말 삭제 요청",
+      "cancel": "취소",
+      "requestDelete": "조직 삭제 요청"
+    }
+  },
+  "journeys": {
+    "dashboard": "대시보드",
+    "title": "캠페인 · 저니",
+    "subtitle": "고객에게 닿는 순간을 연결하고, 메시지의 흐름을 설계하세요.",
+    "new": "새 저니",
+    "listLabel": "저니 목록",
+    "statusFilterLabel": "저니 상태 필터",
+    "filter": {
+      "all": "전체",
+      "draft": "초안",
+      "active": "활성",
+      "paused": "일시정지",
+      "archived": "보관"
+    },
+    "searchPlaceholder": "저니 이름 검색",
+    "clearSearch": "검색어 지우기",
+    "error": {
+      "loginTitle": "로그인이 필요합니다",
+      "appTitle": "앱 정보를 불러오지 못했어요",
+      "listTitle": "저니 목록을 불러오지 못했어요",
+      "loginBody": "로그인한 뒤 저니 목록을 다시 확인해 주세요.",
+      "retryBody": "연결 상태를 확인한 뒤 다시 시도해 주세요.",
+      "login": "로그인하기",
+      "retry": "다시 불러오기"
+    },
+    "noApp": {
+      "title": "먼저 앱을 설정해 주세요",
+      "body": "앱 설정을 마치면 고객의 흐름을 만들 수 있어요.",
+      "cta": "앱 설정하기"
+    },
+    "loading": "저니 목록을 불러오고 있어요.",
+    "empty": {
+      "title": "첫 번째 저니를 만들어 보세요",
+      "body": "진입 조건부터 메시지까지, 고객에게 필요한 순간을 연결해 보세요.",
+      "cta": "새 저니 만들기"
+    },
+    "noMatch": {
+      "title": "조건에 맞는 저니가 없어요",
+      "body": "다른 이름으로 검색하거나 상태 필터를 바꿔 보세요.",
+      "reset": "필터 초기화"
+    },
+    "col": {
+      "journey": "저니",
+      "status": "상태",
+      "updated": "최근 수정"
+    },
+    "footer": {
+      "filtered": "{shown, number}개 표시 · 전체 {total, number}개",
+      "total": "총 {total, number}개의 저니",
+      "sort": "최근 수정순"
+    },
+    "category": {
+      "transactional": "거래성",
+      "marketing": "마케팅"
+    },
+    "row": {
+      "updated": "수정",
+      "kst": "{time} (한국 시간)",
+      "unknownTime": "시간 확인 필요"
+    }
+  },
+  "userDetail": {
+    "loading": "불러오는 중…",
+    "notFound": "유저를 찾을 수 없습니다.",
+    "backToUsers": "← 유저 검색",
+    "anonymous": "(익명 유저)",
+    "subscription": "구독: 푸시 {push}",
+    "optedIn": "수신",
+    "optedOut": "거부",
+    "devices": "디바이스",
+    "noDevices": "디바이스 없음",
+    "token": "토큰",
+    "tokenStatus": {
+      "active": "유효",
+      "invalid": "무효",
+      "expired": "만료"
+    },
+    "permission": "권한",
+    "perm": {
+      "granted": "허용",
+      "denied": "거부",
+      "undetermined": "미정"
+    },
+    "noToken": "토큰 없음",
+    "attributes": "속성",
+    "journeys": "저니",
+    "noJourneys": "진행 중 저니 없음",
+    "node": "노드",
+    "messages": "메시지 이력",
+    "noMessages": "발송 이력 없음",
+    "activity": "최근 활동"
   }
 }

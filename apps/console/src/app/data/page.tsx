@@ -3,12 +3,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAppId } from "../use-app-id";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function DataPage() {
+  const t = useTranslations("data");
   const appId = useAppId();
   const [tab, setTab] = useState<"attributes" | "errors">("attributes");
 
@@ -17,10 +19,10 @@ export default function DataPage() {
       <header className="mb-6">
         <p className="text-sm text-muted-foreground">
           <Link href="/" className="underline">
-            ← 대시보드
+            {t("backToDashboard")}
           </Link>
         </p>
-        <h1 className="mt-2 text-2xl font-bold">데이터</h1>
+        <h1 className="mt-2 text-2xl font-bold">{t("title")}</h1>
       </header>
 
       <div className="mb-4 flex gap-2">
@@ -28,13 +30,13 @@ export default function DataPage() {
           className={`rounded-md px-3 py-1 text-sm ${tab === "attributes" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
           onClick={() => setTab("attributes")}
         >
-          속성 사전
+          {t("tabAttributes")}
         </button>
         <button
           className={`rounded-md px-3 py-1 text-sm ${tab === "errors" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
           onClick={() => setTab("errors")}
         >
-          수집 오류
+          {t("tabErrors")}
         </button>
       </div>
 
@@ -44,6 +46,7 @@ export default function DataPage() {
 }
 
 function Attributes({ appId }: { appId: string }) {
+  const t = useTranslations("data");
   const qc = useQueryClient();
   const attrs = useQuery({
     queryKey: ["attributes", appId],
@@ -63,10 +66,10 @@ function Attributes({ appId }: { appId: string }) {
         <table className="w-full text-sm">
           <thead className="border-b border-border text-left text-xs text-muted-foreground">
             <tr>
-              <th className="p-3">키</th>
-              <th className="p-3">타입</th>
-              <th className="p-3">참조 세그먼트</th>
-              <th className="p-3">최근 수신</th>
+              <th className="p-3">{t("attr.key")}</th>
+              <th className="p-3">{t("attr.type")}</th>
+              <th className="p-3">{t("attr.segments")}</th>
+              <th className="p-3">{t("attr.lastSeen")}</th>
               <th className="p-3"></th>
             </tr>
           </thead>
@@ -88,7 +91,7 @@ function Attributes({ appId }: { appId: string }) {
                       del.mutate({ key: a.key, force: !!force });
                     }}
                   >
-                    삭제
+                    {t("attr.delete")}
                   </button>
                 </td>
               </tr>
@@ -97,13 +100,12 @@ function Attributes({ appId }: { appId: string }) {
         </table>
         {del.data && !del.data.deleted && del.data.referencing_segments && (
           <div className="border-t border-border p-3 text-sm text-destructive">
-            참조 중인 세그먼트가 있습니다: {del.data.referencing_segments.map((s) => s.name).join(", ")} —
-            다시 삭제를 누르면 강제 삭제됩니다.
+            {t("attr.referenced", { segments: del.data.referencing_segments.map((s) => s.name).join(", ") })}
           </div>
         )}
         {attrs.data?.attributes.length === 0 && (
           <p className="p-8 text-center text-sm text-muted-foreground">
-            아직 수집된 커스텀 속성이 없습니다.
+            {t("attr.empty")}
           </p>
         )}
       </CardContent>
@@ -112,6 +114,7 @@ function Attributes({ appId }: { appId: string }) {
 }
 
 function Errors({ appId }: { appId: string }) {
+  const t = useTranslations("data");
   const errors = useQuery({
     queryKey: ["ingestion-errors", appId],
     queryFn: () => api.data.ingestionErrors(appId),
@@ -120,16 +123,16 @@ function Errors({ appId }: { appId: string }) {
   return (
     <Card>
       <CardHeader className="p-4">
-        <CardTitle className="text-sm">수집 오류 (타입 불일치·스키마 오류 거부 건)</CardTitle>
+        <CardTitle className="text-sm">{t("errors.title")}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <table className="w-full text-sm">
           <thead className="border-b border-border text-left text-xs text-muted-foreground">
             <tr>
-              <th className="p-3">시각</th>
-              <th className="p-3">엔드포인트</th>
-              <th className="p-3">사유</th>
-              <th className="p-3">상세</th>
+              <th className="p-3">{t("errors.time")}</th>
+              <th className="p-3">{t("errors.endpoint")}</th>
+              <th className="p-3">{t("errors.reason")}</th>
+              <th className="p-3">{t("errors.detail")}</th>
             </tr>
           </thead>
           <tbody>
@@ -144,7 +147,7 @@ function Errors({ appId }: { appId: string }) {
           </tbody>
         </table>
         {errors.data?.errors.length === 0 && (
-          <p className="p-8 text-center text-sm text-muted-foreground">수집 오류가 없습니다. 👍</p>
+          <p className="p-8 text-center text-sm text-muted-foreground">{t("errors.empty")}</p>
         )}
       </CardContent>
     </Card>

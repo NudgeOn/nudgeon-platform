@@ -3,18 +3,13 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAppId } from "../../use-app-id";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const TOKEN_KO: Record<string, string> = { active: "유효", invalid: "무효", expired: "만료" };
-const PERM_KO: Record<string, string> = {
-  granted: "허용",
-  denied: "거부",
-  undetermined: "미정",
-};
-
 export default function UserDetailPage() {
+  const t = useTranslations("userDetail");
   const appId = useAppId();
   const params = useParams<{ id: string }>();
   const detail = useQuery({
@@ -24,10 +19,10 @@ export default function UserDetailPage() {
   });
 
   if (!appId || detail.isPending) {
-    return <main className="p-8 text-sm text-muted-foreground">불러오는 중…</main>;
+    return <main className="p-8 text-sm text-muted-foreground">{t("loading")}</main>;
   }
   if (detail.isError) {
-    return <main className="p-8 text-sm text-destructive">유저를 찾을 수 없습니다.</main>;
+    return <main className="p-8 text-sm text-destructive">{t("notFound")}</main>;
   }
   const d = detail.data;
   const pushSub = (d.user.subscriptions as { push?: string })?.push ?? "unknown";
@@ -37,30 +32,30 @@ export default function UserDetailPage() {
       <header className="mb-6">
         <p className="text-sm text-muted-foreground">
           <Link href="/users" className="underline">
-            ← 유저 검색
+            {t("backToUsers")}
           </Link>
         </p>
-        <h1 className="mt-2 text-2xl font-bold">{d.user.external_id ?? "(익명 유저)"}</h1>
+        <h1 className="mt-2 text-2xl font-bold">{d.user.external_id ?? t("anonymous")}</h1>
         <p className="text-sm text-muted-foreground">
-          구독: 푸시 {pushSub === "opted_in" ? "수신" : "거부"} · {d.user.status}
+          {t("subscription", { push: pushSub === "opted_in" ? t("optedIn") : t("optedOut") })} · {d.user.status}
         </p>
       </header>
 
       {/* 디바이스 — "왜 안 받았나"의 1차 답 (U-7) */}
       <Card className="mb-4">
         <CardHeader className="p-4">
-          <CardTitle className="text-sm">디바이스</CardTitle>
+          <CardTitle className="text-sm">{t("devices")}</CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-0">
-          {d.devices.length === 0 && <p className="text-sm text-muted-foreground">디바이스 없음</p>}
+          {d.devices.length === 0 && <p className="text-sm text-muted-foreground">{t("noDevices")}</p>}
           {d.devices.map((dev) => (
             <div key={dev.id} className="flex items-center gap-3 border-b border-border/50 py-2 text-sm last:border-0">
               <span className="font-medium">{dev.platform}</span>
               <span className={dev.token_status === "active" ? "text-primary" : "text-destructive"}>
-                토큰 {TOKEN_KO[dev.token_status] ?? dev.token_status}
+                {t("token")} {t.has(`tokenStatus.${dev.token_status}`) ? t(`tokenStatus.${dev.token_status}`) : dev.token_status}
               </span>
-              <span className="text-muted-foreground">권한 {PERM_KO[dev.os_permission] ?? dev.os_permission}</span>
-              {!dev.has_token && <span className="text-xs text-destructive">토큰 없음</span>}
+              <span className="text-muted-foreground">{t("permission")} {t.has(`perm.${dev.os_permission}`) ? t(`perm.${dev.os_permission}`) : dev.os_permission}</span>
+              {!dev.has_token && <span className="text-xs text-destructive">{t("noToken")}</span>}
             </div>
           ))}
         </CardContent>
@@ -70,7 +65,7 @@ export default function UserDetailPage() {
         {/* 속성 */}
         <Card>
           <CardHeader className="p-4">
-            <CardTitle className="text-sm">속성</CardTitle>
+            <CardTitle className="text-sm">{t("attributes")}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0 text-xs">
             {Object.entries({ ...d.user.std_attrs, ...d.user.custom_attrs }).map(([k, v]) => (
@@ -85,13 +80,13 @@ export default function UserDetailPage() {
         {/* 저니 */}
         <Card>
           <CardHeader className="p-4">
-            <CardTitle className="text-sm">저니</CardTitle>
+            <CardTitle className="text-sm">{t("journeys")}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0 text-xs">
-            {d.journeys.length === 0 && <p className="text-muted-foreground">진행 중 저니 없음</p>}
+            {d.journeys.length === 0 && <p className="text-muted-foreground">{t("noJourneys")}</p>}
             {d.journeys.map((j, i) => (
               <div key={i} className="border-b border-border/30 py-1">
-                <span className="font-medium">{j.name}</span> · {j.status} · 노드 {j.current_node}
+                <span className="font-medium">{j.name}</span> · {j.status} · {t("node")} {j.current_node}
               </div>
             ))}
           </CardContent>
@@ -101,10 +96,10 @@ export default function UserDetailPage() {
       {/* 메시지 이력 — skip 사유 포함 (U-7) */}
       <Card className="mt-4">
         <CardHeader className="p-4">
-          <CardTitle className="text-sm">메시지 이력</CardTitle>
+          <CardTitle className="text-sm">{t("messages")}</CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-0">
-          {d.messages.length === 0 && <p className="text-sm text-muted-foreground">발송 이력 없음</p>}
+          {d.messages.length === 0 && <p className="text-sm text-muted-foreground">{t("noMessages")}</p>}
           {d.messages.map((m, i) => (
             <div key={i} className="flex items-center gap-3 border-b border-border/30 py-1 text-xs">
               <span className="text-muted-foreground">{m.sent_at}</span>
@@ -119,7 +114,7 @@ export default function UserDetailPage() {
       {/* 활동 */}
       <Card className="mt-4">
         <CardHeader className="p-4">
-          <CardTitle className="text-sm">최근 활동</CardTitle>
+          <CardTitle className="text-sm">{t("activity")}</CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-0 text-xs">
           {d.events.map((e, i) => (
