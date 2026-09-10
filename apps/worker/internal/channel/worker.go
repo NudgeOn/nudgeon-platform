@@ -179,6 +179,9 @@ func (w *PushWorker) Resolve(ctx context.Context, env *libqueue.Envelope, job *P
 
 func (w *PushWorker) Send(ctx context.Context, _ *libqueue.Envelope, job *PushJob, creds Credentials) (string, error) {
 	job.P.Content.Push.MessageID = job.MessageID
+	if job.P.JourneyID != nil {
+		job.P.Content.Push.JourneyID = *job.P.JourneyID
+	}
 	res, err := w.plugin.Send(ctx, SendRequest{
 		IdempotencyKey: job.P.IdempotencyKey,
 		Target:         Target{Token: job.P.PushToken, Platform: job.P.Platform},
