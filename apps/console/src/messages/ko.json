@@ -1,0 +1,125 @@
+{
+  "app": {
+    "title": "NudgeOn 콘솔",
+    "description": "NudgeOn — 고객 인게이지먼트 플랫폼 어드민 콘솔"
+  },
+  "login": {
+    "title": "NudgeOn 콘솔",
+    "subtitle": "계정으로 로그인하세요",
+    "subtitleTotp": "인증 앱의 6자리 코드를 입력하세요",
+    "email": "이메일",
+    "password": "비밀번호",
+    "totpCode": "인증 코드",
+    "totpPlaceholder": "6자리 코드 또는 백업 코드",
+    "totpBackupHint": "기기를 분실했다면 백업 코드(XXXXX-XXXXX)를 입력하세요.",
+    "checking": "확인 중…",
+    "verify": "인증",
+    "submit": "로그인",
+    "backToStart": "← 처음으로",
+    "errorTotp": "인증 코드가 올바르지 않거나 잠금되었습니다",
+    "errorCredentials": "이메일 또는 비밀번호가 올바르지 않습니다",
+    "errorGeneric": "로그인에 실패했습니다. 잠시 후 다시 시도해주세요.",
+    "installPending": "아직 설치가 끝나지 않았어요.",
+    "installLink": "설치 화면에서 첫 Owner 만들기",
+    "noAccount": "계정이 없나요?",
+    "signup": "가입하기"
+  },
+  "signup": {
+    "title": "NudgeOn 시작하기",
+    "subtitle": "조직을 만들고 바로 수집을 시작하세요",
+    "tenantName": "조직 이름",
+    "name": "이름",
+    "email": "이메일",
+    "password": "비밀번호 (8자 이상)",
+    "creating": "생성 중…",
+    "submit": "조직 만들기",
+    "haveAccount": "이미 계정이 있나요?",
+    "login": "로그인",
+    "errorDuplicate": "이미 가입된 이메일입니다",
+    "errorGeneric": "가입에 실패했습니다. 입력값을 확인해주세요.",
+    "doneTitle": "가입 완료 — API 키를 보관하세요",
+    "doneDescription": "아래 키는 지금 한 번만 표시됩니다 (재발급은 회전으로만 가능).",
+    "sdkKey": "SDK Key (앱에 내장)",
+    "serverKey": "Server Key (백엔드 전용 — 비밀)",
+    "goConsole": "콘솔로 이동"
+  },
+  "dashboard": {
+    "loading": "불러오는 중…",
+    "title": "NudgeOn 콘솔",
+    "logout": "로그아웃",
+    "stat": {
+      "sentToday": "오늘 발송",
+      "failedToday": "오늘 실패",
+      "skippedToday": "오늘 생략",
+      "activeJourneys": "활성 저니",
+      "dau": "DAU (오늘)",
+      "mau": "MAU (30일)",
+      "uninstalls": "앱 삭제 (30일) {rate}%",
+      "sends30d": "발송량 (30일)"
+    },
+    "getStarted": "시작하기",
+    "getStartedDescription": "SDK Key → 크리덴셜 등록 → 첫 이벤트 감지 → 테스트 발송 (4단계)",
+    "openOnboarding": "온보딩 위저드 열기",
+    "nav": {
+      "segments": "세그먼트",
+      "journeys": "캠페인 · 저니",
+      "logs": "메시지 로그",
+      "users": "유저 검색",
+      "data": "데이터",
+      "settings": "앱 설정",
+      "emailTemplates": "이메일 템플릿",
+      "alimtalk": "알림톡 설정",
+      "sweep": "앱 삭제 감지 스윕",
+      "sweeping": "삭제 감지 중…",
+      "team": "팀 관리",
+      "audit": "감사 로그"
+    }
+  },
+  "onboarding": {
+    "loading": "불러오는 중…",
+    "appLoadError": "앱 정보를 불러올 수 없습니다.",
+    "loginAgain": "다시 로그인",
+    "backToDashboard": "← 대시보드",
+    "title": "시작하기 — {app}",
+    "subtitle": "4단계를 완료하면 첫 푸시까지 연결됩니다.",
+    "step1": "SDK Key 준비",
+    "step2": "채널 크리덴셜 등록 (푸시 · 이메일)",
+    "step3": "SDK 연동 — 첫 이벤트 수신",
+    "step4": "테스트 발송",
+    "keys": {
+      "ownerOnly": "API 키는 Owner/Admin만 볼 수 있습니다.",
+      "useIssuedKey": "가입 시 발급된 <strong>SDK Key</strong>",
+      "noReshow": "를 사용하세요. 키 원문은 보안상 재표시되지 않습니다 — 분실했다면 회전으로 새 키를 발급하세요 (구키는 30일 병행 유효).",
+      "newKeyOnce": "새 SDK Key — 지금 한 번만 표시됩니다",
+      "rotate": "SDK Key 회전 (새 키 발급)"
+    },
+    "snippet": {
+      "received": "첫 이벤트 수신 확인",
+      "waiting": "첫 이벤트 수신 대기 중… (5초마다 확인)"
+    },
+    "testPush": {
+      "pushTitle": "NudgeOn 테스트",
+      "pushBody": "축하합니다 — 발송 파이프라인이 연결되었습니다!",
+      "instruction": "앱에서 <code>identify</code> + <code>registerForPush</code>를 마친 유저의 external_id를 입력하세요.",
+      "send": "테스트 발송",
+      "queued": "{count}개 디바이스로 발송 큐에 적재되었습니다",
+      "failed": "발송 실패 — 대상 유저의 토큰(active)·OS 권한(granted)·크리덴셜 등록 상태를 확인하세요"
+    },
+    "credentials": {
+      "emailOptional": "이메일 채널(선택) — SMTP·AWS SES·Resend(SMTP/API)·NHN Cloud 중 하나를 등록하면 저니 이메일 노드를 쓸 수 있습니다.",
+      "none": "아직 등록된 크리덴셜이 없습니다.",
+      "email": "이메일",
+      "alimtalk": "카카오 알림톡",
+      "verified": "검증 완료 ✓",
+      "verifyFailed": "검증 실패",
+      "verifying": "검증 중…",
+      "invalidJson": "올바른 JSON이 아닙니다",
+      "fcmLabel": "FCM — 서비스 계정 JSON",
+      "fcmFailed": "등록 실패 — JSON 필드(project_id·private_key·client_email)를 확인하세요",
+      "fcmSubmit": "FCM 등록",
+      "apnsLabel": "APNs — p8 키",
+      "apnsFailed": "등록 실패 — 입력값을 확인하세요",
+      "apnsSubmit": "APNs 등록"
+    }
+  }
+}

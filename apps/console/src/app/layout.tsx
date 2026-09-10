@@ -1,18 +1,24 @@
 import type { Metadata } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import "./globals.css";
 import { Providers } from "./providers";
 
-export const metadata: Metadata = {
-  title: "NudgeOn 콘솔",
-  description: "NudgeOn — 고객 인게이지먼트 플랫폼 어드민 콘솔",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("app");
+  return { title: t("title"), description: t("description") };
+}
 
-// TODO(S8): next-intl en/ko 스위칭 (U-12). S1은 ko 고정.
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+/** 콘솔 i18n (U-12): 로케일은 src/i18n/request.ts가 쿠키·Accept-Language로 정한다. 기본 ko, 전환은 LocaleSwitcher. */
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
-    <html lang="ko">
+    <html lang={locale}>
       <body className="min-h-screen antialiased">
-        <Providers>{children}</Providers>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <Providers>{children}</Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

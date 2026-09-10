@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { EMAIL_PROVIDER_LABELS, type CredentialKind, type CredentialSummary } from "@nudgeon/api-client";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -9,17 +10,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmailProviderCard } from "../email-templates/email-provider-card";
 
-const KIND_LABELS: Record<CredentialKind, string> = {
-  push_fcm: "FCM",
-  push_apns: "APNs",
-  email_smtp: `이메일 · ${EMAIL_PROVIDER_LABELS.email_smtp}`,
-  email_nhn: `이메일 · ${EMAIL_PROVIDER_LABELS.email_nhn}`,
-  email_resend: `이메일 · ${EMAIL_PROVIDER_LABELS.email_resend}`,
-  alimtalk: "카카오 알림톡",
-};
+function kindLabel(kind: CredentialKind, email: string, alimtalk: string): string {
+  const labels: Record<CredentialKind, string> = {
+    push_fcm: "FCM",
+    push_apns: "APNs",
+    email_smtp: `${email} · ${EMAIL_PROVIDER_LABELS.email_smtp}`,
+    email_nhn: `${email} · ${EMAIL_PROVIDER_LABELS.email_nhn}`,
+    email_resend: `${email} · ${EMAIL_PROVIDER_LABELS.email_resend}`,
+    alimtalk,
+  };
+  return labels[kind] ?? kind;
+}
 
 /** 위저드 2단계 — 채널 크리덴셜 등록: 푸시(FCM/APNs) + 이메일 발송기(SMTP/SES/Resend/NHN) (PRD-05 3.1). 검증 상태는 5s 폴링. */
 export function CredentialsStep({ appId }: { appId: string }) {
+  const t = useTranslations("onboarding.credentials");
   const queryClient = useQueryClient();
   const creds = useQuery({
     queryKey: ["credentials", appId],
@@ -38,14 +43,14 @@ export function CredentialsStep({ appId }: { appId: string }) {
       </div>
       <div className="flex flex-col gap-2">
         <p className="text-sm text-muted-foreground">
-          이메일 채널(선택) — SMTP·AWS SES·Resend(SMTP/API)·NHN Cloud 중 하나를 등록하면 저니 이메일 노드를 쓸 수 있습니다.
+          {t("emailOptional")}
         </p>
         <EmailProviderCard appId={appId} onSaved={invalidate} />
       </div>
       <div className="flex flex-col gap-2">
         {creds.data?.credentials.map((c) => <CredentialBadge key={c.id} cred={c} />)}
         {creds.data?.credentials.length === 0 && (
-          <p className="text-sm text-muted-foreground">아직 등록된 크리덴셜이 없습니다.</p>
+          <p className="text-sm text-muted-foreground">{t("none")}</p>
         )}
       </div>
     </div>
@@ -53,7 +58,8 @@ export function CredentialsStep({ appId }: { appId: string }) {
 }
 
 function CredentialBadge({ cred }: { cred: CredentialSummary }) {
-  const label = KIND_LABELS[cred.kind] ?? cred.kind;
+  const t = useTranslations("onboarding.credentials");
+  const label = kindLabel(cred.kind, t("email"), t("alimtalk"));
   const color =
     cred.status === "verified"
       ? "text-primary"
@@ -62,10 +68,10 @@ function CredentialBadge({ cred }: { cred: CredentialSummary }) {
         : "text-muted-foreground";
   const statusText =
     cred.status === "verified"
-      ? "검증 완료 ✓"
+      ? t("verified")
       : cred.status === "error"
-        ? "검증 실패"
-        : "검증 중…";
+        ? t("verifyFailed")
+        : t("verifying");
   return (
     <div className="rounded-md border border-border p-3 text-sm">
       <span className="font-medium">{label}</span> —{" "}
@@ -78,6 +84,7 @@ function CredentialBadge({ cred }: { cred: CredentialSummary }) {
 }
 
 function FcmForm({ appId, onDone }: { appId: string; onDone: () => void }) {
+  const t = useTranslations("onboarding.credentials");
   const [json, setJson] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
   const upsert = useMutation({
@@ -95,11 +102,11 @@ function FcmForm({ appId, onDone }: { appId: string; onDone: () => void }) {
         try {
           upsert.mutate(JSON.parse(json) as Record<string, unknown>);
         } catch {
-          setParseError("올바른 JSON이 아닙니다");
+          setParseError(t("invalidJson"));
         }
       }}
     >
-      <Label>FCM — 서비스 계정 JSON</Label>
+      <Label>{t("fcmLabel")}</Label>
       <textarea
         className="h-32 rounded-md border border-border bg-card p-2 font-mono text-xs"
         placeholder='{"type":"service_account","project_id":"…"}'
@@ -108,17 +115,18 @@ function FcmForm({ appId, onDone }: { appId: string; onDone: () => void }) {
       />
       {(parseError || upsert.isError) && (
         <p className="text-xs text-destructive">
-          {parseError ?? "등록 실패 — JSON 필드(project_id·private_key·client_email)를 확인하세요"}
+          {parseError ?? t("fcmFailed")}
         </p>
       )}
       <Button type="submit" variant="outline" disabled={upsert.isPending || !json}>
-        FCM 등록
+        {t("fcmSubmit")}
       </Button>
     </form>
   );
 }
 
 function ApnsForm({ appId, onDone }: { appId: string; onDone: () => void }) {
+  const t = useTranslations("onboarding.credentials");
   const [form, setForm] = useState({ p8: "", key_id: "", team_id: "", bundle_id: "" });
   const upsert = useMutation({
     mutationFn: () => api.credentials.upsert(appId, { kind: "push_apns", ...form }),
@@ -135,7 +143,7 @@ function ApnsForm({ appId, onDone }: { appId: string; onDone: () => void }) {
         upsert.mutate();
       }}
     >
-      <Label>APNs — p8 키</Label>
+      <Label>{t("apnsLabel")}</Label>
       <textarea
         className="h-16 rounded-md border border-border bg-card p-2 font-mono text-xs"
         placeholder="-----BEGIN PRIVATE KEY-----"
@@ -148,14 +156,14 @@ function ApnsForm({ appId, onDone }: { appId: string; onDone: () => void }) {
         <Input placeholder="Bundle ID" value={form.bundle_id} onChange={set("bundle_id")} />
       </div>
       {upsert.isError && (
-        <p className="text-xs text-destructive">등록 실패 — 입력값을 확인하세요</p>
+        <p className="text-xs text-destructive">{t("apnsFailed")}</p>
       )}
       <Button
         type="submit"
         variant="outline"
         disabled={upsert.isPending || !form.p8 || !form.key_id || !form.team_id || !form.bundle_id}
       >
-        APNs 등록
+        {t("apnsSubmit")}
       </Button>
     </form>
   );

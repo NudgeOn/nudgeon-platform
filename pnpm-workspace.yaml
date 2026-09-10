@@ -3,5 +3,9 @@ packages:
   - "apps/console"
   - "packages/*"
 allowBuilds:
+  # next-intl이 끌어오는 네이티브 의존 — 프리빌드 바이너리를 쓰므로 빌드 스크립트를 돌리지 않는다(false).
+  # pnpm 11은 allowBuilds에 없는 빌드 스크립트를 오류(ERR_PNPM_IGNORED_BUILDS)로 다룬다.
+  '@parcel/watcher': false
+  '@swc/core': false
   argon2: true # 네이티브 애드온 (Argon2id 해시 — ADR-8 인증)
   esbuild: true # vitest 트랜스파일러

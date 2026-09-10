@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,18 +14,19 @@ import { PLATFORMS, PLATFORM_LABELS, resolveApiUrl, snippet, type Platform } fro
 
 /** 온보딩 위저드 4단계 (PRD-05 3.1) — activation 관문. 목표: 30분 내 1→4 완주. */
 export default function OnboardingPage() {
+  const t = useTranslations("onboarding");
   const apps = useQuery({ queryKey: ["apps"], queryFn: () => api.apps.list() });
   const app = apps.data?.apps[0];
 
   if (apps.isPending) {
-    return <Centered>불러오는 중…</Centered>;
+    return <Centered>{t("loading")}</Centered>;
   }
   if (apps.isError || !app) {
     return (
       <Centered>
-        앱 정보를 불러올 수 없습니다.{" "}
+        {t("appLoadError")}{" "}
         <Link href="/login" className="text-primary underline">
-          다시 로그인
+          {t("loginAgain")}
         </Link>
       </Centered>
     );
@@ -41,6 +43,7 @@ function Centered({ children }: { children: React.ReactNode }) {
 }
 
 function Wizard({ appId, appName }: { appId: string; appName: string }) {
+  const t = useTranslations("onboarding");
   const creds = useQuery({
     queryKey: ["credentials", appId],
     queryFn: () => api.credentials.list(appId),
@@ -61,29 +64,29 @@ function Wizard({ appId, appName }: { appId: string; appName: string }) {
       <header className="mb-8">
         <p className="text-sm text-muted-foreground">
           <Link href="/" className="underline">
-            ← 대시보드
+            {t("backToDashboard")}
           </Link>
         </p>
-        <h1 className="mt-2 text-2xl font-bold">시작하기 — {appName}</h1>
+        <h1 className="mt-2 text-2xl font-bold">{t("title", { app: appName })}</h1>
         <p className="text-sm text-muted-foreground">
-          4단계를 완료하면 첫 푸시까지 연결됩니다.
+          {t("subtitle")}
         </p>
       </header>
 
       <div className="flex flex-col gap-6">
-        <Step n={1} title="SDK Key 준비" done>
+        <Step n={1} title={t("step1")} done>
           <KeysStep appId={appId} />
         </Step>
 
-        <Step n={2} title="채널 크리덴셜 등록 (푸시 · 이메일)" done={step2Done}>
+        <Step n={2} title={t("step2")} done={step2Done}>
           <CredentialsStep appId={appId} />
         </Step>
 
-        <Step n={3} title="SDK 연동 — 첫 이벤트 수신" done={step3Done}>
+        <Step n={3} title={t("step3")} done={step3Done}>
           <SnippetStep appId={appId} received={step3Done} lastEventAt={ingest.data?.last_event_at ?? null} />
         </Step>
 
-        <Step n={4} title="테스트 발송" done={pushSent}>
+        <Step n={4} title={t("step4")} done={pushSent}>
           <TestPushStep appId={appId} onQueued={() => setPushSent(true)} />
         </Step>
       </div>
@@ -123,6 +126,7 @@ function Step({
 
 /** 1단계 — 키는 해시 저장이라 재노출 불가. prefix 확인 + 분실 시 회전 발급. */
 function KeysStep({ appId }: { appId: string }) {
+  const t = useTranslations("onboarding.keys");
   const keys = useQuery({ queryKey: ["keys", appId], queryFn: () => api.apps.keys(appId) });
   const [rotated, setRotated] = useState<string | null>(null);
   const activeSdk = keys.data?.keys.find((k) => k.kind === "sdk" && k.status === "active");
@@ -135,18 +139,17 @@ function KeysStep({ appId }: { appId: string }) {
   });
 
   if (keys.isError) {
-    return <p className="text-sm text-muted-foreground">API 키는 Owner/Admin만 볼 수 있습니다.</p>;
+    return <p className="text-sm text-muted-foreground">{t("ownerOnly")}</p>;
   }
   return (
     <div className="flex flex-col gap-3 text-sm">
       <p>
-        가입 시 발급된 <strong>SDK Key</strong>
-        {activeSdk && <> (<code>{activeSdk.prefix}…</code>)</>}를 사용하세요. 키 원문은 보안상
-        재표시되지 않습니다 — 분실했다면 회전으로 새 키를 발급하세요 (구키는 30일 병행 유효).
+        {t.rich("useIssuedKey", { strong: (c) => <strong>{c}</strong> })}
+        {activeSdk && <> (<code>{activeSdk.prefix}…</code>)</>}{t("noReshow")}
       </p>
       {rotated ? (
         <div>
-          <Label>새 SDK Key — 지금 한 번만 표시됩니다</Label>
+          <Label>{t("newKeyOnce")}</Label>
           <code className="mt-1 block break-all rounded-md bg-muted p-3 text-xs">{rotated}</code>
         </div>
       ) : (
@@ -156,7 +159,7 @@ function KeysStep({ appId }: { appId: string }) {
           disabled={!activeSdk || rotate.isPending}
           onClick={() => rotate.mutate()}
         >
-          SDK Key 회전 (새 키 발급)
+          {t("rotate")}
         </Button>
       )}
     </div>
@@ -173,6 +176,7 @@ function SnippetStep({
   received: boolean;
   lastEventAt: string | null;
 }) {
+  const t = useTranslations("onboarding.snippet");
   const [platform, setPlatform] = useState<Platform>("curl");
   // 상대 주소(/api, Safe Boot)는 브라우저 origin을 붙여 절대 주소로 — 서버 렌더에서는 origin이 없으므로 마운트 후 계산.
   const configured = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -199,11 +203,11 @@ function SnippetStep({
       </pre>
       {received ? (
         <p className="text-sm text-primary">
-          ✓ 첫 이벤트 수신 확인{lastEventAt ? ` (${lastEventAt} UTC)` : ""}
+          ✓ {t("received")}{lastEventAt ? ` (${lastEventAt} UTC)` : ""}
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">
-          <span className="animate-pulse">●</span> 첫 이벤트 수신 대기 중… (5초마다 확인)
+          <span className="animate-pulse">●</span> {t("waiting")}
         </p>
       )}
     </div>
@@ -212,13 +216,14 @@ function SnippetStep({
 
 /** 4단계 — 내 디바이스로 테스트 발송 (M-1 경로) */
 function TestPushStep({ appId, onQueued }: { appId: string; onQueued: () => void }) {
+  const t = useTranslations("onboarding.testPush");
   const [externalId, setExternalId] = useState("");
   const send = useMutation({
     mutationFn: () =>
       api.apps.testPush(appId, {
         external_id: externalId,
-        title: "NudgeOn 테스트",
-        body: "축하합니다 — 발송 파이프라인이 연결되었습니다!",
+        title: t("pushTitle"),
+        body: t("pushBody"),
       }),
     onSuccess: onQueued,
   });
@@ -232,8 +237,7 @@ function TestPushStep({ appId, onQueued }: { appId: string; onQueued: () => void
       }}
     >
       <p className="text-muted-foreground">
-        앱에서 <code>identify</code> + <code>registerForPush</code>를 마친 유저의 external_id를
-        입력하세요.
+        {t.rich("instruction", { code: (c) => <code>{c}</code> })}
       </p>
       <div className="flex gap-2">
         <Input
@@ -243,15 +247,15 @@ function TestPushStep({ appId, onQueued }: { appId: string; onQueued: () => void
           className="max-w-xs"
         />
         <Button type="submit" disabled={!externalId || send.isPending}>
-          테스트 발송
+          {t("send")}
         </Button>
       </div>
       {send.isSuccess && (
-        <p className="text-primary">✓ {send.data.queued}개 디바이스로 발송 큐에 적재되었습니다</p>
+        <p className="text-primary">✓ {t("queued", { count: send.data.queued })}</p>
       )}
       {send.isError && (
         <p className="text-destructive">
-          발송 실패 — 대상 유저의 토큰(active)·OS 권한(granted)·크리덴셜 등록 상태를 확인하세요
+          {t("failed")}
         </p>
       )}
     </form>
