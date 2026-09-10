@@ -47,7 +47,7 @@ API/worker scrape는 비동시이며 최대 scrape 폭 106ms다. 이 짧은 수�
 
 전체 흐름 검증 스킬에 따라 첫 실패 경계를 기록하고 대사 자체의 오류를 먼저 수정했다.
 Postgres 성능 스킬을 적용하되 삭제 보호를 위한 cursor/profile lock 순서는 변경하지 않았다.
-SQL/lock stage는 쿼리 왕복 시간이며 순수 lock wait가 아니다. 상세 정의는 [계측 문서](INGESTION-METRICS.md).
+SQL/lock stage는 쿼리 왕복 시간이며 순수 lock wait가 아니다. 상세 정의는 [계측 문서](../INGESTION-METRICS.md).
 
 ## 반복 실행의 불안정성도 보존
 
@@ -87,10 +87,10 @@ SQL/lock stage는 쿼리 왕복 시간이며 순수 lock wait가 아니다. 상�
 - 마지막 시험 7개 컨테이너 모두 **exit 0·OOM 없음**. 기존 실행 19개 보존, 시험 DB 볼륨·이미지·증거 보존.
   시험용 빈 네트워크만 해제했다. 세 번째 실패 실행의 API exit 1도 원본 증거에 남아 있다.
 
-요약 및 23개 증거 해시: [projection-qa.json](capacity/projection-qa.json).
+요약 및 23개 증거 해시: [projection-qa.json](../capacity/projection-qa.json).
 원본: `.nudgeon/nudgeon-projection-qa-42d33634/`의 `result.json`, `load/`, `final-*.prom`,
 `load-ledger.json`, `load-clickhouse.json`, `source-manifest.json`, 빌드·회귀·종료 로그.
-[재현 runner](../tests/ops/projection/README.md).
+[재현 runner](../../tests/ops/projection/README.md).
 
 ## 아직 완료하지 않은 것
 

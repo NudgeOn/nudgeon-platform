@@ -92,7 +92,7 @@ Redis 키 삭제·TTL 변경·수동 재발송은 이 observer의 기능이 아�
 
 P0-4b의 HTTP 시작/완료·고유 접수/반영 EPS, SQL/pool/lock/COMMIT 및 CH 지연,
 활동 조회 canary와 전체 API/worker 이미지 소스 검증은 [별도 계측](INGESTION-METRICS.md)에 구현했다.
-[실대사 QA](PROJECTION-QA-2026-09-03.md)는 계측·ID 대사 통과, 부하 지연 게이트 실패로 구분한다.
+[실대사 QA](qa/PROJECTION-QA-2026-09-03.md)는 계측·ID 대사 통과, 부하 지연 게이트 실패로 구분한다.
 이 작업만으로 G0/G1 또는 운영 TPS가 통과하지 않는다.
 
-[로컬 재현](../tests/ops/capacity/README.md) / [QA 결과](OPS-MONITOR-QA-2026-09-03.md)
+[로컬 재현](../tests/ops/capacity/README.md) / [QA 결과](qa/OPS-MONITOR-QA-2026-09-03.md)

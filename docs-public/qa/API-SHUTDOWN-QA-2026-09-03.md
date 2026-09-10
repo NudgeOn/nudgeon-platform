@@ -45,7 +45,7 @@ verification 스킬에 따라 프로세스 종료뿐 아니라 성공 응답→�
 - 실행: 2026-09-03 **15:59:57~16:00:52 KST**.
 - 소스: `0f4f28141af0e7d3544c548a69bf3b784e5cfc0b` 위 dirty 작업본. 커밋·푸시하지 않았다.
 - 새로 컴파일한 API `dist/`를 복제해 cached runtime image에 read-only mount했다.
-  소스 70개·빌드 파일 165개의 fingerprint와 버전은 [기계 판독 증거](capacity/api-shutdown-qa.json)에 기록했다.
+  소스 70개·빌드 파일 165개의 fingerprint와 버전은 [기계 판독 증거](../capacity/api-shutdown-qa.json)에 기록했다.
   새 운영 이미지를 빌드·배포한 시험은 아니다.
 - 런타임: Node 22.23.2, Nest 11.2.3, pg 8.23.0, ioredis 5.11.1, CH client 1.23.1.
 
@@ -93,7 +93,7 @@ SIGTERM을 보낼 때는 이 입력을 마친 뒤 별도로 잡아 둔 요청 1�
 기존 실행 컨테이너 **19개 집합 동일**. 기존 서비스·DB는 변경하지 않았다.
 최종 시험의 API·PG·Redis·CH·gateway는 **5/5 exit 0**으로 정리됐고 볼륨·증거는 보존했다.
 시나리오 중의 예상 exit 1 두 번은 위 표와 로그에 별도로 남아 있다.
-재현 명령·격리 방식은 [시험 README](../tests/ops/api-shutdown/README.md)를 따른다.
+재현 명령·격리 방식은 [시험 README](../../tests/ops/api-shutdown/README.md)를 따른다.
 
 운영 반영 전 API 이미지를 새로 빌드하고 종료 유예 20초 이상 및 readiness 라우팅을 확인해야 한다.
 강제 종료에는 미확정 요청이 있을 수 있으므로 SDK/클라이언트는 **같은 insert_id**로 재시도한다.
@@ -103,4 +103,4 @@ event loop/OS가 멈춘 상황까지 14초 종료를 보장하는 설계는 아�
 raw 작업 완료는 CH 영구 반영을 뜻하지 않는다. `wait_for_async_insert=0`은 유지했다.
 대사는 **PG receipt/outbox**이며 worker projection·Journey·분석 화면·공급자·단말 대사가 아니다.
 전체 G0/G1·최대 TPS·관리형 DB·백업 복원·24시간 soak·정식 배포를 완료하지 않았다.
-다음 단계는 [처리량 설계](CAPACITY-PLAN.md)의 **P0-4 계측·실행 이미지 증거**다.
+다음 단계는 [처리량 설계](../CAPACITY-PLAN.md)의 **P0-4 계측·실행 이미지 증거**다.

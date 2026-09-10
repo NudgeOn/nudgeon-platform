@@ -18,8 +18,8 @@
   로컬 시험 스크립트도 키를 argv에 넣지 않고 JSON 결과를 읽도록 연결했다.
 
 Go HTTP 동작 근거는 [공식 응답 본문 계약](https://pkg.go.dev/net/http#Response)이며,
-사용법·파일 포맷은 [발생기 README](../apps/worker/cmd/loadgen/README.md)에 있다.
-검증한 소스·실행 파일 SHA-256 및 요약 수치는 [QA 명세](capacity/loadgen-qa.json)에 기록했다.
+사용법·파일 포맷은 [발생기 README](../../apps/worker/cmd/loadgen/README.md)에 있다.
+검증한 소스·실행 파일 SHA-256 및 요약 수치는 [QA 명세](../capacity/loadgen-qa.json)에 기록했다.
 
 ## 실행 결과
 
