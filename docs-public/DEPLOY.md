@@ -99,12 +99,15 @@ docker compose -f deploy/compose.yaml --env-file deploy/.env --profile app up -d
 
 ## 5. 백업·복구
 
-아래는 설계 방향입니다. 자동화 도구·빈 서버 복원·데이터 정합·복구 시간은 아직 검증되지 않았습니다.
+```sh
+scripts/backup.sh /backups/$(date +%F)     # PG(pg_dump -Fc) + CH(테이블별 Native) + Redis(RDB) + manifest.json
+PG_CONTAINER=… CH_CONTAINER=… REDIS_CONTAINER=… scripts/restore.sh /backups/2026-09-10   # 마이그레이션만 적용된 빈 스택에
+```
 
-- **PostgreSQL**: WAL 아카이빙 또는 RDS 스냅샷.
-- **ClickHouse**: `clickhouse-backup` → S3.
-- **Redis**: AOF(everysec) 기본 구성. 큐·발송 멱등 키·frequency cap 상태의 유실과 재적재를 함께 검증해야 합니다.
-  PG outbox가 있어도 모든 스트림의 trim/소비 전 유실 복구가 완료된 것은 아니며 중복 발송 0%를 보장하지 않습니다.
+- 복원 순서: 빈 스택을 `up -d postgres clickhouse redis migrator`로 띄워 스키마를 만든 뒤 `restore.sh`, 그 다음 **같은 `NUDGEON_MASTER_KEY`로** api·worker를 띄운다. 마스터키는 백업에 들어가지 않으므로 백업과 함께 안전하게 보관한다.
+- 계측 MV 대상(`usage_*`)은 덤프하지 않는다. 복원 시 원본 테이블 INSERT가 MV를 다시 채운다.
+- Redis(appendonly)는 `restore.sh`가 임시 `appendonly no` 서버로 RDB를 올린 뒤 AOF로 다시 쓴다. 큐·멱등 키·빈도 제한 상태가 복원되지만, 백업 시점 이후의 큐 항목은 PG outbox 재발행으로 메꿔지고 중복 발송 0%를 보장하지는 않는다.
+- **2026-09-10 리허설**(`tests/ops/backup-restore/run.mjs`, 로컬 docker, PG 78k행·CH 19.7k행·Redis 19.5k키): 백업 6초, 빈 스택+복원+기동 26초. PG 28·CH 10 테이블 행 수 일치, 원본 세션 쿠키로 복원 API 200, 크리덴셜 17건 복호화·재검증. 다른 서버·관리형 DB로의 복원과 WAL 아카이빙·증분 백업은 아직 없다.
 - **수집 복구**: `/track`은 PG receipt/outbox로 영속 접수하고 미완료 항목 재발행 코드를 사용합니다.
   `raw_ingestions`는 비동기 적재이므로 단독 안전망으로 보장할 수 없습니다. 특정 구간 raw replay 도구와 대량 복구는 잔여 작업입니다.
 
