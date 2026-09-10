@@ -15,6 +15,15 @@ export class ApiError extends Error {
   }
 }
 
+export interface BootstrapStatus {
+  mode: "single_tenant" | "multi_tenant";
+  state: "unclaimed" | "claimed" | "secured" | "recovery_required";
+  installation_id?: string;
+  version: string;
+  setup_token_configured: boolean;
+  needs_setup: boolean;
+}
+
 export interface MeResponse {
   member_id: string;
   tenant_id: string;
@@ -103,6 +112,8 @@ export class NudgeOnClient {
       this.request<LoginResult>("POST", "/v1/auth/login", input),
     logout: () => this.request<{ ok: true }>("POST", "/v1/auth/logout"),
     me: () => this.request<MeResponse>("GET", "/v1/auth/me"),
+    /** 설치 상태 (인증 없음) — single_tenant에서 로그인 화면이 "설치 먼저" 안내와 가입 링크 숨김에 쓴다 (Slice B). */
+    bootstrapStatus: () => this.request<BootstrapStatus>("GET", "/v1/bootstrap/status"),
 
     // TOTP 2FA (PRD-06 2.1)
     totpStatus: () =>

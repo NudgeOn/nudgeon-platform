@@ -16,7 +16,11 @@ git clone <repo> nudgeon && cd nudgeon
 
 명령은 호스트 전용 `.nudgeon/`에 설치 ID와 시크릿을 원자적으로 만들고, 전용 `deploy/compose.safe.yaml`을 사용해 setup shell과 gateway를 먼저 연 뒤 나머지 서비스를 빌드·기동합니다. 개발 seed는 넣지 않으며 PostgreSQL·ClickHouse·Redis·API·worker·console은 호스트 포트를 열지 않습니다. 기본 진입점은 gateway 하나인 <http://localhost:8080/setup>입니다.
 
-6개 서비스가 모두 준비되면 setup 화면의 **"콘솔에서 시작하기"**(= <http://localhost:8080/signup>)에서 첫 관리자를 만듭니다. 첫 가입이 Owner·기본 앱·SDK Key 생성이고 이후 가입은 잠깁니다. 가입 직후 한 번만 표시되는 SDK Key를 복사한 뒤 온보딩 위저드(`/onboarding`)로 가면 됩니다. 2026-09-10 깨끗한 clone에서 실측: `./nudgeon up` 1분 37초(이미지 레이어 캐시 有) → 6/6 준비 → 가입 → FCM 등록·검증 → curl 첫 이벤트 감지까지 약 6분.
+**설치 소유권 claim → 첫 Owner (Slice B).** `./nudgeon up`이 끝나면 터미널에 **설치 코드가 붙은 URL**(`/setup#token=…`)이 한 번 표시됩니다. 그 링크로 들어가면 setup 화면이 코드를 URL에서 지우고 API와 교환해 15분짜리 Bootstrap 세션을 얻고, 워크스페이스·첫 앱·Owner를 한 트랜잭션으로 만든 뒤 설치를 영구히 잠급니다(설치 코드 폐기, 이후 bootstrap 요청은 410). SDK/Server Key는 그 화면에서 한 번만 보입니다. `MODE=single_tenant`에서는 설치 전후 모두 `/v1/auth/signup`이 404입니다.
+
+- 코드를 다시 보려면 `./nudgeon setup-url --token`, 분실·유출 시 `./nudgeon setup-token rotate`(이전 코드와 진행 중 claim 즉시 폐기).
+- 원격 서버에서는 평문 HTTP claim이 거부됩니다 — gateway가 `127.0.0.1`에만 바인딩된 상태에서 SSH 터널(`ssh -L 8080:localhost:8080`)로 접속하거나, TLS reverse proxy(`X-Forwarded-Proto: https`) 뒤에 두세요.
+- 2026-09-10 실측: 깨끗한 clone → `./nudgeon up` → 코드 링크 → Owner 생성까지 약 3분. API E2E `tests/e2e/bootstrap-claim.mjs`(동시 claim 1 lease, rotate, 동시 setup 1 Owner + 멱등 replay, 잠금 410, signup 404) 27건 통과.
 
 ```bash
 ./nudgeon status       # 컨테이너와 secret-redacted 준비 상태
@@ -36,8 +40,8 @@ NUDGEON_PORT=18080 ./nudgeon up
 
 - 현재 gateway는 `127.0.0.1` 바인딩만 허용합니다. 인터넷이나 원격 사설망에 직접 공개하지 마세요.
 - 현재 이미지는 registry의 versioned release image가 아니라 checkout 소스를 `development` 태그로 로컬 빌드합니다.
-- setup shell은 런타임 readiness와 redacted 진단만 제공합니다. 설치 소유권 claim, 최초 Owner 원자 생성, Bootstrap 영구 잠금은 **Slice B**입니다.
-- NudgeOn Test Inbox와 재개 가능한 activation은 **Slice C·D**입니다. 지금 setup shell에서 Owner 설정 CTA가 비활성화된 것은 정상입니다.
+- Slice B(설치 claim·최초 Owner 원자 생성·Bootstrap 영구 잠금)는 구현됐습니다. recovery bundle export(`./nudgeon secrets backup`)와 master key fingerprint 안내는 아직입니다.
+- NudgeOn Test Inbox와 재개 가능한 activation은 **Slice C·D**입니다. 설치가 잠기면 콘솔 온보딩 위저드(4단계)로 이어집니다.
 - Docker Compose config·단위 테스트나 한 환경의 기동만으로 clean Linux/arm64 지원, production readiness, 백업·복구를 입증하지 않습니다.
 
 전체 목표 계약과 Slice별 상태는 [P0 Docker Setup Wizard PRD](DOCKER-SETUP-WIZARD-PRD.md)에 정리되어 있습니다.
@@ -58,9 +62,10 @@ docker compose -f deploy/compose.yaml --env-file deploy/.env --profile full --pr
 
 ### 셀프호스팅 단일 테넌트 모드
 
-기존 수동 Compose에서 `.env`에 `MODE=single_tenant`를 설정하면 가입 대신 **초기 관리자 셋업**으로 전환됩니다. 이는 Slice B의 안전한 claim 위자드가 아닙니다.
-- `GET /v1/bootstrap/status` → `needs_setup` 확인
-- `POST /v1/bootstrap/setup` (email·password·name) → 최초 1회 관리자 생성, 이후 잠금
+기존 수동 Compose에서 `.env`에 `MODE=single_tenant`를 설정하면 가입이 닫히고 설치 claim 경로만 남습니다. 설치 코드는 `NUDGEON_SETUP_TOKEN`(또는 `_FILE`)으로 API에 넘깁니다(예: `openssl rand -hex 32`). 콘솔이 아니라 setup 화면(Safe Boot의 gateway `/setup`)이 필요하므로, 수동 Compose에서는 API를 직접 호출합니다:
+- `GET /v1/bootstrap/status` → `state`(`unclaimed`·`claimed`·`secured`), `setup_token_configured`
+- `POST /v1/bootstrap/claim` `{token}` → Bootstrap cookie(15분)
+- `POST /v1/bootstrap/setup` + `Idempotency-Key` + cookie → Owner·워크스페이스·앱 원자 생성, 잠금
 
 ## 2. 관리형 데이터 서비스 (RDS · ElastiCache · ClickHouse Cloud)
 

@@ -82,3 +82,14 @@ footer { display: flex; align-items: center; gap: 12px; min-height: 48px; color:
 @media (prefers-reduced-motion: reduce) {
   .progress span { transition: none; }
 }
+
+.wizard form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.wizard .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.wizard label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 650; color: #3b4252; }
+.wizard input { min-height: 40px; padding: 0 12px; border: 1px solid #cfd3dc; border-radius: 10px; font: inherit; }
+.wizard input:focus { outline: 2px solid #5145d8; outline-offset: 1px; }
+.wizard code { font-size: 13px; background: #f1f0fb; padding: 1px 6px; border-radius: 6px; }
+.keys { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 12px 0; font-size: 13px; }
+.keys dd { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; user-select: all; }
+#claim-result, #owner-result { font-size: 13px; color: #b3261e; }
+#claim-result.ok, #owner-result.ok { color: #1b7f3b; }
