@@ -156,7 +156,7 @@ If the diagram above is the full wiring, the one below keeps only **the main pat
 
 ## Current status
 
-NudgeOn is a **Push MVP alpha**. Release gates and their source-level evidence are tracked in the [release checklist](docs-public/RELEASE-CHECKLIST.md).
+NudgeOn is a **partner-beta candidate**: a real-device push has round-tripped (receive → open → report reconciliation) and the send, journey, install, isolation and backup gates are closed by automated runs. What remains before beta needs people, credentials or a production-like environment — see the [release checklist](docs-public/RELEASE-CHECKLIST.md). All public docs are indexed in [`docs-public/README.md`](docs-public/README.md).
 
 For integration details and the full endpoint list, see the [API guide](docs-public/API.md).
 

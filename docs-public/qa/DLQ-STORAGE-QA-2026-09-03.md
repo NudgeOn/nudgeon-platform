@@ -12,7 +12,7 @@ DB 저장과 Redis 종결 상태 기록을 확인하고 로그 저장까지 성�
 - 실제 PostgreSQL 16·Redis 7, 합성 tenant/app, 시험용 공급자와 메모리 로그 sink를 사용했다.
 - 소스: `0f4f28141af0e7d3544c548a69bf3b784e5cfc0b` 위의 dirty 작업본. 커밋·푸시하지 않았다.
 - 새 격리 프로젝트에서 총 3회 통과했다. 앞선 두 회차는 수정 중간 snapshot이며 아래 최종 회차가 기준이다.
-- 메타데이터, 소스 21개·빌드·원본 로그 해시: [dlq-storage-qa.json](capacity/dlq-storage-qa.json).
+- 메타데이터, 소스 21개·빌드·원본 로그 해시: [dlq-storage-qa.json](../capacity/dlq-storage-qa.json).
 
 각 경우 이전 실패 4회를 카운터에 준비하고 마지막 재시도 실패를 실행했다.
 실제 발송을 5회 반복한 시험이 아니라, **마지막 실패 이후 저장 복구 경계**를 검증한 것이다.
@@ -66,14 +66,14 @@ PG 권한 오류 `42501`이 호출자에게 반환되고 복구 후 같은 회�
 - 최종 시험 컨테이너 **3/3 exit 0**. 앞선 시험도 종료됐으며 증거·볼륨은 보존했다.
 - 시험 컨테이너 메모리 제한 합계 416 MiB. 전체 Docker VM 제한이나 운영 권장 사양은 아니다.
 - 원본 결과·로그는 무시 경로 `.nudgeon/nudgeon-dlq-storage-239dac33/`에 남아 있다.
-- 재현 명령은 [격리 시험 README](../tests/ops/dlq-storage/README.md)를 따른다.
+- 재현 명령은 [격리 시험 README](../../tests/ops/dlq-storage/README.md)를 따른다.
 
 ## 적용 전 필수 조건과 남은 검증
 
 운영 적용 시 migration 0006을 writer보다 먼저 적용해야 한다. push/message의 구버전 소비자를
 중지·배수하고 큐·Redis를 보존한 채 호환 버전으로 함께 교체한다. **구버전·신버전 혼합 소비 금지**다.
 구버전은 새 대기 상태를 종결 중복으로 오인해 ACK할 수 있다. 저장 대기가 남아 있는 동안
-구버전 롤백·수동 replay·관련 Redis 키 삭제도 금지한다. 상세 순서는 [런북](DLQ-RUNBOOK.md)을 따른다.
+구버전 롤백·수동 replay·관련 Redis 키 삭제도 금지한다. 상세 순서는 [런북](../DLQ-RUNBOOK.md)을 따른다.
 
 이번 검증에는 다음 한계가 있다.
 
@@ -86,6 +86,6 @@ PG 권한 오류 `42501`이 호출자에게 반환되고 복구 후 같은 회�
 - **DB 미저장 대기는 PG DLQ 건수 경보에 보이지 않는다.** 별도 pending·저장 오류 관측은 P0-4에 남았다.
   기존 replay CLI의 push 전용 라우팅·단건 tenant 범위·`--all` 무제한도 미해결이다.
 
-다음 단계는 [처리량 설계](CAPACITY-PLAN.md)의 **P0-3 API 정상 종료**, 이후 P0-4 계측이다.
+다음 단계는 [처리량 설계](../CAPACITY-PLAN.md)의 **P0-3 API 정상 종료**, 이후 P0-4 계측이다.
 후속 P0-3 구현·검증 결과는 [API 종료 QA](API-SHUTDOWN-QA-2026-09-03.md)에 별도 기록했다.
 전체 G0/G1 합격, 관리형 DB·백업 복원, 실제 운영 적용, 지속 TPS 또는 24시간 soak를 완료한 것은 아니다.

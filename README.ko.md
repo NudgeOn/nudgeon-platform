@@ -156,7 +156,7 @@ flowchart TB
 
 ## 현재 상태와 남은 작업
 
-현재는 **Push MVP 알파**입니다. 출시 조건과 소스 근거는 [출시 체크리스트](docs-public/RELEASE-CHECKLIST.md)에 정리했습니다.
+현재는 **파트너 베타 후보**입니다. 실기기 푸시가 수신 → 열기 → 리포트 대사까지 왕복했고, 발송·저니·설치·격리·백업 게이트는 자동화된 시험으로 닫았습니다. 베타 전에 남은 것은 사람·자격증명·실환경이 필요한 항목이며 [출시 체크리스트](docs-public/RELEASE-CHECKLIST.md)에 정리했습니다. 공개 문서 전체 목록은 [`docs-public/README.md`](docs-public/README.md)에 있습니다.
 
 API 연동 방법과 전체 엔드포인트는 [API 가이드](docs-public/API.md)에서 확인할 수 있습니다.
 

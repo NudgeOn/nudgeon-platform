@@ -135,8 +135,8 @@ Prometheus, Alertmanager, 로컬 webhook으로 검증한다. 공급자 발송 �
 
 [저장 실패 회귀](../tests/ops/dlq-storage/README.md)는 실제 PG/Redis와 같은 worker batch/ACK 경로를
 실행한다. 시험용 공급자와 로그 sink를 사용하므로 실제 발송·ClickHouse·자연 reclaim 주기 검증은 아니다.
-결과는 [P0-2b QA](DLQ-STORAGE-QA-2026-09-03.md)를 참조한다.
+결과는 [P0-2b QA](qa/DLQ-STORAGE-QA-2026-09-03.md)를 참조한다.
 
 [운영 관측 시험](../tests/ops/capacity/README.md)은 PG 원장/outbox 대기, Redis 저장/종결 대기,
 관측 실패·한도 초과·프로세스 중단을 실제 로컬 webhook까지 검증한다.
-이는 [P0-4a QA](OPS-MONITOR-QA-2026-09-03.md)이며 기간별 EPS/SQL/CH 계측은 P0-4b에 남는다.
+이는 [P0-4a QA](qa/OPS-MONITOR-QA-2026-09-03.md)이며 기간별 EPS/SQL/CH 계측은 P0-4b에 남는다.

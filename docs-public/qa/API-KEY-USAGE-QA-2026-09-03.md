@@ -20,7 +20,7 @@ DB 조건도 재검사하므로 서로 다른 API 인스턴스의 동시 갱신�
 사용자 cursor/profile 잠금 순서, 풀 크기 10, `synchronous_commit`은 변경하지 않았다.
 
 기본값/롤백은 `false`다. 루트·배포 환경 예시와 Compose에 선택적 설정을 추가했지만,
-기존 서버의 설정을 바꾸거나 재시작하지 않았다. [계측 정의](INGESTION-METRICS.md) 참고.
+기존 서버의 설정을 바꾸거나 재시작하지 않았다. [계측 정의](../INGESTION-METRICS.md) 참고.
 
 ## 실제 잠금 재현
 
@@ -116,6 +116,6 @@ Postgres 성능 스킬은 인증과 receipt lock 계약을 보존하며 불필�
 전체 흐름 검증 스킬은 실제 HTTP → PG → CH 대사와 실패 경계 분리에 적용했다.
 사용 시각·시험 환경 변경은 UI 화면 변경이 아니며 이번에는 화면 캡처를 만들지 않았다.
 
-기계 판독 요약·증거 해시: [api-key-usage-qa.json](capacity/api-key-usage-qa.json).
-[재현 방법](../tests/ops/api-capacity/README.md).
+기계 판독 요약·증거 해시: [api-key-usage-qa.json](../capacity/api-key-usage-qa.json).
+[재현 방법](../../tests/ops/api-capacity/README.md).
 운영 배포/커밋/푸시·G1/G2·5,000 EPS·managed DB/복구·24시간 soak·실제 발송/단말 검증은 하지 않았다.

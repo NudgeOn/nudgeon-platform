@@ -2,10 +2,10 @@
 
 상태: **단계별 설계안 — P0-1·P0-2·P0-2b·P0-3 로컬 회귀 검증, 운영 성능 미검증** · 2026-09-03
 
-P0-1 구현과 회귀 결과는 [발생기 QA](LOADGEN-QA-2026-09-03.md)를 참조한다.
-P0-2의 첫 경보 13.633초·330초 미해결 유지·장애/종료 검증은 [DLQ QA](DLQ-QA-2026-09-03.md)를 참조한다.
-P0-2b의 DB 저장 실패·응답 유실·안전한 ACK 회귀는 [저장 실패 QA](DLQ-STORAGE-QA-2026-09-03.md)를 참조한다.
-P0-3의 실제 API 종료·시간 초과·PG 접수 보존 회귀는 [API 종료 QA](API-SHUTDOWN-QA-2026-09-03.md)를 참조한다.
+P0-1 구현과 회귀 결과는 [발생기 QA](qa/LOADGEN-QA-2026-09-03.md)를 참조한다.
+P0-2의 첫 경보 13.633초·330초 미해결 유지·장애/종료 검증은 [DLQ QA](qa/DLQ-QA-2026-09-03.md)를 참조한다.
+P0-2b의 DB 저장 실패·응답 유실·안전한 ACK 회귀는 [저장 실패 QA](qa/DLQ-STORAGE-QA-2026-09-03.md)를 참조한다.
+P0-3의 실제 API 종료·시간 초과·PG 접수 보존 회귀는 [API 종료 QA](qa/API-SHUTDOWN-QA-2026-09-03.md)를 참조한다.
 이 문서의 단계별 목표와 후보 설정은 계속 설계값이며, 시험 실행 승인이나 성능 합격이 아니다.
 
 ## 먼저 알아야 할 결론
@@ -22,7 +22,7 @@ P0-3의 실제 API 종료·시간 초과·PG 접수 보존 회귀는 [API 종료
 
 실제 고객의 최대 예상 트래픽은 아직 확인되지 않았다. 아래 수치와 트래픽 구성은
 이번 프로젝트의 **제안된 검증 계약**이지 업계 공통 기준이나 고객 수용량 보장이 아니다.
-현재 증거는 [로컬 QA 보고서](LOCAL-OPS-QA-2026-09-03.md)이며, 200 TPS/15초까지의 짧은 시험만 통과했다.
+현재 증거는 [로컬 QA 보고서](qa/LOCAL-OPS-QA-2026-09-03.md)이며, 200 TPS/15초까지의 짧은 시험만 통과했다.
 100 TPS/5분 시험은 실패했으므로 지속 처리량을 200 TPS라고 보장할 수 없다.
 
 ## 1. 무엇을 측정하는가
@@ -348,10 +348,10 @@ worker도 신규 claim을 멈추고 완료된 작업만 ack하며, 미완료 작
 | P0-3 | API 정상 종료·연결 종료 — 로컬 회귀 통과 | `apps/api/src/main.ts`, `infra/` | 처리 중 요청 완료 후 0.550초·exit 0, timeout 약 14초·exit 1, PG 고유 접수 43건 보존 |
 | P0-4 | 기간별 EPS·대기 시간·SQL/CH 계측 및 새 이미지 빌드 | API·worker·시험 metadata | 실행 이미지의 빌드 소스 확인·digest 기록 |
 | P0-4a | 대기량·Redis DLQ 대기·관측 실패/자원 경보 — 로컬 회귀 통과 | 읽기 전용 ops-monitor, metrics, alert rules | PG DLQ 0이어도 pending 경보, 2초 timeout, 한도 초과 unknown, 새 worker-only 시험 image 실행 |
-| P0-4b | 계측·정확한 ID 대사 회귀 완료, **성능 게이트 실패** | API·ingest·load runner·전체 이미지 | 100 req/s 10초, 원장/CH 1,000건 일치. p99 549ms > 500ms. 상세는 [QA](PROJECTION-QA-2026-09-03.md) |
+| P0-4b | 계측·정확한 ID 대사 회귀 완료, **성능 게이트 실패** | API·ingest·load runner·전체 이미지 | 100 req/s 10초, 원장/CH 1,000건 일치. p99 549ms > 500ms. 상세는 [QA](qa/PROJECTION-QA-2026-09-03.md) |
 | P1-1 | 전용 relay·선점 임대·부분 성공 pipeline | `internal/journey/relay.go`, worker 역할, PG migration | 동시 relay·crash 회귀, 처리 여유 확인 |
 | P1-2 | API SQL 왕복·in-flight·pool 예산 | `ingestion/event-receipts.ts`, rate-limit, infra | 동일 접수 계약과 사용자 순서, G1 정상화 |
-| P1-2a | API 키 사용 시각 쓰기 합치기·예산 — 정확성 검증, **성능 실패 유지** | `auth/api-key-usage.ts`, opt-in flag, SQL/lock 시험 | 같은 키 대기 접속 10→1, 갱신 행 1,000→1. 수정 후 100 req/s 2회 중 1회 드롭 154; [QA](API-KEY-USAGE-QA-2026-09-03.md) |
+| P1-2a | API 키 사용 시각 쓰기 합치기·예산 — 정확성 검증, **성능 실패 유지** | `auth/api-key-usage.ts`, opt-in flag, SQL/lock 시험 | 같은 키 대기 접속 10→1, 갱신 행 1,000→1. 수정 후 100 req/s 2회 중 1회 드롭 154; [QA](qa/API-KEY-USAGE-QA-2026-09-03.md) |
 | P1-3 | 명시적 microbatch·CH 및 유지보수 예산 | `internal/ingest/`, CH 시험 설정 | part/메모리/lock 안정, G2 통과 |
 | P2 | 역할별 증설·G3·백업·장시간 시험 | 별도 capacity Compose/runner | 모든 phase 증거와 자원 승인 |
 
@@ -393,9 +393,9 @@ API p99 + 분석 지연 + 드롭/오류 + 대사 + 자원 여유`를 한 묶음�
   구버전 혼합 소비, Redis 유실/trim까지 안전해졌다는 뜻은 아니다.
 - **P0-3**: 실제 종료 4시나리오, PG receipt/outbox 대사, 실제 PG 회귀 7건 통과.
   새 빌드의 API 실행을 검증했으며 운영 이미지 배포·TPS 재측정은 아니다.
-- **P0-4a**: [운영 감시 QA](OPS-MONITOR-QA-2026-09-03.md)까지 완료. source SHA·실행 image ID를 대조한
+- **P0-4a**: [운영 감시 QA](qa/OPS-MONITOR-QA-2026-09-03.md)까지 완료. source SHA·실행 image ID를 대조한
   새 worker-only 시험 이미지이며 API/다중 CLI 배포 이미지·레지스트리 digest·서명 증거는 아니다.
-- **P0-4b**: [계측 정의](INGESTION-METRICS.md)와 [실대사 QA](PROJECTION-QA-2026-09-03.md)를 추가했다.
+- **P0-4b**: [계측 정의](INGESTION-METRICS.md)와 [실대사 QA](qa/PROJECTION-QA-2026-09-03.md)를 추가했다.
   전체 API/worker 이미지의 동일 소스 SHA·실행 image ID를 확인했고, 실제 1,000개 승인 ID가
   PG receipt와 CH 물리 행에 일치했다. **계측 회귀 통과와 성능 통과는 별개다.** 마지막 실행은
   100 req/s를 채웠지만 p99 548.863ms로 500ms 기준 실패이며, 다른 실행에서는 드롭 433건도 발생했다.
@@ -405,7 +405,7 @@ API p99 + 분석 지연 + 드롭/오류 + 대사 + 자원 여유`를 한 묶음�
   실제 키 행 잠금 중 접속 대기 10→1, 완료 3/20→20/20. 사용 시각 변경 행 1,000→1을 확인했다.
   실제 PG 인증/접수 회귀 11/11 및 승인 ID/CH 물리 행 대사는 통과했지만 수정 후 두 번째
   짧은 부하에서 발생기 드롭 154건·p99 1,547ms가 발생했다. 정상 부하 지연 개선이나 G1 통과가 아니다.
-  기본 설정은 false이며 기존 서비스에는 적용하지 않았다. 상세는 [키 갱신 QA](API-KEY-USAGE-QA-2026-09-03.md).
+  기본 설정은 false이며 기존 서비스에는 적용하지 않았다. 상세는 [키 갱신 QA](qa/API-KEY-USAGE-QA-2026-09-03.md).
 - 다음 구현 우선순위는 **COMMIT의 WAL 쓰기/동기화·호스트 자원 경합 분리와 SQL 왕복(P1-2), relay 병목(P1-1)**다.
   한 실행의 양호한 TPS만 선택해 합격 처리하거나 pool을 무조건 늘리지 않는다.
   대규모 Redis 관측용 원자적 인덱스/이관도 남는다.

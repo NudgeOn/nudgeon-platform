@@ -87,9 +87,9 @@ Postgres 성능 스킬은 전용 읽기 pool·2초 예산·부분 인덱스 실�
 
 ## 증거 위치
 
-- [기계 판독 요약·21개 증거/입력 파일 SHA](capacity/ops-monitor-qa.json)
+- [기계 판독 요약·21개 증거/입력 파일 SHA](../capacity/ops-monitor-qa.json)
 - 최종 원본: `.nudgeon/nudgeon-ops-qa-0bbd15a2/`의 result, source-manifest, go-tests JSONL,
   초기/장애/한도/복구 `.prom`, notifications JSON, EXPLAIN, container log.
 - 저장 회귀 원본: `.nudgeon/nudgeon-dlq-storage-842b129b/`.
-- [운영·한도 설명](OPERATIONS-MONITOR.md), [재현 절차](../tests/ops/capacity/README.md),
-  [전체 용량 계획](CAPACITY-PLAN.md).
+- [운영·한도 설명](../OPERATIONS-MONITOR.md), [재현 절차](../../tests/ops/capacity/README.md),
+  [전체 용량 계획](../CAPACITY-PLAN.md).
