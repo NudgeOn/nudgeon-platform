@@ -193,7 +193,7 @@ func TestHandleOneSentThenReemitSent(t *testing.T) {
 func TestPushContractPayloads(t *testing.T) {
 	c := &PushContent{
 		Title: "T", Body: "B", DeepLink: "nudgeon://p/1", ImageURL: "https://x/i.png",
-		MessageID: "mid-9", Data: map[string]string{"k": "v"},
+		MessageID: "mid-9", JourneyID: "jid-1", Data: map[string]string{"k": "v"},
 	}
 
 	// --- FCM (Android): data-only 평면 키 ---
@@ -204,6 +204,12 @@ func TestPushContractPayloads(t *testing.T) {
 	}
 	if fd["data"] != `{"k":"v"}` {
 		t.Errorf("FCM data[\"data\"] JSON 문자열 기대: %q", fd["data"])
+	}
+	if fd["journey_id"] != "jid-1" {
+		t.Errorf("FCM data[\"journey_id\"] 기대: %q", fd["journey_id"])
+	}
+	if _, has := fd["silent"]; has {
+		t.Error("일반 푸시에 silent 키가 있음")
 	}
 	if _, bad := fd["nudgeon.message_id"]; bad {
 		t.Error("FCM에 잘못된 nudgeon.message_id 키가 남음")
@@ -216,9 +222,15 @@ func TestPushContractPayloads(t *testing.T) {
 		nudgeon["image_url"] != "https://x/i.png" {
 		t.Errorf("APNs nudgeon 중첩 불일치: %v", ap["nudgeon"])
 	}
+	if nudgeon["journey_id"] != "jid-1" {
+		t.Errorf("APNs nudgeon.journey_id 기대: %v", nudgeon["journey_id"])
+	}
 	aps, _ := ap["aps"].(map[string]any)
 	if aps["mutable-content"] != 1 {
 		t.Errorf("APNs mutable-content=1 기대: %v", aps["mutable-content"])
+	}
+	if _, has := aps["content-available"]; has {
+		t.Error("일반 푸시에 content-available이 있음")
 	}
 	// 커스텀 data는 nudgeon["data"] 중첩 (iOS PushPayload.parse가 읽는 위치), 최상위 아님
 	od, _ := nudgeon["data"].(map[string]any)
@@ -230,6 +242,36 @@ func TestPushContractPayloads(t *testing.T) {
 	}
 	if _, bad := ap["nudgeon.message_id"]; bad {
 		t.Error("APNs 최상위에 평면 nudgeon.message_id 키가 남음")
+	}
+
+	// --- journey_id 없음(테스트 발송·수동 캠페인): 키 자체를 내지 않는다 ---
+	noJ := &PushContent{Title: "T", Body: "B", MessageID: "mid-10"}
+	if _, has := fcmData(noJ)["journey_id"]; has {
+		t.Error("journey_id 없는 발송에 FCM journey_id 키가 있음")
+	}
+	if _, has := apnsPayload(noJ)["nudgeon"].(map[string]any)["journey_id"]; has {
+		t.Error("journey_id 없는 발송에 APNs journey_id 키가 있음")
+	}
+
+	// --- 무음(silent): 사용자 미노출. FCM data.silent="1", APNs content-available만·alert/mutable-content 없음 ---
+	s := &PushContent{MessageID: "mid-s", Silent: true}
+	sd := fcmData(s)
+	if sd["silent"] != "1" || sd["message_id"] != "mid-s" {
+		t.Errorf("FCM silent 계약 불일치: %v", sd)
+	}
+	sp := apnsPayload(s)
+	saps, _ := sp["aps"].(map[string]any)
+	if saps["content-available"] != 1 {
+		t.Errorf("APNs silent content-available=1 기대: %v", sp["aps"])
+	}
+	if _, alert := saps["alert"]; alert {
+		t.Error("APNs silent에 alert이 있음")
+	}
+	if _, mc := saps["mutable-content"]; mc {
+		t.Error("APNs silent에 mutable-content가 있음 (NSE 미실행이어야 함)")
+	}
+	if sn, _ := sp["nudgeon"].(map[string]any); sn["message_id"] != "mid-s" {
+		t.Errorf("APNs silent nudgeon.message_id 기대: %v", sp["nudgeon"])
 	}
 }
 

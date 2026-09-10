@@ -110,6 +110,9 @@ func fcmData(content *PushContent) map[string]string {
 		"title":      content.Title,
 		"body":       content.Body,
 	}
+	if content.JourneyID != "" {
+		data["journey_id"] = content.JourneyID
+	}
 	if content.DeepLink != "" {
 		data["deep_link"] = content.DeepLink
 	}

@@ -79,6 +79,9 @@ type PushContent struct {
 	Silent bool `json:"silent,omitempty"`
 	// MessageID — 발송 안정 ID. 워커가 렌더 직전 설정. FCM data["message_id"] / APNs nudgeon.message_id로 방출.
 	MessageID string `json:"-"`
+	// JourneyID — 소속 저니(있으면). 워커가 발송 payload의 journey_id에서 채운다.
+	// FCM data["journey_id"] / APNs nudgeon.journey_id — 4개 SDK PushPayload.journeyId가 읽고 $push_opened 속성에 싣는다.
+	JourneyID string `json:"-"`
 }
 
 // EmailContent — 렌더 완료된 이메일 본문. {{ }} 개인화는 발송 전(API/스케줄러)에서 치환된다.

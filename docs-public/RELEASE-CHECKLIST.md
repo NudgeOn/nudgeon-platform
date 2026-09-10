@@ -10,6 +10,7 @@
 
 | 게이트 | 결과 | 증거 |
 |---|---|---|
+| 푸시 페이로드 계약 (R-01) | 문서·worker·4 SDK 재대조로 어긋남 5건 정정(journey_id 미방출, image_url 폐기, silent 미문서화, Android 표시 책임, 브리지 Maven 좌표). 골든 테스트 3케이스, Android 표시 에뮬레이터 확인 | PR #22; SDK 0.1.2; [계약](PUSH-CONTRACT.md) |
 | 실기기 첫 푸시 (M-1) | Android(FCM)·iOS(APNs sandbox) 각 1건 수신→탭. 외부 앱(worshiplog) 서버 track → 이벤트 트리거 저니 → 2단말 발송 | `docs/dev` 원장 M-1, [첫 실기기 런북](FIRST-REAL-PUSH.md) |
 | message_id 계보 (IT-3) | payload → message_log → 푸시 data 3곳 일치. push·email·message 세 채널이 한 SendLoop 상태기계(리스·재시도·DLQ) | PR #5, #8; `tests/ops/dlq-storage` |
 | 도달·열기 리포트 대사 (IT-8) | 발송 원장 → 실제 `/v1/track` → CH → 독립 재집계 == 리포트 API. 대사 중 리포트 결함(Android 도달 0) 발견·수정 | PR #9; `tests/e2e/delivery-report-reconcile.mjs` |
@@ -30,8 +31,8 @@
 
 | # | 항목 | 필요한 것 | 완료 조건 |
 |---|---|---|---|
-| B-1 | SDK 0.1.1 배포 | Android: Central Portal 업로드(번들 준비됨). RN: npm, Flutter: pub.dev 첫 배포 자격증명 | 4 SDK 공개 좌표로 신규 앱 설치·시작·실수신 |
-| B-2 | 실단말 재검증 | Fold3·iPhone 연결 | 0.1.1 SDK로 M-1 재현 + 중복 표시 억제 확인 |
+| B-1 | SDK 0.1.2 배포 (0.1.1은 미게시라 건너뜀) | Android: 태그 0.1.2의 bundle 워크플로 산출물을 Central Portal에 업로드. RN: npm, Flutter: pub.dev 첫 배포 자격증명 | 4 SDK 공개 좌표로 신규 앱 설치·시작·실수신 |
+| B-2 | 실단말 재검증 | Fold3·iPhone 연결 | 0.1.2 SDK로 M-1 재현 + 중복 표시 억제 + Android SDK 알림 표시(3상태) 확인 |
 | B-3 | 외부인 온보딩 (M-2) | 외부 개발자 3명 | 문서만으로 30분 내 4단계 완주 |
 | B-4 | 관리형 DB (M-9) | RDS·ElastiCache·외부 CH 접근 | TLS·인증·재연결·migration 경합 E2E 통과 |
 | B-5 | 부하 (PT-1~8, M-5) | 프로덕션 유사 환경 (로컬 Docker VM은 09-04 사전 점검에서 NO_GO) | 5,000 ev/s·100만 토큰·24h soak 원본 수치 |

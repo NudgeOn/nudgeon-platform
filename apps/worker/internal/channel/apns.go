@@ -117,6 +117,9 @@ func signES256(key *ecdsa.PrivateKey, keyID, teamID string, now time.Time) (stri
 // aps.mutable-content=1로 NSE 실행(도달 수신·리치 콘텐츠). 사용자 커스텀 data는 최상위(userInfo) 유지.
 func apnsPayload(content *PushContent) map[string]any {
 	nudgeon := map[string]any{"message_id": content.MessageID}
+	if content.JourneyID != "" {
+		nudgeon["journey_id"] = content.JourneyID
+	}
 	if content.DeepLink != "" {
 		nudgeon["deep_link"] = content.DeepLink
 	}
