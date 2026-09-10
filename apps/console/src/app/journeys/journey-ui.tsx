@@ -1,5 +1,8 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { outputPorts, type JourneyNode } from "@nudgeon/journey-model";
+import { useMemo, type ReactNode } from "react";
+import { formatDuration, nodeToolDescription, nodeToolLabel } from "./journey-editor-model";
 
 const iconPaths = {
   wave: <><path d="M2 13c4-8 7 8 12 0s6-3 8-1" /><path d="M3 17c5 5 11-5 18 0" /></>,
@@ -42,15 +45,33 @@ export function JourneyIcon({ name, size = 20, className }: {
   );
 }
 
+/** 저니 화면 공용 번역 도우미 — 모듈(journey-graph 등)이 돌려주는 `{ key, params }` 메시지와 단계 종류·기간 표기. */
+export function useJourneyText() {
+  const t = useTranslations("journeyEditor");
+  const locale = useLocale();
+  // 캔버스 useMemo 의존성으로 쓰이므로 t·locale이 같으면 같은 함수를 돌려준다.
+  return useMemo(() => {
+    const nodeType = (type: JourneyNode["type"]) => nodeToolLabel(t, type);
+    const nodeTypeDescription = (type: JourneyNode["type"]) => nodeToolDescription(t, type);
+    const message = (item: { key: string; params?: Record<string, string | number> }) => t(item.key, item.params);
+    const duration = (seconds: number) => formatDuration(seconds, t);
+    // journey-model의 outputPorts 라벨은 한국어 고정 — 고정 id(true/false/matched/timeout/next)만 콘솔 로케일로 바꾼다. A/B 경로 이름은 사용자 입력.
+    const ports = (node: JourneyNode) => outputPorts(node).map((port) =>
+      node.type === "ab_split" || !t.has(`ui.port.${port.id}`) ? port : { ...port, label: t(`ui.port.${port.id}`) });
+    return { t, locale, nodeType, nodeTypeDescription, message, duration, ports };
+  }, [t, locale]);
+}
+
 export function JourneyTopbar({ actions, current }: { actions?: ReactNode; current?: ReactNode }) {
+  const t = useTranslations("journeyEditor");
   return (
     <header className="j-topbar">
-      <nav className="j-breadcrumbs" aria-label="현재 위치">
-        <Link href="/" className="j-brand" aria-label="NudgeOn 대시보드">
+      <nav className="j-breadcrumbs" aria-label={t("ui.breadcrumbs")}>
+        <Link href="/" className="j-brand" aria-label={t("ui.brandDashboard")}>
           <JourneyIcon name="wave" size={30} /><span>NudgeOn</span>
         </Link>
         <span className="j-breadcrumb-divider" />
-        {current ? <Link href="/journeys">캠페인 · 저니</Link> : <span>캠페인 · 저니</span>}
+        {current ? <Link href="/journeys">{t("ui.journeys")}</Link> : <span>{t("ui.journeys")}</span>}
         {current && <><span className="j-breadcrumb-slash">/</span><span className="j-breadcrumb-current">{current}</span></>}
       </nav>
       {actions && <div className="j-topbar-actions">{actions}</div>}
@@ -58,10 +79,9 @@ export function JourneyTopbar({ actions, current }: { actions?: ReactNode; curre
   );
 }
 
-const statusLabels: Record<string, string> = { draft: "초안", active: "활성", paused: "일시정지", archived: "보관" };
-
 export function JourneyStatus({ status }: { status: string }) {
-  return <span className={`j-status j-status-${status}`}><span />{statusLabels[status] ?? status}</span>;
+  const t = useTranslations("journeyEditor");
+  return <span className={`j-status j-status-${status}`}><span />{t.has(`ui.status.${status}`) ? t(`ui.status.${status}`) : status}</span>;
 }
 
 export function JourneyState({ title, description, action, error = false }: {

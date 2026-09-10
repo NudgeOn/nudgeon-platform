@@ -49,17 +49,20 @@ export function opNeedsValue(op: string): boolean {
   return !["exists", "not_exists", "performed", "not_performed"].includes(op);
 }
 
-/** 조건 요약 (목록·칩 표시용) */
-export function conditionSummary(c: Condition): string {
+/** 조건 요약에 쓰는 메시지 키(segmentBuilder.summary.*) — 번역은 렌더 측 t()가 한다. */
+export type SummaryTranslator = (key: "summary.attribute" | "summary.event" | "summary.pushReachable" | "summary.days", params?: { n: number }) => string;
+
+/** 조건 요약 (목록·칩 표시용). 순수 모듈이라 next-intl을 들이지 않고 번역기를 주입받는다. */
+export function conditionSummary(c: Condition, tr: SummaryTranslator): string {
   switch (c.type) {
     case "attribute":
-      return `${c.key || "속성"} ${c.op}${opNeedsValue(c.op) ? ` ${fmtValue(c.value)}` : ""}`;
+      return `${c.key || tr("summary.attribute")} ${c.op}${opNeedsValue(c.op) ? ` ${fmtValue(c.value)}` : ""}`;
     case "event":
-      return `${c.event || "이벤트"} ${c.op}${
+      return `${c.event || tr("summary.event")} ${c.op}${
         c.op.startsWith("count") ? ` ${fmtValue(c.value)}` : ""
-      }${c.window_days ? ` (${c.window_days}일)` : ""}`;
+      }${c.window_days ? ` (${tr("summary.days", { n: c.window_days })})` : ""}`;
     case "channel":
-      return "푸시 수신 가능";
+      return tr("summary.pushReachable");
     case "device":
       return `${c.key} ${c.op} ${fmtValue(c.value)}`;
   }

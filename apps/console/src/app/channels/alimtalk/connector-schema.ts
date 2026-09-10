@@ -192,11 +192,17 @@ export function planCredential(fields: SchemaField[], values: Record<string, str
 }
 
 /** 이 필드의 값이 어디에 저장되는지 — 화면에 그대로 밝힌다(조용히 버리지 않는다는 원칙). */
-export function fieldDestination(field: SchemaField): string {
+export interface FieldDestination {
+  /** "alimtalk" 네임스페이스의 메시지 키 */
+  key: "destination.withSlot" | "destination.plain";
+  params?: { name: string; slot: string };
+}
+
+export function fieldDestination(field: SchemaField): FieldDestination {
   const slot = credentialSlot(field.name);
   return slot && slot !== field.name
-    ? `크리덴셜에 ${field.name}(으)로 저장 · ${slot} 슬롯에도 함께`
-    : "크리덴셜에 이 이름 그대로 저장";
+    ? { key: "destination.withSlot", params: { name: field.name, slot } }
+    : { key: "destination.plain" };
 }
 
 /** config 스키마 폼 값 → 배선 config. 빈 값은 보내지 않는다(서버가 기본값을 쓰게). */

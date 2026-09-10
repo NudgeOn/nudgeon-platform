@@ -51,7 +51,8 @@ export function createJourneyDraftSession(
         const saved = await persist(snapshot);
         const validation = await client.validate(appId, saved.id);
         if (!saved.revision || saved.revision !== validation.revision) {
-          throw new Error("저장 후 다른 편집 내용이 반영되었습니다. 내용을 확인한 뒤 다시 검증해 주세요.");
+          // 메시지 키(journeyEditor 네임스페이스) — 편집기가 t()로 번역해 보여준다.
+          throw new Error("persistence.revisionMismatch");
         }
         return { ...validation, id: saved.id };
       });

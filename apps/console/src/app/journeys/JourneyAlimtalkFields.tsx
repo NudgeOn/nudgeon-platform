@@ -2,12 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import type { AlimtalkContent, MessageNode } from "@nudgeon/journey-model";
 import { api } from "@/lib/api";
 import { useAppId } from "../use-app-id";
 import {
-  AD_TEMPLATE_NOTICE,
-  MISSING_IN_VENDOR_NOTICE,
+  AD_TEMPLATE_NOTICE_KEY,
+  MISSING_IN_VENDOR_NOTICE_KEY,
   isAdMessageType,
   isMissingInVendor,
   messageTypeLabel,
@@ -45,6 +46,8 @@ export function AlimtalkMessageFields({
   onUpdate: (mutator: (definition: GraphDefinition) => void) => void;
   id: string;
 }) {
+  const t = useTranslations("journeyEditor.alimtalk");
+  const ta = useTranslations("alimtalk"); // 채널 화면과 공유하는 라벨(alimtalk-labels.ts)
   const appId = useAppId();
   const content = node.alimtalk ?? EMPTY_ALIMTALK;
 
@@ -61,10 +64,10 @@ export function AlimtalkMessageFields({
 
   const senderList = senders.data?.senders ?? [];
   const templateList = templates.data?.templates ?? [];
-  const template = templateList.find((t) => t.template_code === content.template_code) ?? null;
+  const template = templateList.find((item) => item.template_code === content.template_code) ?? null;
   // 저장된 템플릿 코드가 캐시에 없다 — 벤더에서 지워졌거나 발신프로필이 바뀐 저니다.
   const orphaned = !!content.template_code && !template && !templates.isPending && templateList.length > 0;
-  const blockReason = template ? templateBlockReason(template.status, template.vendor_status) : null;
+  const blockReason = template ? templateBlockReason(template.status, template.vendor_status, ta) : null;
   const variables = templateVariables(template);
   const missing = unmappedVariables(variables, content.variables);
   const stale = staleVariables(variables, content.variables);
@@ -101,7 +104,7 @@ export function AlimtalkMessageFields({
     <>
       <div className="j-inspector-field">
         <div className="j-inspector-label-row">
-          <label htmlFor={`${id}-alimtalk-sender`}>발신프로필</label>
+          <label htmlFor={`${id}-alimtalk-sender`}>{t("sender")}</label>
         </div>
         <select
           id={`${id}-alimtalk-sender`}
@@ -109,24 +112,24 @@ export function AlimtalkMessageFields({
           disabled={!editable}
           onChange={(e) => change({ sender_id: e.currentTarget.value, template_code: "", variables: {} })}
         >
-          <option value="">발신프로필 선택</option>
+          <option value="">{t("chooseSender")}</option>
           {senderList.map((s) => (
             <option key={s.id} value={s.id}>
               {s.channel_name || s.sender_key}
-              {s.is_default ? " (기본)" : ""}
+              {s.is_default ? ` ${t("defaultSuffix")}` : ""}
             </option>
           ))}
         </select>
       </div>
       {!senders.isPending && senderList.length === 0 && (
         <InspectorNote>
-          등록된 발신프로필이 없습니다 — &lsquo;알림톡 설정&rsquo;에서 발신프로필을 먼저 추가하세요.
+          {t("noSenders")}
         </InspectorNote>
       )}
 
       <div className="j-inspector-field">
         <div className="j-inspector-label-row">
-          <label htmlFor={`${id}-alimtalk-template`}>승인 템플릿</label>
+          <label htmlFor={`${id}-alimtalk-template`}>{t("template")}</label>
         </div>
         <select
           id={`${id}-alimtalk-template`}
@@ -134,12 +137,12 @@ export function AlimtalkMessageFields({
           disabled={!editable || !content.sender_id}
           onChange={(e) => change({ template_code: e.currentTarget.value, variables: {} })}
         >
-          <option value="">템플릿 선택</option>
-          {templateList.map((t) => {
-            const blocked = templateBlockReason(t.status, t.vendor_status);
+          <option value="">{t("chooseTemplate")}</option>
+          {templateList.map((item) => {
+            const blocked = templateBlockReason(item.status, item.vendor_status, ta);
             return (
-              <option key={t.id} value={t.template_code} disabled={blocked !== null}>
-                {t.template_code} · {t.name || "(이름 없음)"}
+              <option key={item.id} value={item.template_code} disabled={blocked !== null}>
+                {item.template_code} · {item.name || t("unnamed")}
                 {blocked ? ` — ${blocked}` : ""}
               </option>
             );
@@ -147,39 +150,38 @@ export function AlimtalkMessageFields({
         </select>
         {template && (
           <p className="j-inspector-help">
-            유형 {messageTypeLabel(template.message_type)} · 치환자 {variables.length}개
+            {t("templateMeta", { type: messageTypeLabel(template.message_type, ta), count: variables.length })}
           </p>
         )}
       </div>
       {content.sender_id && !templates.isPending && templateList.length === 0 && (
         <InspectorNote>
-          이 발신프로필에 캐시된 템플릿이 없습니다 — &lsquo;알림톡 설정 &gt; 승인 템플릿&rsquo;에서 동기화하세요.
+          {t("noTemplates")}
         </InspectorNote>
       )}
       {orphaned && (
         <InspectorNote warning>
-          이 저니가 참조하는 템플릿 <code>{content.template_code}</code>이(가) 이 발신프로필의 캐시에 없습니다.
-          벤더에서 사라졌거나 다른 발신프로필의 템플릿입니다 — 이대로면 발송되지 않습니다.
+          {t.rich("orphaned", { code: content.template_code, c: (chunks) => <code>{chunks}</code> })}
         </InspectorNote>
       )}
       {template && isMissingInVendor(template.vendor_status) ? (
-        <InspectorNote warning>{MISSING_IN_VENDOR_NOTICE}</InspectorNote>
+        <InspectorNote warning>{ta(MISSING_IN_VENDOR_NOTICE_KEY)}</InspectorNote>
       ) : (
         blockReason && (
           <InspectorNote warning>
-            고른 템플릿이 승인 상태가 아닙니다 ({blockReason}) — 승인된 템플릿으로 바꾸세요.
+            {t("notApproved", { reason: blockReason })}
           </InspectorNote>
         )
       )}
       {template && isAdMessageType(template.message_type) && (
-        <InspectorNote warning>{AD_TEMPLATE_NOTICE}</InspectorNote>
+        <InspectorNote warning>{ta(AD_TEMPLATE_NOTICE_KEY)}</InspectorNote>
       )}
 
       {template && variables.length > 0 && (
         <div className="j-inspector-field">
           <div className="j-inspector-label-row">
             <span className="j-inspector-group-label" id={`${id}-alimtalk-vars-label`}>
-              변수 매핑
+              {t("variableMapping")}
             </span>
           </div>
           <ul className="j-alimtalk-vars" aria-labelledby={`${id}-alimtalk-vars-label`}>
@@ -194,51 +196,50 @@ export function AlimtalkMessageFields({
                     id={`${id}-var-${name}`}
                     value={value}
                     disabled={!editable}
-                    placeholder="{{프로필속성}} 또는 고정 문구"
+                    placeholder={t("variablePlaceholder")}
                     aria-invalid={!value.trim() || undefined}
                     onChange={(e) => setVariable(name, e.currentTarget.value)}
                   />
                   <span className="j-alimtalk-var-kind">
-                    {!value.trim() ? "미매핑" : isProfileReference(value) ? "프로필 속성" : "고정 문구"}
+                    {!value.trim() ? t("unmapped") : isProfileReference(value) ? t("profileAttribute") : t("literal")}
                   </span>
                 </li>
               );
             })}
           </ul>
           <p className="j-inspector-help">
-            <code>{"{{first_name}}"}</code>처럼 쓰면 발송 시점의 프로필 값이 들어갑니다.
+            {t.rich("variableHelp", { c: (chunks) => <code>{chunks}</code> })}
           </p>
         </div>
       )}
 
       {missing.length > 0 && (
         <InspectorNote warning>
-          값이 없는 치환자: {missing.map((v) => `#{${v}}`).join(" · ")} — 알림톡은 빈 값을 허용하지 않아 발송 시
-          전부 실패합니다.
+          {t("missingVariables", { list: missing.map((v) => `#{${v}}`).join(" · ") })}
         </InspectorNote>
       )}
       {stale.length > 0 && (
         <InspectorNote>
-          이 템플릿이 쓰지 않는 매핑이 남아 있습니다: {stale.join(" · ")} — 발송에는 쓰이지 않습니다.
+          {t("staleVariables", { list: stale.join(" · ") })}
         </InspectorNote>
       )}
 
       {template && (
-        <section className="j-inspector-preview" aria-label="알림톡 미리보기">
+        <section className="j-inspector-preview" aria-label={t("preview")}>
           <div className="j-inspector-preview-label">
-            <h3>알림톡 미리보기</h3>
+            <h3>{t("preview")}</h3>
             <span>ALIMTALK</span>
           </div>
           <pre className="j-alimtalk-preview">{renderTemplatePreview(template.content, content.variables)}</pre>
           <p className="j-inspector-preview-caption">
-            승인 본문에 매핑 값을 끼운 결과입니다. 값이 없는 치환자는 <code>{"#{이름}"}</code> 그대로 남습니다.
+            {t.rich("previewCaption", { c: (chunks) => <code>{chunks}</code> })}
           </p>
         </section>
       )}
 
       <div className="j-inspector-field">
         <div className="j-inspector-label-row">
-          <span className="j-inspector-group-label">대체발송 (선택)</span>
+          <span className="j-inspector-group-label">{t("fallback")}</span>
         </div>
         <label className="j-alimtalk-fallback-toggle">
           <input
@@ -247,46 +248,45 @@ export function AlimtalkMessageFields({
             disabled={!editable}
             onChange={(e) => setFallback(e.currentTarget.checked ? {} : null)}
           />
-          <span>알림톡이 실패하면 문자로 대체발송</span>
+          <span>{t("fallbackToggle")}</span>
         </label>
         {content.fallback && (
           <>
             <select
-              aria-label="대체발송 종류"
+              aria-label={t("fallbackType")}
               value={content.fallback.type}
               disabled={!editable}
               onChange={(e) => setFallback({ type: e.currentTarget.value as "SMS" | "LMS" })}
             >
-              <option value="SMS">SMS (단문)</option>
-              <option value="LMS">LMS (장문)</option>
+              <option value="SMS">{t("sms")}</option>
+              <option value="LMS">{t("lms")}</option>
             </select>
             {content.fallback.type === "LMS" && (
               <input
-                aria-label="대체발송 제목"
+                aria-label={t("fallbackTitle")}
                 value={content.fallback.title ?? ""}
                 disabled={!editable}
-                placeholder="LMS 제목"
+                placeholder={t("fallbackTitlePlaceholder")}
                 onChange={(e) => setFallback({ title: e.currentTarget.value })}
               />
             )}
             <textarea
-              aria-label="대체발송 문구"
+              aria-label={t("fallbackText")}
               value={content.fallback.text}
               rows={3}
               disabled={!editable}
-              placeholder="알림톡을 받지 못한 고객에게 보낼 문구"
+              placeholder={t("fallbackTextPlaceholder")}
               onChange={(e) => setFallback({ text: e.currentTarget.value })}
             />
             <p className="j-inspector-help">
-              벤더가 대체발송을 지원하면 벤더가 직접 처리합니다. 발신번호는 알림톡 설정의 앱 설정에서 지정합니다.
+              {t("fallbackHelp")}
             </p>
           </>
         )}
       </div>
 
       <InspectorNote>
-        발송 벤더는 앱의 알림톡 채널 배선이 정합니다 — 저니에서 고르지 않으므로, 벤더를 바꿔도 이 저니는 그대로
-        동작합니다.
+        {t("vendorNote")}
       </InspectorNote>
     </>
   );

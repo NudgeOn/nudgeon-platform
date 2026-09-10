@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { ChannelConnector, ConnectorCatalogEntry } from "@nudgeon/api-client";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ export function ConnectorSetup({
   wired: ChannelConnector | null;
   onSaved: () => void;
 }) {
+  const t = useTranslations("alimtalk");
   const credentialFields = useMemo(() => schemaFields(connector.credentials_schema), [connector]);
   const configFields = useMemo(() => schemaFields(connector.config_schema), [connector]);
   const [credentialValues, setCredentialValues] = useState(() => initialValues(credentialFields));
@@ -71,7 +73,7 @@ export function ConnectorSetup({
 
   const save = useMutation({
     mutationFn: async () => {
-      if (!appId) throw new Error("앱을 찾을 수 없습니다");
+      if (!appId) throw new Error(t("error.noApp"));
       await api.credentials.upsert(appId, {
         kind: "alimtalk",
         connector_id: connector.id,
@@ -88,16 +90,16 @@ export function ConnectorSetup({
       });
     },
     onSuccess: () => {
-      setMsg("저장했습니다 — 워커가 검증 중입니다(수 초). 아래 상태에서 결과를 확인하세요.");
+      setMsg(t("setup.saved"));
       void creds.refetch();
       onSaved();
     },
-    onError: (e) => setMsg(serverMessage(e, "저장에 실패했습니다")),
+    onError: (e) => setMsg(serverMessage(e, t("setup.saveFailed"))),
   });
 
   const toggle = useMutation({
     mutationFn: () => {
-      if (!appId || !wired) throw new Error("배선이 없습니다");
+      if (!appId || !wired) throw new Error(t("error.noWiring"));
       return api.alimtalk.connector.put(appId, ALIMTALK_CHANNEL, {
         connector_id: wired.connector_id,
         config: wired.config,
@@ -105,10 +107,10 @@ export function ConnectorSetup({
       });
     },
     onSuccess: () => {
-      setMsg(wired?.enabled ? "발송을 중지했습니다." : "발송을 재개했습니다.");
+      setMsg(wired?.enabled ? t("setup.stopped") : t("setup.resumed"));
       onSaved();
     },
-    onError: (e) => setMsg(serverMessage(e, "변경에 실패했습니다")),
+    onError: (e) => setMsg(serverMessage(e, t("setup.changeFailed"))),
   });
 
   const blocked = !canSubmit(plan);
@@ -116,16 +118,16 @@ export function ConnectorSetup({
   return (
     <Card>
       <CardHeader className="p-4">
-        <CardTitle className="text-sm">설정 입력 · {connector.name}</CardTitle>
+        <CardTitle className="text-sm">{t("setup.title", { name: connector.name })}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 p-4 pt-0 text-sm">
         <VendorSummary connector={connector} />
 
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium">벤더 크리덴셜</p>
+          <p className="text-xs font-medium">{t("setup.credentials")}</p>
           {credentialFields.length === 0 ? (
             <p className="text-xs text-destructive">
-              이 커넥터의 매니페스트에 크리덴셜 스키마가 없습니다 — 배포의 매니페스트를 확인하세요.
+              {t("setup.noCredentialSchema")}
             </p>
           ) : (
             <SchemaFields
@@ -133,7 +135,7 @@ export function ConnectorSetup({
               values={credentialValues}
               idPrefix={`cred-${connector.id}`}
               disabled={save.isPending}
-              hint={fieldDestination}
+              hint={(field) => { const d = fieldDestination(field); return t(d.key, d.params); }}
               onChange={(name, value) => setCredentialValues((v) => ({ ...v, [name]: value }))}
             />
           )}
@@ -141,7 +143,7 @@ export function ConnectorSetup({
 
         {configFields.length > 0 && (
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium">앱 설정 (비밀 아님)</p>
+            <p className="text-xs font-medium">{t("setup.config")}</p>
             <SchemaFields
               fields={configFields}
               values={configValues}
@@ -153,19 +155,19 @@ export function ConnectorSetup({
         )}
 
         {plan.empty && plan.missingRequired.length === 0 && (
-          <p className="text-xs text-destructive">저장할 값이 하나도 없습니다. 위 필드를 채워 주세요.</p>
+          <p className="text-xs text-destructive">{t("setup.nothingToSave")}</p>
         )}
         {plan.missingRequired.length > 0 && (
-          <p className="text-xs text-muted-foreground">필수 입력: {plan.missingRequired.join(" · ")}</p>
+          <p className="text-xs text-muted-foreground">{t("setup.required", { fields: plan.missingRequired.join(" · ") })}</p>
         )}
 
         <div className="flex flex-wrap gap-2">
           <Button disabled={!appId || save.isPending || blocked} onClick={() => save.mutate()}>
-            {save.isPending ? "저장 중…" : wired?.connector_id === connector.id ? "설정 저장" : "이 벤더로 배선"}
+            {save.isPending ? t("setup.saving") : wired?.connector_id === connector.id ? t("setup.save") : t("setup.wire")}
           </Button>
           {wired?.connector_id === connector.id && (
             <Button variant="outline" disabled={toggle.isPending} onClick={() => toggle.mutate()}>
-              {wired.enabled ? "발송 중지" : "발송 재개"}
+              {wired.enabled ? t("setup.stop") : t("setup.resume")}
             </Button>
           )}
         </div>
@@ -181,8 +183,7 @@ export function ConnectorSetup({
           <WebhookGuide appId={appId} connector={connector} />
         ) : (
           <p className="rounded-md border border-border bg-muted/40 p-2 text-xs text-muted-foreground">
-            이 벤더는 결과를 조회(폴링)로 수집하므로 등록할 웹훅이 없습니다. 워커가 미종결 발송을 주기적으로
-            되물어 도달·실패를 채웁니다.
+            {t("setup.pollingNote")}
           </p>
         )}
       </CardContent>
@@ -192,21 +193,23 @@ export function ConnectorSetup({
 
 /** 벤더가 무엇을 보고하는지 — 리포트에서 "미지원"과 "0건"을 가르는 근거를 설정 화면에서 미리 밝힌다. */
 function VendorSummary({ connector }: { connector: ConnectorCatalogEntry }) {
+  const t = useTranslations("alimtalk");
   return (
     <div className="rounded-md border border-border bg-muted/40 p-2 text-xs">
       <p>
-        <span className="font-medium">{connector.vendor.name || "벤더 미상"}</span> · 버전 {connector.version} ·{" "}
-        {connector.runtime === "in_process_go" ? "워커 내장" : "원격 HTTP"}
+        <span className="font-medium">{connector.vendor.name || t("summary.unknownVendor")}</span> ·{" "}
+        {t("summary.version", { version: connector.version })} ·{" "}
+        {connector.runtime === "in_process_go" ? t("summary.inProcess") : t("summary.remoteHttp")}
       </p>
       {connector.description && <p className="mt-1 text-muted-foreground">{connector.description}</p>}
-      <p className="mt-1">{reportSummary(connector.reports)}</p>
+      <p className="mt-1">{reportSummary(connector.reports, t)}</p>
       {connector.vendor.url && (
         <p className="mt-1">
-          <ExternalLink href={connector.vendor.url}>벤더 콘솔 열기</ExternalLink>
+          <ExternalLink href={connector.vendor.url}>{t("summary.openConsole")}</ExternalLink>
           {connector.vendor.support && (
             <>
               {" · "}
-              <ExternalLink href={connector.vendor.support}>연동 문서</ExternalLink>
+              <ExternalLink href={connector.vendor.support}>{t("summary.docs")}</ExternalLink>
             </>
           )}
         </p>
@@ -225,17 +228,18 @@ function VerificationStatus({
   detail: string | null;
   pending: boolean;
 }) {
-  if (pending) return <p className="text-xs text-muted-foreground">검증 상태 확인 중…</p>;
-  if (!status) return <p className="text-xs text-muted-foreground">등록된 알림톡 크리덴셜이 없습니다.</p>;
+  const t = useTranslations("alimtalk");
+  if (pending) return <p className="text-xs text-muted-foreground">{t("verify.checking")}</p>;
+  if (!status) return <p className="text-xs text-muted-foreground">{t("verify.none")}</p>;
   return (
     <p className="text-xs">
-      검증 상태:{" "}
+      {t("verify.label")}{" "}
       <span
         className={
           status === "verified" ? "text-primary" : status === "error" ? "text-destructive" : "text-muted-foreground"
         }
       >
-        {status === "verified" ? "검증 완료" : status === "error" ? "검증 실패" : "검증 중 (5초마다 확인)"}
+        {status === "verified" ? t("verify.verified") : status === "error" ? t("verify.error") : t("verify.pending")}
       </span>
       {status === "error" && detail && <span className="text-destructive"> — {detail}</span>}
     </p>
@@ -244,6 +248,7 @@ function VerificationStatus({
 
 /** 콜백형 벤더에만 보인다. 폴링형에는 등록할 URL이 없어 빈 상자를 띄우지 않는다. */
 function WebhookGuide({ appId, connector }: { appId: string | undefined; connector: ConnectorCatalogEntry }) {
+  const t = useTranslations("alimtalk");
   const [copied, setCopied] = useState(false);
   if (!appId) return null;
   const url = connectorWebhookUrl(
@@ -262,16 +267,16 @@ function WebhookGuide({ appId, connector }: { appId: string | undefined; connect
   };
   return (
     <div className="rounded-md border border-border bg-muted/40 p-2 text-xs">
-      <p className="font-medium">벤더 콘솔에 등록할 웹훅 URL</p>
+      <p className="font-medium">{t("webhook.title")}</p>
       <p className="mt-1 text-muted-foreground">
-        이 주소를 벤더의 결과 수신(콜백) 설정에 등록해야 도달·실패가 집계됩니다.
+        {t("webhook.hint")}
       </p>
       <div className="mt-1 flex items-center gap-1">
         <code className="flex-1 truncate rounded bg-card px-1 py-0.5" title={url}>
           {url}
         </code>
         <Button type="button" variant="outline" className="h-6 px-2 text-xs" onClick={copy}>
-          {copied ? "복사됨" : "복사"}
+          {copied ? t("webhook.copied") : t("webhook.copy")}
         </Button>
       </div>
     </div>
@@ -280,6 +285,7 @@ function WebhookGuide({ appId, connector }: { appId: string | undefined; connect
 
 /** 외부 콘솔로 나가는 링크 — 항상 새 탭, 아이콘으로 이탈을 알린다. */
 export function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const t = useTranslations("alimtalk");
   return (
     <a
       href={href}
@@ -302,7 +308,7 @@ export function ExternalLink({ href, children }: { href: string; children: React
         <path d="M15 3h6v6" />
         <path d="M10 14 21 3" />
       </svg>
-      <span className="sr-only">(새 탭에서 열림)</span>
+      <span className="sr-only">{t("externalLink.newTab")}</span>
     </a>
   );
 }

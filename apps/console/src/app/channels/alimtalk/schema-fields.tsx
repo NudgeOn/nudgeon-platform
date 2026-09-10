@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { SchemaField } from "./connector-schema";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ export function SchemaFields({
   hint?: (field: SchemaField) => string;
   onChange: (name: string, value: string) => void;
 }) {
+  const t = useTranslations("alimtalk");
   return (
     <>
       {fields.map((field) => {
@@ -34,7 +36,7 @@ export function SchemaFields({
             <Label htmlFor={id} className="text-xs">
               {field.label}
               {field.required && <span className="ml-1 text-destructive">*</span>}
-              {field.secret && <span className="ml-1 text-muted-foreground">(비밀)</span>}
+              {field.secret && <span className="ml-1 text-muted-foreground">{t("field.secret")}</span>}
             </Label>
             {field.kind === "select" ? (
               <select

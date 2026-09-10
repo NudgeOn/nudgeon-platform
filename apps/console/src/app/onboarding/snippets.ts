@@ -16,7 +16,7 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
   android: "Android (Kotlin)",
   rn: "React Native",
   flutter: "Flutter",
-  curl: "curl (지금 바로 테스트)",
+  curl: "curl",
 };
 
 /**
@@ -31,25 +31,22 @@ export function resolveApiUrl(apiUrl: string, origin: string | undefined): strin
   return origin.replace(/\/+$/, "") + (trimmed.startsWith("/") ? trimmed : "/" + trimmed);
 }
 
-/** 단말은 개발 PC의 localhost에 닿지 못한다 — 주소가 로컬이면 스니펫 첫 줄에 안내를 붙인다. */
+/** 단말은 개발 PC의 localhost에 닿지 못한다 — 주소가 로컬이면 스니펫 첫 줄에 안내(주석)를 붙인다. */
 export function isLoopback(apiUrl: string): boolean {
   return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(apiUrl);
 }
 
-const DEVICE_HINT: Record<Exclude<Platform, "curl">, string> = {
-  ios: "// 실기기는 localhost에 닿지 못합니다 — 같은 Wi-Fi의 PC IP(예: http://192.168.0.10:PORT)나 HTTPS 터널 주소를 쓰세요.",
-  android: "// 실기기는 localhost에 닿지 못합니다 — 같은 Wi-Fi의 PC IP(예: http://192.168.0.10:PORT)나 HTTPS 터널 주소를 쓰세요. 에뮬레이터는 http://10.0.2.2:PORT",
-  rn: "// 실기기는 localhost에 닿지 못합니다 — 같은 Wi-Fi의 PC IP(예: http://192.168.0.10:PORT)나 HTTPS 터널 주소를 쓰세요. Android 에뮬레이터는 http://10.0.2.2:PORT",
-  flutter: "// 실기기는 localhost에 닿지 못합니다 — 같은 Wi-Fi의 PC IP(예: http://192.168.0.10:PORT)나 HTTPS 터널 주소를 쓰세요. Android 에뮬레이터는 http://10.0.2.2:PORT",
-};
-
-export function snippet(platform: Platform, sdkKeyHint: string, apiUrl: string): string {
-  const hint = platform !== "curl" && isLoopback(apiUrl) ? DEVICE_HINT[platform] + "\n" : "";
+/**
+ * @param deviceHint 로컬 주소일 때 단말 SDK 스니펫 첫 줄에 붙일 안내문(주석 접두 `// `는 여기서 붙인다).
+ *   번역은 호출 측(onboarding.snippetHints.device.*)이 하고, 이 모듈은 next-intl에 의존하지 않는다.
+ */
+export function snippet(platform: Platform, sdkKeyHint: string, apiUrl: string, deviceHint?: string): string {
+  const hint = platform !== "curl" && isLoopback(apiUrl) && deviceHint ? `// ${deviceHint}\n` : "";
   switch (platform) {
     case "ios":
       return `${hint}import NudgeOnSDK
 
-// AppDelegate 또는 App init
+// AppDelegate / App init
 NudgeOn.initialize(config: NudgeOnConfig(
     sdkKey: "${sdkKeyHint}",
     apiHost: URL(string: "${apiUrl}")!

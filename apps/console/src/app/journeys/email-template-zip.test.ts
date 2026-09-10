@@ -35,22 +35,22 @@ describe("email HTML safety", () => {
 describe("ZIP entry validation", () => {
   it("requires an HTML entry", async () => {
     const zip = zipSync({ "readme.txt": strToU8("hello") });
-    await expect(importEmailTemplateZipBytes(zip, "empty.zip")).rejects.toThrow("HTML 파일을 찾지 못했습니다");
+    await expect(importEmailTemplateZipBytes(zip, "empty.zip")).rejects.toThrow("zip.noHtml");
   });
 
   it("requires index.html when several HTML files exist", async () => {
     const zip = zipSync({ "a.html": strToU8("<p>A</p>"), "b.html": strToU8("<p>B</p>") });
-    await expect(importEmailTemplateZipBytes(zip, "many.zip")).rejects.toThrow("시작 파일 이름을 index.html");
+    await expect(importEmailTemplateZipBytes(zip, "many.zip")).rejects.toThrow("zip.multipleHtml");
   });
 
   it("rejects path traversal, nested ZIPs, and case-colliding paths", async () => {
     const traversal = zipSync({ "../index.html": strToU8("<p>unsafe</p>") });
-    await expect(importEmailTemplateZipBytes(traversal, "traversal.zip")).rejects.toThrow("안전하지 않은 파일 경로");
+    await expect(importEmailTemplateZipBytes(traversal, "traversal.zip")).rejects.toThrow("zip.unsafePath");
 
     const nested = zipSync({ "index.html": strToU8("<p>safe</p>"), "assets/more.zip": strToU8("PK") });
-    await expect(importEmailTemplateZipBytes(nested, "nested.zip")).rejects.toThrow("또 다른 ZIP");
+    await expect(importEmailTemplateZipBytes(nested, "nested.zip")).rejects.toThrow("zip.nestedZip");
 
     const collision = zipSync({ "index.html": strToU8("<p>safe</p>"), "assets/HERO.PNG": strToU8("a"), "assets/hero.png": strToU8("b") });
-    await expect(importEmailTemplateZipBytes(collision, "collision.zip")).rejects.toThrow("같은 경로의 파일");
+    await expect(importEmailTemplateZipBytes(collision, "collision.zip")).rejects.toThrow("zip.duplicatePath");
   });
 });

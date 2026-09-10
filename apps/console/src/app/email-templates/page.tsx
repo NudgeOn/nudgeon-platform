@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { ApiError, EMAIL_PROVIDER_LABELS, type EmailProvider, type EmailTemplate, type EmailTemplateSummary } from "@nudgeon/api-client";
 import { useAppId } from "../use-app-id";
 import { api } from "@/lib/api";
@@ -26,6 +27,7 @@ function parseVars(text: string): Record<string, string> {
 }
 
 export default function EmailTemplatesPage() {
+  const t = useTranslations("emailTemplates");
   const appId = useAppId();
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -38,9 +40,9 @@ export default function EmailTemplatesPage() {
   return (
     <main className="mx-auto max-w-6xl p-8">
       <header className="mb-6">
-        <p className="text-sm text-muted-foreground"><Link href="/" className="underline">← 대시보드</Link></p>
-        <h1 className="mt-2 text-2xl font-bold">이메일 템플릿</h1>
-        <p className="text-sm text-muted-foreground">HTML 템플릿 · {`{{변수}}`} 개인화 · 실시간 미리보기 · 테스트 발송</p>
+        <p className="text-sm text-muted-foreground"><Link href="/" className="underline">{t("backToDashboard")}</Link></p>
+        <h1 className="mt-2 text-2xl font-bold">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
       </header>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
@@ -48,20 +50,20 @@ export default function EmailTemplatesPage() {
           <EmailProviderCard appId={appId} />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between p-4">
-              <CardTitle className="text-sm">템플릿</CardTitle>
-              <Button className="h-7 px-2 text-xs" onClick={() => setSelected("new")}>+ 새 템플릿</Button>
+              <CardTitle className="text-sm">{t("list.title")}</CardTitle>
+              <Button className="h-7 px-2 text-xs" onClick={() => setSelected("new")}>{t("list.new")}</Button>
             </CardHeader>
             <CardContent className="p-2">
-              {list.data?.templates.length === 0 && <p className="p-2 text-xs text-muted-foreground">템플릿이 없습니다.</p>}
+              {list.data?.templates.length === 0 && <p className="p-2 text-xs text-muted-foreground">{t("list.empty")}</p>}
               <ul className="flex flex-col">
-                {list.data?.templates.map((t: EmailTemplateSummary) => (
-                  <li key={t.id}>
+                {list.data?.templates.map((tpl: EmailTemplateSummary) => (
+                  <li key={tpl.id}>
                     <button
-                      className={`w-full rounded px-2 py-2 text-left text-sm hover:bg-muted ${selected === t.id ? "bg-muted" : ""}`}
-                      onClick={() => setSelected(t.id)}
+                      className={`w-full rounded px-2 py-2 text-left text-sm hover:bg-muted ${selected === tpl.id ? "bg-muted" : ""}`}
+                      onClick={() => setSelected(tpl.id)}
                     >
-                      <span className="block font-medium">{t.name}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{t.subject}</span>
+                      <span className="block font-medium">{tpl.name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{tpl.subject}</span>
                     </button>
                   </li>
                 ))}
@@ -81,7 +83,7 @@ export default function EmailTemplatesPage() {
             />
           ) : (
             <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">
-              왼쪽에서 템플릿을 선택하거나 새로 만드세요.
+              {t("list.pick")}
             </CardContent></Card>
           )}
         </div>
@@ -93,6 +95,7 @@ export default function EmailTemplatesPage() {
 function TemplateEditor({
   appId, templateId, onSaved, onDeleted,
 }: { appId: string; templateId: string | null; onSaved: (id: string) => void; onDeleted: () => void }) {
+  const t = useTranslations("emailTemplates");
   const qc = useQueryClient();
   const existing = useQuery({
     queryKey: ["email-template", appId, templateId],
@@ -102,8 +105,8 @@ function TemplateEditor({
 
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
-  const [html, setHtml] = useState("<h1>안녕하세요 {{name}}님</h1>\n<p>NudgeOn에 오신 것을 환영합니다.</p>");
-  const [varsText, setVarsText] = useState("name=홍길동");
+  const [html, setHtml] = useState(t("editor.defaultHtml"));
+  const [varsText, setVarsText] = useState(t("editor.defaultVars"));
   const [toEmail, setToEmail] = useState("");
   const [provider, setProvider] = useState<"" | EmailProvider>("");
   const [err, setErr] = useState<string | null>(null);
@@ -130,7 +133,7 @@ function TemplateEditor({
   const previewHtml = useMemo(() => renderVars(html, vars), [html, vars]);
   const previewSubject = useMemo(() => renderVars(subject, vars), [subject, vars]);
 
-  const onErr = (e: unknown) => setErr(e instanceof ApiError ? e.message : "요청 실패");
+  const onErr = (e: unknown) => setErr(e instanceof ApiError ? e.message : t("editor.requestFailed"));
 
   const save = useMutation({
     mutationFn: () =>
@@ -155,7 +158,7 @@ function TemplateEditor({
         provider: provider || undefined,
         variables: vars,
       }),
-    onSuccess: () => setErr("테스트 발송 큐 적재 완료 — 메일함/발송기 로그 확인"),
+    onSuccess: () => setErr(t("test.queued")),
     onError: onErr,
   });
 
@@ -163,55 +166,55 @@ function TemplateEditor({
     <div className="flex flex-col gap-4">
       {err && <p className="rounded-md bg-muted p-3 text-sm">{err}</p>}
       <Card>
-        <CardHeader className="p-4"><CardTitle className="text-sm">{templateId ? "템플릿 편집" : "새 템플릿"}</CardTitle></CardHeader>
+        <CardHeader className="p-4"><CardTitle className="text-sm">{templateId ? t("editor.edit") : t("editor.new")}</CardTitle></CardHeader>
         <CardContent className="flex flex-col gap-3 p-4 pt-0">
           <div className="flex flex-col gap-1">
-            <Label htmlFor="t-name">이름</Label>
+            <Label htmlFor="t-name">{t("editor.name")}</Label>
             <Input id="t-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="welcome-email" />
           </div>
           <div className="flex flex-col gap-1">
-            <Label htmlFor="t-subject">제목 ({`{{변수}}`} 가능)</Label>
-            <Input id="t-subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="{{name}}님, 환영합니다" />
+            <Label htmlFor="t-subject">{t("editor.subject")}</Label>
+            <Input id="t-subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t("editor.subjectPlaceholder")} />
           </div>
           <div className="flex flex-col gap-1">
-            <Label htmlFor="t-html">HTML 본문 ({`{{변수}}`} 가능)</Label>
+            <Label htmlFor="t-html">{t("editor.html")}</Label>
             <textarea id="t-html" className="min-h-[220px] rounded-md border border-border bg-card p-2 font-mono text-xs"
               value={html} onChange={(e) => setHtml(e.target.value)} />
           </div>
           <div className="flex items-center gap-2">
             <Button disabled={save.isPending || !name || !subject || !html} onClick={() => save.mutate()}>
-              {save.isPending ? "저장 중…" : "저장"}
+              {save.isPending ? t("editor.saving") : t("editor.save")}
             </Button>
             {templateId && (
               <Button variant="outline" className="text-destructive" disabled={remove.isPending}
-                onClick={() => { if (confirm("템플릿을 삭제할까요?")) remove.mutate(); }}>삭제</Button>
+                onClick={() => { if (confirm(t("editor.confirmDelete"))) remove.mutate(); }}>{t("editor.delete")}</Button>
             )}
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="p-4"><CardTitle className="text-sm">미리보기 · 테스트 발송</CardTitle></CardHeader>
+        <CardHeader className="p-4"><CardTitle className="text-sm">{t("test.title")}</CardTitle></CardHeader>
         <CardContent className="flex flex-col gap-3 p-4 pt-0">
           <div className="flex flex-col gap-1">
-            <Label htmlFor="t-vars">미리보기 변수 (key=value, 줄바꿈)</Label>
+            <Label htmlFor="t-vars">{t("test.vars")}</Label>
             <textarea id="t-vars" className="h-16 rounded-md border border-border bg-card p-2 font-mono text-xs"
               value={varsText} onChange={(e) => setVarsText(e.target.value)} />
           </div>
           <div>
-            <p className="mb-1 text-xs text-muted-foreground">제목 미리보기: <span className="font-medium text-foreground">{previewSubject}</span></p>
+            <p className="mb-1 text-xs text-muted-foreground">{t("test.subjectPreview")} <span className="font-medium text-foreground">{previewSubject}</span></p>
             <iframe title="preview" className="h-[360px] w-full rounded-md border border-border bg-white" sandbox="" srcDoc={previewHtml} />
           </div>
           <div className="flex items-end gap-2">
             <div className="flex flex-1 flex-col gap-1">
-              <Label htmlFor="t-to">테스트 수신 이메일</Label>
+              <Label htmlFor="t-to">{t("test.to")}</Label>
               <Input id="t-to" type="email" value={toEmail} onChange={(e) => setToEmail(e.target.value)} placeholder="me@example.com" />
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor="t-provider">발송기</Label>
+              <Label htmlFor="t-provider">{t("test.provider")}</Label>
               <select id="t-provider" className="h-9 rounded-md border border-border bg-card px-2 text-sm"
                 value={provider} onChange={(e) => setProvider(e.target.value as typeof provider)}>
-                <option value="">자동(활성 발송기)</option>
+                <option value="">{t("test.autoProvider")}</option>
                 {verifiedProviders.map((kind) => (
                   <option key={kind} value={kind}>{EMAIL_PROVIDER_LABELS[kind]}</option>
                 ))}
@@ -219,13 +222,13 @@ function TemplateEditor({
             </div>
             <Button variant="outline"
               disabled={testSend.isPending || !toEmail || !subject || !html || verifiedProviders.length === 0}
-              onClick={() => testSend.mutate()}>{testSend.isPending ? "발송 중…" : "테스트 발송"}</Button>
+              onClick={() => testSend.mutate()}>{testSend.isPending ? t("test.sending") : t("test.send")}</Button>
           </div>
           {verifiedProviders.length === 0 ? (
-            <p className="text-xs text-destructive">검증된 이메일 발송기가 없습니다 — 왼쪽 &lsquo;이메일 발송기&rsquo;에서 먼저 등록·검증하세요.</p>
+            <p className="text-xs text-destructive">{t("test.noProvider")}</p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              발송기를 선택하지 않으면 활성(최근 검증) 발송기로 나갑니다. 설정된 발송기: {verifiedProviders.map((kind) => EMAIL_PROVIDER_LABELS[kind]).join(", ")}
+              {t("test.providerHint", { providers: verifiedProviders.map((kind) => EMAIL_PROVIDER_LABELS[kind]).join(", ") })}
             </p>
           )}
         </CardContent>

@@ -64,8 +64,8 @@ describe("exclusive DAG editing", () => {
 
   it("rejects loops and route changes that would silently orphan a live branch", () => {
     const definition = fork();
-    expect(connectionIssue(definition, "shared", "next", "split")).toContain("되돌아가는");
-    expect(connectionIssue(definition, "split", "a", "shared")).toContain("분리");
+    expect(connectionIssue(definition, "shared", "next", "split")).toEqual({ key: "graph.backwardConnection" });
+    expect(connectionIssue(definition, "split", "a", "shared")).toEqual({ key: "graph.detachesNodes" });
     expect(() => connectRoute(definition, "shared", "next", "split")).toThrow();
     expect(connectionIssue(definition, "fast", "next", "slow")).toBeNull();
     const merged = connectRoute(definition, "fast", "next", "slow");
@@ -74,7 +74,7 @@ describe("exclusive DAG editing", () => {
 
   it("previews branch deletion, removes only its exclusive discarded descendants, and preserves the merge", () => {
     const original = fork();
-    expect(() => previewRemoval(original, "split")).toThrow("보존할 경로");
+    expect(() => previewRemoval(original, "split")).toThrow("graph.chooseKeepPath");
     const result = previewRemoval(original, "split", "a");
     expect(result.removed.map((node) => node.id)).toEqual(["split", "slow"]);
     expect(result.sharedKept.map((node) => node.id)).toEqual(["shared"]);
@@ -99,7 +99,7 @@ describe("exclusive DAG editing", () => {
     const graph = toGraphDefinition({ entry: { type: "trigger", trigger_event: "event" },
       settings: { category: "marketing", reentry: "never" }, exit: {},
       nodes: [{ type: "message", push: { title: "hello", body: "world" } }] });
-    expect(() => previewRemoval(graph, graph.start_node_id!)).toThrow("최소 하나");
+    expect(() => previewRemoval(graph, graph.start_node_id!)).toThrow("graph.needOneNode");
   });
 
   it("swaps adjacent linear stages by rewiring without reassigning their identities", () => {

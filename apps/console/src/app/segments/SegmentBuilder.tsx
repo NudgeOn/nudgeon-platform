@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { Condition, SegmentDSL } from "@nudgeon/segment-dsl";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function SegmentBuilder({ appId, segmentId, initialName, initialDSL }: Props) {
+  const t = useTranslations("segmentBuilder");
   const router = useRouter();
   const [name, setName] = useState(initialName ?? "");
   const [dsl, setDsl] = useState<SegmentDSL>(initialDSL ?? emptyDSL());
@@ -62,12 +64,12 @@ export function SegmentBuilder({ appId, segmentId, initialName, initialDSL }: Pr
     <div className="grid gap-6 md:grid-cols-[1fr_280px]">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="name">세그먼트 이름</Label>
+          <Label htmlFor="name">{t("name")}</Label>
           <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
 
         <div className="flex items-center gap-2 text-sm">
-          <span>그룹 결합:</span>
+          <span>{t("groupJoin")}</span>
           <OpToggle
             value={dsl.operator}
             onChange={(op) => update((d) => (d.operator = op))}
@@ -78,7 +80,7 @@ export function SegmentBuilder({ appId, segmentId, initialName, initialDSL }: Pr
           <Card key={gi}>
             <CardHeader className="flex-row items-center justify-between p-4">
               <CardTitle className="flex items-center gap-2 text-sm">
-                조건 그룹 {gi + 1}
+                {t("group", { n: gi + 1 })}
                 <OpToggle
                   value={group.operator}
                   onChange={(op) => update((d) => (d.groups[gi]!.operator = op))}
@@ -90,7 +92,7 @@ export function SegmentBuilder({ appId, segmentId, initialName, initialDSL }: Pr
                   className="h-7 px-2 text-xs text-destructive"
                   onClick={() => update((d) => d.groups.splice(gi, 1))}
                 >
-                  그룹 삭제
+                  {t("removeGroup")}
                 </Button>
               )}
             </CardHeader>
@@ -113,21 +115,21 @@ export function SegmentBuilder({ appId, segmentId, initialName, initialDSL }: Pr
                   className="h-8 px-3 text-xs"
                   onClick={() => update((d) => d.groups[gi]!.conditions.push(newCondition("attribute")))}
                 >
-                  + 속성
+                  {t("addAttribute")}
                 </Button>
                 <Button
                   variant="outline"
                   className="h-8 px-3 text-xs"
                   onClick={() => update((d) => d.groups[gi]!.conditions.push(newCondition("event")))}
                 >
-                  + 행동
+                  {t("addEvent")}
                 </Button>
                 <Button
                   variant="outline"
                   className="h-8 px-3 text-xs"
                   onClick={() => update((d) => d.groups[gi]!.conditions.push(newCondition("channel")))}
                 >
-                  + 푸시 수신
+                  {t("addChannel")}
                 </Button>
               </div>
             </CardContent>
@@ -141,7 +143,7 @@ export function SegmentBuilder({ appId, segmentId, initialName, initialDSL }: Pr
             update((d) => d.groups.push({ operator: "AND", conditions: [newCondition("attribute")] }))
           }
         >
-          + 조건 그룹 추가
+          {t("addGroup")}
         </Button>
       </div>
 
@@ -149,24 +151,24 @@ export function SegmentBuilder({ appId, segmentId, initialName, initialDSL }: Pr
       <aside className="flex h-fit flex-col gap-3 md:sticky md:top-8">
         <Card>
           <CardHeader className="p-4">
-            <CardTitle className="text-sm">예상 대상</CardTitle>
+            <CardTitle className="text-sm">{t("preview.title")}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             {preview.isError ? (
               <p className="text-sm text-destructive">
-                조건 오류 — 입력값을 확인하세요
+                {t("preview.error")}
               </p>
             ) : preview.isFetching ? (
               <p className="text-2xl font-bold text-muted-foreground">…</p>
             ) : (
               <p className="text-2xl font-bold">
-                약 {(preview.data?.approx_count ?? 0).toLocaleString()}명
+                {t("preview.approx", { count: preview.data?.approx_count ?? 0 })}
               </p>
             )}
-            <p className="mt-1 text-xs text-muted-foreground">uniqCombined 근사 (±2%)</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("preview.note")}</p>
             {preview.data && preview.data.sample.length > 0 && (
               <div className="mt-3 border-t border-border pt-3">
-                <p className="mb-1 text-xs font-medium">샘플</p>
+                <p className="mb-1 text-xs font-medium">{t("preview.sample")}</p>
                 {preview.data.sample.slice(0, 5).map((s) => (
                   <p key={s.user_id} className="truncate text-xs text-muted-foreground">
                     {s.external_id ?? s.user_id.slice(0, 8)} · {s.platforms.join("/") || "—"}
@@ -177,11 +179,11 @@ export function SegmentBuilder({ appId, segmentId, initialName, initialDSL }: Pr
           </CardContent>
         </Card>
         <Button disabled={!canSave || save.isPending} onClick={() => save.mutate()}>
-          {save.isPending ? "저장 중…" : segmentId ? "저장" : "세그먼트 만들기"}
+          {save.isPending ? t("saving") : segmentId ? t("save") : t("create")}
         </Button>
         {save.isError && (
           <p className="text-xs text-destructive">
-            저장 실패 — 이름 중복 또는 조건 오류를 확인하세요
+            {t("saveFailed")}
           </p>
         )}
       </aside>
@@ -214,6 +216,7 @@ function ConditionRow({
   onChange: (c: Condition) => void;
   onRemove?: () => void;
 }) {
+  const t = useTranslations("segmentBuilder");
   const setField = (patch: Partial<Condition>) =>
     onChange({ ...condition, ...patch } as Condition);
 
@@ -223,7 +226,7 @@ function ConditionRow({
         <>
           <Input
             className="h-8 w-32 text-xs"
-            placeholder="속성 키"
+            placeholder={t("condition.attributeKey")}
             value={condition.key}
             onChange={(e) => setField({ key: e.target.value })}
           />
@@ -235,7 +238,7 @@ function ConditionRow({
           {opNeedsValue(condition.op) && (
             <Input
               className="h-8 w-32 text-xs"
-              placeholder="값"
+              placeholder={t("condition.value")}
               value={valueToInput(condition.value)}
               onChange={(e) => setField({ value: inputToValue(condition.op, e.target.value) })}
             />
@@ -246,7 +249,7 @@ function ConditionRow({
         <>
           <Input
             className="h-8 w-32 text-xs"
-            placeholder="이벤트명"
+            placeholder={t("condition.eventName")}
             value={condition.event}
             onChange={(e) => setField({ event: e.target.value })}
           />
@@ -263,21 +266,21 @@ function ConditionRow({
               onChange={(e) => setField({ value: Number(e.target.value) })}
             />
           )}
-          <span className="text-xs text-muted-foreground">최근</span>
+          <span className="text-xs text-muted-foreground">{t("condition.recent")}</span>
           <Input
             className="h-8 w-14 text-xs"
             type="number"
             value={String(condition.window_days ?? 30)}
             onChange={(e) => setField({ window_days: Number(e.target.value) })}
           />
-          <span className="text-xs text-muted-foreground">일</span>
+          <span className="text-xs text-muted-foreground">{t("condition.days")}</span>
         </>
       )}
       {condition.type === "channel" && (
-        <span className="text-xs">푸시 수신 가능 (opt-in + 권한 + 유효 토큰)</span>
+        <span className="text-xs">{t("condition.pushReachable")}</span>
       )}
       {condition.type === "device" && (
-        <span className="text-xs text-muted-foreground">디바이스 조건 (S4)</span>
+        <span className="text-xs text-muted-foreground">{t("condition.device")}</span>
       )}
       <div className="ml-auto">
         {onRemove && (

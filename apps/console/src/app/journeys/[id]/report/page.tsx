@@ -4,20 +4,14 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { outputPorts, toGraphDefinition, type JourneyDefinition, type JourneyNode } from "@nudgeon/journey-model";
+import { toGraphDefinition, type JourneyDefinition, type JourneyNode } from "@nudgeon/journey-model";
 import { api } from "@/lib/api";
 import { JourneyAppGate } from "../../JourneyAppGate";
 import { JourneyCanvas } from "../../JourneyCanvas";
 import { graphReadIssue } from "../../journey-graph";
-import { JourneyIcon } from "../../journey-ui";
+import { JourneyIcon, useJourneyText } from "../../journey-ui";
 import "./journey-report.css";
 
-const STATES: Record<string, string> = { active: "진행", waiting: "대기", claimed: "처리 중", completed: "완료", exited: "이탈", failed: "실패" };
-const SENDS: Record<string, string> = { sent: "발송 접수", failed: "실패", duplicate: "중복 제외", skipped_quiet_hours: "조용시간 생략", skipped_cap: "빈도제한 생략", skipped_unreachable: "도달불가 생략" };
-const TYPES: Record<string, string> = { message: "메시지", delay: "고정 대기", branch: "조건 분기", event_wait: "이벤트 대기", ab_split: "A/B 분기" };
-const number = (n: number) => n.toLocaleString("ko-KR");
-const label = (node: JourneyNode) => node.type === "message" ? (node.push?.title || node.email?.subject || TYPES.message) : TYPES[node.type];
-const typeLabel = (node: JourneyNode) => node.type === "message" ? (node.email ? "이메일 메시지" : "푸시 메시지") : TYPES[node.type];
 const ArrowLeft = ({ size }: { size: number }) => <JourneyIcon name="arrow-left" size={size} />;
 const ArrowUpRight = ({ size }: { size: number }) => <JourneyIcon name="arrow-right" size={size} />;
 const BarChart3 = ({ size }: { size: number }) => <JourneyIcon name="chart" size={size} />;
@@ -30,6 +24,11 @@ export default function JourneyReportPage() {
 }
 
 function JourneyReportView({ appId, id }: { appId: string; id: string }) {
+  const { t, locale, message, ports } = useJourneyText();
+  const number = (n: number) => n.toLocaleString(locale);
+  // 리포트 단계 종류 라벨 — 메시지는 채널별(푸시/이메일), 나머지는 report.type.*
+  const typeLabel = (node: JourneyNode) => node.type === "message" ? (node.email ? t("report.type.email") : t("report.type.push")) : t(`report.type.${node.type}`);
+  const label = (node: JourneyNode) => node.type === "message" ? (node.push?.title || node.email?.subject || t("report.type.message")) : t(`report.type.${node.type}`);
   const [selection, setSelection] = useState<{ journeyId: string; version: number }>();
   const [selectedId, setSelectedId] = useState("entry");
   const detail = useQuery({ queryKey: ["journey", appId, id], queryFn: () => api.journeys.get(appId!, id), enabled: !!appId });
@@ -50,25 +49,25 @@ function JourneyReportView({ appId, id }: { appId: string; id: string }) {
     if (!r?.definition) return { graph: null, error: null };
     try {
       const graph = toGraphDefinition(r.definition as JourneyDefinition);
-      const error = graphReadIssue(graph);
-      return { graph: error ? null : graph, error };
+      const issue = graphReadIssue(graph);
+      return { graph: issue ? null : graph, error: issue ? message(issue) : null };
     } catch {
-      return { graph: null, error: "이 버전의 연결 정보를 표시할 수 없습니다. 원본 정의와 실행 집계는 변경하지 않았습니다." };
+      return { graph: null, error: t("report.versionUnreadable") };
     }
-  }, [r?.definition]);
+  }, [r?.definition, message, t]);
   const graph = rendered.graph;
   const nodes = r?.nodes ?? [];
   const selectedNodeId = selectedId.startsWith("node:") ? selectedId.slice(5) : undefined;
   const selectedNode = graph?.nodes.find(node => node.id === selectedNodeId);
   const selectedMetrics = nodes.find(node => node.node_id === selectedNodeId);
-  const nodeMetrics = Object.fromEntries(nodes.map(node => [node.node_id, `도달 ${number(node.arrived)}${node.waiting ? ` · 대기 ${number(node.waiting)}` : ""}`]));
+  const nodeMetrics = Object.fromEntries(nodes.map(node => [node.node_id, `${t("report.arrived")} ${number(node.arrived)}${node.waiting ? ` · ${t("report.waiting")} ${number(node.waiting)}` : ""}`]));
   const edgeMetrics = Object.fromEntries((graph?.edges ?? []).map(edge => {
     const count = nodes.find(node => node.node_id === edge.source)?.paths.find(path => path.output_port === edge.source_port)?.executions ?? 0;
-    return [edge.id, `${number(count)}회`];
+    return [edge.id, t("report.times", { count: number(count) })];
   }));
 
-  if (detail.isError || report.isError) return <main className="journey-report jr-empty"><h1>리포트를 불러오지 못했습니다</h1><p>연결을 확인하고 다시 시도해 주세요.</p><button onClick={() => { void detail.refetch(); void report.refetch(); }}>다시 시도</button><Link href={`/journeys/${id}`}>편집기로 돌아가기</Link></main>;
-  if (!appId || detail.isPending || report.isPending || !r) return <main className="journey-report jr-empty" aria-busy="true">저니 실행 결과를 불러오는 중…</main>;
+  if (detail.isError || report.isError) return <main className="journey-report jr-empty"><h1>{t("report.errorTitle")}</h1><p>{t("report.errorBody")}</p><button onClick={() => { void detail.refetch(); void report.refetch(); }}>{t("gate.retry")}</button><Link href={`/journeys/${id}`}>{t("report.backToEditor")}</Link></main>;
+  if (!appId || detail.isPending || report.isPending || !r) return <main className="journey-report jr-empty" aria-busy="true">{t("report.loading")}</main>;
 
   const executions = Object.values(r.state_distribution).reduce((sum, count) => sum + count, 0);
   const sends = r.sends.filter(send => send.status === "sent").reduce((sum, send) => sum + send.count, 0);
@@ -77,70 +76,70 @@ function JourneyReportView({ appId, id }: { appId: string; id: string }) {
 
   return <main className="journey-report">
     <header className="jr-header">
-      <div><Link className="jr-back" href={`/journeys/${id}`}><ArrowLeft size={15} /> 저니 편집기</Link><div className="jr-title"><span className="jr-mark"><BarChart3 size={22} /></span><div><p>JOURNEY INSIGHTS</p><h1>{r.name}</h1></div></div></div>
+      <div><Link className="jr-back" href={`/journeys/${id}`}><ArrowLeft size={15} /> {t("report.editorLink")}</Link><div className="jr-title"><span className="jr-mark"><BarChart3 size={22} /></span><div><p>JOURNEY INSIGHTS</p><h1>{r.name}</h1></div></div></div>
       <div className="jr-actions">
-        <label className="jr-version"><span>실행 버전</span><select aria-label="리포트 버전" value={r.version ?? ""} disabled={!r.versions.length} onChange={event => { setSelection({ journeyId: id, version: Number(event.target.value) }); setSelectedId("entry"); }}>
-          {!r.versions.length && <option value="">활성화 전</option>}
-          {r.versions.map(item => <option key={item.version} value={item.version}>v{item.version}{item.version === detail.data?.active_version ? " · 현재" : ""}</option>)}
+        <label className="jr-version"><span>{t("report.version")}</span><select aria-label={t("report.versionSelect")} value={r.version ?? ""} disabled={!r.versions.length} onChange={event => { setSelection({ journeyId: id, version: Number(event.target.value) }); setSelectedId("entry"); }}>
+          {!r.versions.length && <option value="">{t("report.notActivated")}</option>}
+          {r.versions.map(item => <option key={item.version} value={item.version}>v{item.version}{item.version === detail.data?.active_version ? ` · ${t("report.current")}` : ""}</option>)}
         </select><ChevronDown size={14} /></label>
-        <button className="jr-refresh" aria-label="리포트 새로고침" disabled={report.isFetching} onClick={() => { void report.refetch(); }}><RefreshCw size={16} /></button>
+        <button className="jr-refresh" aria-label={t("report.refresh")} disabled={report.isFetching} onClick={() => { void report.refetch(); }}><RefreshCw size={16} /></button>
       </div>
     </header>
-    <section className="jr-overview" aria-label="실행 요약">
-      <Summary label="저니 실행" value={executions} suffix="회" note="재진입을 포함한 실행 수" />
-      <Summary label="현재 대기" value={r.state_distribution.waiting ?? 0} suffix="회" note="고정·이벤트·발송 정책 대기" />
-      <Summary label="완료" value={r.state_distribution.completed ?? 0} suffix="회" note="종료 단계에 도착한 실행" />
-      <Summary label="발송 접수" value={sends} suffix="건" note="전송 서비스 접수 · 실제 도달과 다름" />
+    <section className="jr-overview" aria-label={t("report.overviewLabel")}>
+      <Summary label={t("report.summary.executions")} value={number(executions)} suffix={t("report.unit.times")} note={t("report.summary.executionsNote")} />
+      <Summary label={t("report.summary.waiting")} value={number(r.state_distribution.waiting ?? 0)} suffix={t("report.unit.times")} note={t("report.summary.waitingNote")} />
+      <Summary label={t("report.summary.completed")} value={number(r.state_distribution.completed ?? 0)} suffix={t("report.unit.times")} note={t("report.summary.completedNote")} />
+      <Summary label={t("report.summary.sends")} value={number(sends)} suffix={t("report.unit.count")} note={t("report.summary.sendsNote")} />
     </section>
-    {r.instrumentation !== "available" && <div className="jr-notice" role="status">{r.instrumentation === "unpublished" ? "처음 활성화한 뒤 실행 결과를 확인할 수 있습니다." : "이 버전은 경로 계측 이전에 만들어졌습니다. 단계·경로 집계는 없으며, 기존 실행 및 발송 기록만 표시합니다."}</div>}
+    {r.instrumentation !== "available" && <div className="jr-notice" role="status">{r.instrumentation === "unpublished" ? t("report.unpublished") : t("report.legacyVersion")}</div>}
     {rendered.error && <div className="jr-notice" role="alert">{rendered.error}</div>}
-    {graph && <section className="jr-workspace" aria-label="경로별 실행 결과">
-      <div className="jr-canvas"><div className="jr-canvas-heading"><strong>고객이 지나간 경로</strong><span>단계를 선택하면 상세 결과를 볼 수 있어요</span></div>
+    {graph && <section className="jr-workspace" aria-label={t("report.workspaceLabel")}>
+      <div className="jr-canvas"><div className="jr-canvas-heading"><strong>{t("report.canvasTitle")}</strong><span>{t("report.canvasHint")}</span></div>
         <JourneyCanvas definition={graph} selectedId={selectedId} onSelect={setSelectedId} editable={false} nodeMetrics={r.instrumentation === "available" ? nodeMetrics : undefined} edgeMetrics={r.instrumentation === "available" ? edgeMetrics : undefined} />
       </div>
       <aside className="jr-insight">
         <p className="jr-eyebrow">STEP DETAILS</p>
-        <h2>{selectedNode ? label(selectedNode) : "흐름을 살펴보세요"}</h2>
-        {!selectedNode ? <p className="jr-hint">조건별 통과 수, 이벤트 대기 결과, A/B 배정을 캔버스에서 선택해 확인하세요.</p> : <>
+        <h2>{selectedNode ? label(selectedNode) : t("report.exploreTitle")}</h2>
+        {!selectedNode ? <p className="jr-hint">{t("report.exploreHint")}</p> : <>
           <p className="jr-hint">{typeLabel(selectedNode)} · v{r.version}</p>
-          {r.instrumentation !== "available" ? <p className="jr-hint">이 버전의 단계 집계가 없습니다.</p> : <>
-            <div className="jr-node-totals"><div><span>도달</span><strong>{number(selectedMetrics?.arrived ?? 0)}<small>회</small></strong></div><div><span>대기 중</span><strong>{number(selectedMetrics?.waiting ?? 0)}<small>회</small></strong></div><div><span>완료</span><strong>{number(selectedMetrics?.completed ?? 0)}<small>회</small></strong></div><div><span>실패</span><strong>{number(selectedMetrics?.failed ?? 0)}<small>회</small></strong></div></div>
-            {outputPorts(selectedNode).map(port => {
+          {r.instrumentation !== "available" ? <p className="jr-hint">{t("report.noNodeMetrics")}</p> : <>
+            <div className="jr-node-totals"><div><span>{t("report.arrived")}</span><strong>{number(selectedMetrics?.arrived ?? 0)}<small>{t("report.unit.times")}</small></strong></div><div><span>{t("report.waitingNow")}</span><strong>{number(selectedMetrics?.waiting ?? 0)}<small>{t("report.unit.times")}</small></strong></div><div><span>{t("report.completed")}</span><strong>{number(selectedMetrics?.completed ?? 0)}<small>{t("report.unit.times")}</small></strong></div><div><span>{t("report.failed")}</span><strong>{number(selectedMetrics?.failed ?? 0)}<small>{t("report.unit.times")}</small></strong></div></div>
+            {ports(selectedNode).map(port => {
               const metrics = selectedMetrics?.paths.find(path => path.output_port === port.id);
               const count = metrics?.executions ?? 0;
               const percent = selectedNode.type === "ab_split" ? (assignedTotal ? (metrics?.unique_users ?? 0) / assignedTotal * 100 : 0) : (pathTotal ? count / pathTotal * 100 : 0);
-              return <div className="jr-path" key={port.id}><div><strong>{port.label}</strong><span>{number(count)}회</span></div><div className="jr-bar"><span style={{ width: `${percent}%` }} /></div><p>{selectedNode.type === "ab_split" ? `고유 고객 ${number(metrics?.unique_users ?? 0)}명 · 실제 배정 ${percent.toFixed(1)}%` : `결정 완료 경로 중 ${percent.toFixed(1)}%`}</p></div>;
+              return <div className="jr-path" key={port.id}><div><strong>{port.label}</strong><span>{t("report.times", { count: number(count) })}</span></div><div className="jr-bar"><span style={{ width: `${percent}%` }} /></div><p>{selectedNode.type === "ab_split" ? t("report.abPath", { users: number(metrics?.unique_users ?? 0), percent: percent.toFixed(1) }) : t("report.decidedPath", { percent: percent.toFixed(1) })}</p></div>;
             })}
-            {selectedNode.type === "ab_split" && <p className="jr-footnote">설정 비율은 목표 비율입니다. 고객 수가 적으면 실제 배정 비율과 차이가 날 수 있으며, 같은 고객의 재진입은 배정을 유지합니다.</p>}
+            {selectedNode.type === "ab_split" && <p className="jr-footnote">{t("report.abFootnote")}</p>}
           </>}
         </>}
       </aside>
     </section>}
     <section className="jr-bottom">
-      <div className="jr-panel"><div className="jr-panel-title"><h2>실행 상태</h2><span>실행 인스턴스 기준</span></div>
-        {!executions && <p className="jr-hint">아직 진입한 고객이 없습니다.</p>}
-        {Object.entries(r.state_distribution).map(([status, count]) => <div className="jr-row" key={status}><span><i className={`jr-dot jr-dot-${status}`} />{STATES[status] ?? status}</span><strong>{number(count)}회</strong></div>)}
+      <div className="jr-panel"><div className="jr-panel-title"><h2>{t("report.states.title")}</h2><span>{t("report.states.subtitle")}</span></div>
+        {!executions && <p className="jr-hint">{t("report.states.empty")}</p>}
+        {Object.entries(r.state_distribution).map(([status, count]) => <div className="jr-row" key={status}><span><i className={`jr-dot jr-dot-${status}`} />{t.has(`report.state.${status}`) ? t(`report.state.${status}`) : status}</span><strong>{t("report.times", { count: number(count) })}</strong></div>)}
       </div>
-      <div className="jr-panel"><div className="jr-panel-title"><h2>발송 처리 결과</h2><Link href={`/journeys/${id}`}>저니 보기 <ArrowUpRight size={13} /></Link></div>
-        {!r.sends.length && <p className="jr-hint">아직 발송 처리 기록이 없습니다.</p>}
-        {r.sends.map((send, index) => <div className="jr-row" key={`${send.node_index}-${send.status}-${index}`}><span>{graph?.nodes[send.node_index] ? label(graph.nodes[send.node_index]!) : `단계 ${send.node_index + 1}`}<small>{SENDS[send.status] ?? send.status}</small></span><strong>{number(send.count)}건</strong></div>)}
-        <p className="jr-footnote">발송은 디바이스 단위이며 일부 생략 기록은 고객 단위입니다. 고객 수나 실제 도달·열람 수로 해석하지 않습니다.</p>
+      <div className="jr-panel"><div className="jr-panel-title"><h2>{t("report.sends.title")}</h2><Link href={`/journeys/${id}`}>{t("report.sends.viewJourney")} <ArrowUpRight size={13} /></Link></div>
+        {!r.sends.length && <p className="jr-hint">{t("report.sends.empty")}</p>}
+        {r.sends.map((send, index) => <div className="jr-row" key={`${send.node_index}-${send.status}-${index}`}><span>{graph?.nodes[send.node_index] ? label(graph.nodes[send.node_index]!) : t("report.stepN", { n: send.node_index + 1 })}<small>{t.has(`report.send.${send.status}`) ? t(`report.send.${send.status}`) : send.status}</small></span><strong>{t("report.countOf", { count: number(send.count) })}</strong></div>)}
+        <p className="jr-footnote">{t("report.sends.footnote")}</p>
       </div>
-      <div className="jr-panel"><div className="jr-panel-title"><h2>도달·반응</h2><span>SDK 이벤트 · 공급자 콜백</span></div>
-        {delivery.isError && <p className="jr-hint">도달 집계를 불러오지 못했습니다.</p>}
-        {delivery.isPending && <p className="jr-hint">도달 집계를 불러오는 중…</p>}
+      <div className="jr-panel"><div className="jr-panel-title"><h2>{t("report.delivery.title")}</h2><span>{t("report.delivery.subtitle")}</span></div>
+        {delivery.isError && <p className="jr-hint">{t("report.delivery.error")}</p>}
+        {delivery.isPending && <p className="jr-hint">{t("report.delivery.loading")}</p>}
         {delivery.data && <>
-          <div className="jr-row"><span>도달<small>단말·수신함 도착</small></span><strong>{number(delivery.data.delivered)}건 · {(delivery.data.delivery_rate * 100).toFixed(1)}%</strong></div>
-          <div className="jr-row"><span>오픈<small>도달 대비</small></span><strong>{number(delivery.data.opened)}건 · {(delivery.data.open_rate * 100).toFixed(1)}%</strong></div>
-          <div className="jr-row"><span>클릭<small>이메일 링크</small></span><strong>{number(delivery.data.clicked)}건</strong></div>
-          <div className="jr-row"><span>반송<small>수신 거부·주소 오류</small></span><strong>{number(delivery.data.bounced)}건</strong></div>
-          <p className="jr-footnote">푸시는 SDK가, 이메일은 공급자 웹훅(Resend 등)이 보고합니다. 푸시 도달은 단말 수신(Android)·NSE 도달(iOS)·탭 중 하나라도 보고된 메시지를 셉니다. 웹훅을 등록하지 않은 발송기는 도달·오픈이 0으로 남습니다.</p>
+          <div className="jr-row"><span>{t("report.delivery.delivered")}<small>{t("report.delivery.deliveredNote")}</small></span><strong>{t("report.countOf", { count: number(delivery.data.delivered) })} · {(delivery.data.delivery_rate * 100).toFixed(1)}%</strong></div>
+          <div className="jr-row"><span>{t("report.delivery.opened")}<small>{t("report.delivery.openedNote")}</small></span><strong>{t("report.countOf", { count: number(delivery.data.opened) })} · {(delivery.data.open_rate * 100).toFixed(1)}%</strong></div>
+          <div className="jr-row"><span>{t("report.delivery.clicked")}<small>{t("report.delivery.clickedNote")}</small></span><strong>{t("report.countOf", { count: number(delivery.data.clicked) })}</strong></div>
+          <div className="jr-row"><span>{t("report.delivery.bounced")}<small>{t("report.delivery.bouncedNote")}</small></span><strong>{t("report.countOf", { count: number(delivery.data.bounced) })}</strong></div>
+          <p className="jr-footnote">{t("report.delivery.footnote")}</p>
         </>}
       </div>
     </section>
   </main>;
 }
 
-function Summary({ label, value, suffix, note }: { label: string; value: number; suffix: string; note: string }) {
-  return <div className="jr-summary"><span>{label}</span><strong>{number(value)}<small>{suffix}</small></strong><p>{note}</p></div>;
+function Summary({ label, value, suffix, note }: { label: string; value: string; suffix: string; note: string }) {
+  return <div className="jr-summary"><span>{label}</span><strong>{value}<small>{suffix}</small></strong><p>{note}</p></div>;
 }
