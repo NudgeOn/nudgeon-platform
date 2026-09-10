@@ -71,6 +71,12 @@ export class MembersService {
   }
 
   /** 역할 변경 — 마지막 Owner 강등 금지·권한 상승 방지·세션 폐기. */
+  /** 대상 멤버가 이 테넌트 소속인지 — 아니면 404 (존재 여부를 구분해 주지 않는다). */
+  async assertInTenant(tenantId: string, memberId: string): Promise<void> {
+    const { rowCount } = await this.pg.query(`SELECT 1 FROM members WHERE tenant_id = $1 AND id = $2`, [tenantId, memberId]);
+    if (!rowCount) throw new NotFoundException("멤버를 찾을 수 없습니다");
+  }
+
   async changeRole(
     tenantId: string,
     actorRole: string,

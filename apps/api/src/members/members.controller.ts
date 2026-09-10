@@ -72,6 +72,8 @@ export class MembersController {
     @Body() body: unknown,
     @Req() req: SessionRequest,
   ) {
+    // 대상이 이 테넌트의 멤버인지 본문 검증보다 먼저 — 타 테넌트 멤버 id로는 스키마도 돌려주지 않는다 (M-6 전수 스위트).
+    await this.members.assertInTenant(req.member.tenantId, memberId);
     const parsed = changeRoleSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
     const result = await this.members.changeRole(
