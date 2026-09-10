@@ -49,14 +49,14 @@ export class TestPushController {
     @Body() body: unknown,
     @Req() req: SessionRequest,
   ) {
-    const parsed = testPushSchema.safeParse(body);
-    if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
-
+    // 앱 소속 확인을 본문 검증보다 먼저 — 타 테넌트 호출자에게 스키마(필드명)도 돌려주지 않는다 (M-6 전수 스위트).
     const app = await this.pg.query(
       `SELECT 1 FROM apps WHERE id = $1 AND tenant_id = $2`,
       [appId, req.member.tenantId],
     );
     if (!app.rowCount) throw new NotFoundException("앱을 찾을 수 없습니다");
+    const parsed = testPushSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
 
     // push 가능 디바이스: 토큰 active + OS 권한 granted (PRD-02 2.3 구성 요소)
     const { rows } = await this.pg.query(

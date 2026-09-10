@@ -58,6 +58,9 @@ export class AppSettingsController {
     if (!["owner", "admin"].includes(req.member.role)) {
       throw new ForbiddenException("앱 설정은 Owner/Admin만 변경할 수 있습니다");
     }
+    // 앱 소속 확인을 본문 검증보다 먼저 — 타 테넌트 호출자에게 스키마(필드명)도 돌려주지 않는다 (M-6 전수 스위트).
+    const owned = await this.pg.query(`SELECT 1 FROM apps WHERE id = $1 AND tenant_id = $2`, [appId, req.member.tenantId]);
+    if (!owned.rowCount) throw new NotFoundException("앱을 찾을 수 없습니다");
     // 유효한 IANA 시간대인지 검증 (quiet hours 계산의 전제)
     const parsed = settingsSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
