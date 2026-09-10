@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useAppId } from "../use-app-id";
 import { api } from "@/lib/api";
@@ -8,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SegmentsPage() {
+  const t = useTranslations("segments");
+  const locale = useLocale();
   const appId = useAppId();
   const segments = useQuery({
     queryKey: ["segments", appId],
@@ -21,21 +24,21 @@ export default function SegmentsPage() {
         <div>
           <p className="text-sm text-muted-foreground">
             <Link href="/" className="underline">
-              ← 대시보드
+              {t("backToDashboard")}
             </Link>
           </p>
-          <h1 className="mt-2 text-2xl font-bold">세그먼트</h1>
+          <h1 className="mt-2 text-2xl font-bold">{t("title")}</h1>
         </div>
         <Link href="/segments/new">
-          <Button>새 세그먼트</Button>
+          <Button>{t("new")}</Button>
         </Link>
       </header>
 
-      {segments.isPending && <p className="text-sm text-muted-foreground">불러오는 중…</p>}
+      {segments.isPending && <p className="text-sm text-muted-foreground">{t("loading")}</p>}
       {segments.data?.segments.length === 0 && (
         <Card>
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            아직 세그먼트가 없습니다. 첫 세그먼트를 만들어보세요.
+            {t("empty")}
           </CardContent>
         </Card>
       )}
@@ -54,8 +57,8 @@ export default function SegmentsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                {s.last_count != null ? `약 ${s.last_count.toLocaleString()}명` : "미평가"} · 수정{" "}
-                {new Date(s.updated_at).toLocaleDateString("ko-KR")}
+                {s.last_count != null ? t("approxCount", { count: s.last_count.toLocaleString(locale) }) : t("notEvaluated")} · {t("updated")}{" "}
+                {new Date(s.updated_at).toLocaleDateString(locale)}
               </CardContent>
             </Card>
           </Link>

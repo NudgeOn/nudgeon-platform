@@ -121,5 +121,264 @@
       "apnsFailed": "Registration failed — check your input",
       "apnsSubmit": "Register APNs"
     }
+  },
+  "logs": {
+    "backToDashboard": "← Dashboard",
+    "title": "Message log",
+    "failureBanner": "⚠ Failure rate in the last hour {rate}% — check credential status",
+    "status": {
+      "all": "All",
+      "sent": "Sent",
+      "failed": "Failed",
+      "duplicate": "Rejected duplicate",
+      "skipped_unreachable": "Unreachable"
+    },
+    "col": {
+      "time": "Time",
+      "user": "User",
+      "channel": "Channel",
+      "status": "Status",
+      "failure": "Failure reason"
+    },
+    "empty": "No log entries."
+  },
+  "users": {
+    "backToDashboard": "← Dashboard",
+    "title": "User search",
+    "placeholder": "external_id or email (exact match)",
+    "search": "Search",
+    "empty": "No matching users.",
+    "anonymous": "(anonymous)"
+  },
+  "segments": {
+    "backToDashboard": "← Dashboard",
+    "title": "Segments",
+    "new": "New segment",
+    "loading": "Loading…",
+    "empty": "No segments yet. Create your first one.",
+    "approxCount": "~{count} users",
+    "notEvaluated": "Not evaluated",
+    "updated": "updated"
+  },
+  "audit": {
+    "backToDashboard": "← Dashboard",
+    "title": "Audit log",
+    "loading": "Loading…",
+    "noPermission": "You don't have permission to view the audit log.",
+    "recent": "Recent audit entries ({count})",
+    "col": {
+      "time": "Time (UTC)",
+      "actor": "Actor",
+      "action": "Action",
+      "target": "Target",
+      "detail": "Details"
+    },
+    "loadingEntries": "Loading audit log…",
+    "empty": "No entries.",
+    "footnote": "Security-sensitive actions are recorded: sign-in, 2FA, team, keys, credentials, organization settings. Latest 200 shown."
+  },
+  "data": {
+    "backToDashboard": "← Dashboard",
+    "title": "Data",
+    "tabAttributes": "Attribute dictionary",
+    "tabErrors": "Ingestion errors",
+    "attr": {
+      "key": "Key",
+      "type": "Type",
+      "segments": "Referencing segments",
+      "lastSeen": "Last seen",
+      "delete": "Delete",
+      "referenced": "Referenced by segments: {segments} — press Delete again to force.",
+      "empty": "No custom attributes collected yet."
+    },
+    "errors": {
+      "title": "Ingestion errors (type mismatch · schema rejections)",
+      "time": "Time",
+      "endpoint": "Endpoint",
+      "reason": "Reason",
+      "detail": "Details",
+      "empty": "No ingestion errors. 👍"
+    }
+  },
+  "team": {
+    "backToDashboard": "← Dashboard",
+    "title": "Team",
+    "loading": "Loading…",
+    "noPermission": "You don't have permission to manage the team.",
+    "requestFailed": "Request failed",
+    "members": "Members ({count})",
+    "col": {
+      "email": "Email",
+      "name": "Name",
+      "role": "Role",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "totpOn": "On",
+    "totpOff": "Off",
+    "confirmReset": "Reset 2FA for {email}? (their sessions are revoked too)",
+    "reset2fa": "Reset 2FA",
+    "confirmRemove": "Remove {email}? (sessions revoked, sign-in blocked)",
+    "remove": "Remove",
+    "loadingMembers": "Loading members…",
+    "rules": "· At least one Owner can't be demoted or removed. · Only Owners can assign or manage the Owner role. · Changing a role or removing a member revokes their sessions immediately.",
+    "invite": {
+      "title": "Add member",
+      "password": "Initial password",
+      "adding": "Adding…",
+      "add": "Add",
+      "note": "Self-hosted: an admin sets the initial password (email invite links come later)."
+    }
+  },
+  "settings": {
+    "loading": "Loading…",
+    "backToDashboard": "← Dashboard",
+    "title": "Settings",
+    "forced": {
+      "title": "Two-factor enrollment required",
+      "body": "Your organization requires 2FA before you can use the console. Register an authenticator app below."
+    },
+    "timezone": "Timezone",
+    "quiet": {
+      "title": "Quiet Hours",
+      "start": "Start",
+      "end": "End",
+      "policy": "Policy",
+      "delay": "Send at next allowed time",
+      "skip": "Skip sending",
+      "note": "Transactional messages bypass quiet hours. This enforces the Korean night-time ad restriction (21:00–08:00)."
+    },
+    "cap": {
+      "title": "Frequency Cap",
+      "max": "Max per user",
+      "per24h": "per 24 hours"
+    },
+    "saving": "Saving…",
+    "save": "Save",
+    "saved": "✓ Saved",
+    "saveFailed": "Save failed",
+    "loadingApp": "Loading app settings…",
+    "twofa": {
+      "title": "Two-factor authentication (2FA)",
+      "on": "Enabled",
+      "off": "Disabled",
+      "protected": "Your sign-in is protected by an authenticator app.",
+      "disablePlaceholder": "Code to disable",
+      "disable": "Disable 2FA",
+      "badCode": "Invalid code",
+      "intro": "Strengthen sign-in security with an authenticator app (Google Authenticator etc.).",
+      "setup": "Set up 2FA",
+      "enrollHint": "Add the key below to your authenticator app, then enter the 6-digit code.",
+      "otpauth": "Add via otpauth link",
+      "codePlaceholder": "6-digit code",
+      "confirm": "Verify & enable",
+      "activated": "2FA is now enabled.",
+      "backupHint": "Store these backup codes somewhere safe. Each code works once.",
+      "done": "Done"
+    },
+    "org": {
+      "title": "Organization security",
+      "require2fa": "Require 2FA for everyone",
+      "require2faHint": "When on, members without 2FA must enroll at their next sign-in before using the console.",
+      "danger": "Danger zone — delete organization",
+      "scheduled": "Deletion scheduled. Purge after:",
+      "restore": "Cancel deletion (restore)",
+      "graceHint": "Recoverable within a 7-day grace period; permanently purged afterwards.",
+      "confirmDelete": "Yes, request deletion",
+      "cancel": "Cancel",
+      "requestDelete": "Request organization deletion"
+    }
+  },
+  "journeys": {
+    "dashboard": "Dashboard",
+    "title": "Campaigns · Journeys",
+    "subtitle": "Connect the moments that reach your customers and design the flow of messages.",
+    "new": "New journey",
+    "listLabel": "Journey list",
+    "statusFilterLabel": "Journey status filter",
+    "filter": {
+      "all": "All",
+      "draft": "Draft",
+      "active": "Active",
+      "paused": "Paused",
+      "archived": "Archived"
+    },
+    "searchPlaceholder": "Search journey name",
+    "clearSearch": "Clear search",
+    "error": {
+      "loginTitle": "Sign-in required",
+      "appTitle": "Couldn't load app info",
+      "listTitle": "Couldn't load journeys",
+      "loginBody": "Sign in and check the journey list again.",
+      "retryBody": "Check your connection and try again.",
+      "login": "Sign in",
+      "retry": "Reload"
+    },
+    "noApp": {
+      "title": "Set up an app first",
+      "body": "Once your app is set up, you can build customer flows.",
+      "cta": "Set up app"
+    },
+    "loading": "Loading journeys.",
+    "empty": {
+      "title": "Create your first journey",
+      "body": "From entry conditions to messages, connect the moments your customers need.",
+      "cta": "Create journey"
+    },
+    "noMatch": {
+      "title": "No journeys match",
+      "body": "Try a different name or change the status filter.",
+      "reset": "Reset filters"
+    },
+    "col": {
+      "journey": "Journey",
+      "status": "Status",
+      "updated": "Last updated"
+    },
+    "footer": {
+      "filtered": "Showing {shown, number} of {total, number}",
+      "total": "{total, number} journeys",
+      "sort": "Recently updated"
+    },
+    "category": {
+      "transactional": "Transactional",
+      "marketing": "Marketing"
+    },
+    "row": {
+      "updated": "Updated",
+      "kst": "{time} (Korea time)",
+      "unknownTime": "Time unavailable"
+    }
+  },
+  "userDetail": {
+    "loading": "Loading…",
+    "notFound": "User not found.",
+    "backToUsers": "← User search",
+    "anonymous": "(anonymous user)",
+    "subscription": "Subscription: push {push}",
+    "optedIn": "opted in",
+    "optedOut": "opted out",
+    "devices": "Devices",
+    "noDevices": "No devices",
+    "token": "Token",
+    "tokenStatus": {
+      "active": "active",
+      "invalid": "invalid",
+      "expired": "expired"
+    },
+    "permission": "Permission",
+    "perm": {
+      "granted": "granted",
+      "denied": "denied",
+      "undetermined": "undetermined"
+    },
+    "noToken": "No token",
+    "attributes": "Attributes",
+    "journeys": "Journeys",
+    "noJourneys": "No active journeys",
+    "node": "node",
+    "messages": "Message history",
+    "noMessages": "No messages sent",
+    "activity": "Recent activity"
   }
 }
