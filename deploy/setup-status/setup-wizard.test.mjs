@@ -3,7 +3,7 @@ import vm from "node:vm";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-const source = readFileSync(new URL("./public/setup-wizard.mjs", import.meta.url), "utf8").replace("export async function initWizard", "async function initWizard");
+const source = readFileSync(new URL("./public/setup-wizard.mjs", import.meta.url), "utf8").replace(/^export /gm, "");
 const response = (json, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => json,
   headers: new Headers({ "x-bootstrap-expires-at": new Date(Date.now() + 900000).toISOString() }) });
 function harness(fetch) {

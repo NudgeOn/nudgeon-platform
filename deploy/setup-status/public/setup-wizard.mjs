@@ -8,6 +8,8 @@ const DRAFT_KEY = "nudgeon.setup.draft"; // 비밀번호는 저장하지 않는�
 
 // Clear the fragment immediately, even while service readiness is still pending.
 let initialToken;
+export const getSetupToken = () => initialToken;
+export const setSetupToken = (token) => { initialToken = token; };
 function consumeToken() {
   const token = /(?:^|[#&])token=([A-Za-z0-9._~-]+)/.exec(location.hash)?.[1];
   if (token) { initialToken = token; history.replaceState(null, "", location.pathname + location.search); }
@@ -47,13 +49,13 @@ function watchLease(expiresAtIso) {
   const note = $("#lease-note");
   const tick = () => {
     const left = Math.round((new Date(leaseExpiresAt).getTime() - Date.now()) / 1000);
-    if (left <= 0) { note.textContent = "Bootstrap 세션이 만료됐어요. 설치 코드를 다시 확인해 주세요."; clearInterval(leaseTimer); show("claim"); return; }
+    if (left <= 0) { note.textContent = "계정 설정 시간이 만료됐어요. 설치 코드를 다시 확인해 주세요."; clearInterval(leaseTimer); show("claim"); return; }
     if (left <= 120) {
       note.textContent = `⚠ 이 세션은 ${left}초 뒤 만료됩니다. `;
       const b = document.createElement("button"); b.type = "button"; b.className = "text-button"; b.id = "extend-lease"; b.textContent = "15분 연장";
       b.addEventListener("click", extendLease); note.append(b);
     } else {
-      note.textContent = `이 브라우저가 설치 lease를 갖고 있어요 (${Math.floor(left / 60)}분 남음).`;
+      note.textContent = `이 브라우저에서 관리자 계정을 설정할 수 있어요 (${Math.floor(left / 60)}분 남음).`;
     }
   };
   tick(); leaseTimer = setInterval(tick, 1000);
@@ -109,8 +111,8 @@ function renderSecured(json) {
 function markSecured() {
   $("#next-step").dataset.secured = "true";
   $("#setup-title").textContent = "설치가 완료됐습니다";
-  $("#summary").textContent = "Owner와 워크스페이스가 준비됐어요. 콘솔에서 앱 연동을 이어가세요.";
-  $("#next-copy").textContent = "서버와 설치 소유권을 확인했어요. 다음은 채널 설정과 SDK 연동입니다.";
+  $("#summary").textContent = "관리자 계정이 준비됐어요. 만든 이메일과 비밀번호로 로그인해 대시보드를 열어보세요.";
+  $("#next-copy").textContent = "서버와 관리자 계정 설정이 끝났어요. 로그인 후 OTP를 선택하고 메인 화면으로 이동합니다.";
 }
 
 async function setup(form) {
@@ -135,6 +137,7 @@ async function setup(form) {
     return;
   }
   clearInterval(leaseTimer);
+  f.owner_password.value = "";
   renderSecured(r.json);
 }
 

@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { ApiError } from "@nudgeon/api-client";
@@ -13,8 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
+  return <Suspense><LoginForm /></Suspense>;
+}
+
+function LoginForm() {
   const t = useTranslations("login");
   const router = useRouter();
+  const setupLogin = useSearchParams().get("setup") === "complete";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [totp, setTotp] = useState("");
@@ -35,7 +40,7 @@ export default function LoginPage() {
         router.push("/settings?enroll=required");
         return;
       }
-      router.push("/");
+      router.push(setupLogin ? "/welcome" : "/");
     },
   });
 
@@ -54,7 +59,7 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle>{t("title")}</CardTitle>
           <CardDescription>
-            {needTotp ? t("subtitleTotp") : t("subtitle")}
+            {needTotp ? t("subtitleTotp") : setupLogin ? t("setupSubtitle") : t("subtitle")}
           </CardDescription>
         </CardHeader>
         <CardContent>

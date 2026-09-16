@@ -24,6 +24,27 @@
         <p id="progress-label" class="progress-label" aria-live="polite">상태 확인 중</p>
       </section>
 
+      <ol class="setup-steps" aria-label="설치 순서"><li>DB 비밀번호</li><li>관리자 계정 만들기</li><li>로그인</li><li>OTP · 선택</li><li>메인 대시보드</li></ol>
+
+      <section id="database-setup" class="wizard database-setup" aria-labelledby="database-title" hidden>
+        <p class="eyebrow">STEP 0 · DATABASE</p>
+        <h2 id="database-title">PostgreSQL 비밀번호 설정</h2>
+        <p>추천 비밀번호를 그대로 쓰거나 직접 입력하세요. 저장하면 필요한 서비스를 자동으로 설치합니다. 콘솔 로그인 비밀번호는 다음 단계에서 따로 설정해요.</p>
+        <form id="database-form" autocomplete="off">
+          <label for="database-password">데이터베이스 비밀번호 · 12~128자</label>
+          <input id="database-password" name="database_password" type="password" minlength="12" maxlength="128" required autocomplete="new-password" spellcheck="false" aria-describedby="database-password-note" />
+          <div class="database-actions">
+            <button id="generate-database-password" type="button" class="secondary">추천 비밀번호 생성</button>
+            <button id="show-database-password" type="button" class="secondary" aria-pressed="false">비밀번호 보기</button>
+            <button id="download-database-password" type="button" class="secondary" disabled>비밀번호 파일 다운로드</button>
+          </div>
+          <p id="database-password-note" class="next-note">다운로드 파일에는 비밀번호가 포함됩니다. 비밀번호 관리자나 안전한 곳에 보관하세요. 설치 후에는 이 화면에서 다시 확인할 수 없어요.</p>
+          <label id="database-token-label" for="database-token">설치 코드<input id="database-token" type="password" autocomplete="off" spellcheck="false" placeholder="터미널에 표시된 설치 코드" /></label>
+          <button id="save-database-password" type="submit" class="primary" disabled>이 비밀번호로 설치 시작</button>
+          <span id="database-result" role="status" aria-live="polite"></span>
+        </form>
+      </section>
+
       <section aria-labelledby="services-title">
         <div class="section-heading">
           <div>
@@ -88,15 +109,16 @@
       <!-- S2. Create Owner and workspace — Bootstrap cookie(15분) 안에서 한 번만 성공한다. -->
       <section id="owner" class="wizard" hidden>
         <p class="eyebrow">STEP 2 · OWNER</p>
-        <h2>첫 Owner와 워크스페이스</h2>
+        <h2>관리자 로그인 계정 만들기</h2>
+        <p>앞으로 NudgeOn에 로그인할 이메일과 비밀번호를 정하세요. 이 계정이 워크스페이스의 첫 관리자(Owner)가 됩니다. DB 비밀번호와는 별개예요.</p>
         <p id="lease-note" class="next-note" aria-live="polite"></p>
         <form id="owner-form" autocomplete="on">
           <div class="grid">
             <label>워크스페이스 이름<input name="workspace_name" required maxlength="100" placeholder="우리 회사" /></label>
             <label>첫 앱 이름<input name="app_name" required maxlength="100" value="Default App" /></label>
             <label>이름<input name="owner_name" required maxlength="100" autocomplete="name" /></label>
-            <label>이메일<input name="owner_email" type="email" required autocomplete="username" /></label>
-            <label>비밀번호 (8자 이상)<input name="owner_password" type="password" minlength="8" maxlength="128" required autocomplete="new-password" /></label>
+            <label>로그인 이메일<input name="owner_email" type="email" required autocomplete="username" /></label>
+            <label>로그인 비밀번호 (8자 이상)<input name="owner_password" type="password" minlength="8" maxlength="128" required autocomplete="new-password" /></label>
             <label>시간대<input name="timezone" required maxlength="64" /></label>
           </div>
           <button type="submit" class="primary">관리자 계정 만들고 시작하기</button>
@@ -111,7 +133,8 @@
         <p>Owner 계정과 워크스페이스·앱이 만들어졌고, 설치 코드는 폐기됐습니다. 아래 키는 <strong>지금 한 번만</strong> 표시됩니다. 분실하면 콘솔의 키 회전으로 새로 발급합니다.</p>
         <dl id="secured-keys" class="keys"></dl>
         <p class="next-note">크리덴셜은 이 서버의 마스터키로 암호화됩니다. DB 백업만으로는 풀 수 없으니 서버에서 <code>NUDGEON_RECOVERY_PASSPHRASE=… ./nudgeon secrets backup</code>으로 복구 번들을 내보내 <strong>DB 백업과 다른 곳</strong>에 보관하세요. 위 fingerprint가 번들의 것과 같아야 합니다. <code>./nudgeon doctor</code>가 백업 여부를 알려줍니다.</p>
-        <a id="open-console" class="next-link" href="/onboarding">콘솔 온보딩으로 →</a>
+        <p class="next-note">다음은 로그인 → OTP 설정(선택) → 메인 대시보드입니다. 앱 연결은 대시보드에서 이어가거나 나중에 진행할 수 있어요.</p>
+        <a id="open-console" class="next-link" href="/login?setup=complete">만든 계정으로 로그인하기 →</a>
       </section>
 
       <footer>

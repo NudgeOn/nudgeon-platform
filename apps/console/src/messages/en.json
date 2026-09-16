@@ -23,7 +23,8 @@
     "installPending": "Installation isn't finished yet.",
     "installLink": "Create the first Owner on the setup screen",
     "noAccount": "No account yet?",
-    "signup": "Sign up"
+    "signup": "Sign up",
+    "setupSubtitle": "Sign in with the administrator email and password you just created. Next, choose optional OTP protection and open your dashboard."
   },
   "signup": {
     "title": "Get started with NudgeOn",
@@ -324,7 +325,8 @@
       "confirm": "Verify & enable",
       "activated": "2FA is now enabled.",
       "backupHint": "Store these backup codes somewhere safe. Each code works once.",
-      "done": "Done"
+      "done": "Done",
+      "loadFailed": "Could not load security settings. Please try again."
     },
     "org": {
       "title": "Organization security",
@@ -1541,5 +1543,16 @@
     "copy": "Copy",
     "copied": "Copied",
     "copyFailed": "Copy failed"
+  },
+  "welcome": {
+    "step": "FINAL STEP · ACCOUNT SECURITY",
+    "title": "You’re signed in. Add OTP protection?",
+    "body": "Protect your account with a one-time code from an authenticator app. This is optional, and you can enable it later in App settings.",
+    "skip": "Skip for now and open dashboard",
+    "dashboard": "Open main dashboard",
+    "loading": "Checking your account…",
+    "error": "Could not verify your account. Please try again.",
+    "retry": "Try again",
+    "next": "Continue connecting your app from the dashboard, or explore first."
   }
 }

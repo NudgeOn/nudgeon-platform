@@ -3,20 +3,32 @@
 > NudgeOn는 동일한 versioned image 세트를 자체 서버와 관리형 클라우드에 배포하는 구조를 목표로 합니다 (PRD-08).
 > 현재 Safe Boot Preview는 저장소 소스를 로컬에서 빌드하므로 이 release-image 목표를 달성했다는 증거는 아닙니다.
 
-> **2026-09-02 검증 경계:** `./nudgeon up` Safe Boot Preview와 전용 Compose·gateway·설치 상태 화면은 구현되어 있습니다. 다만 현재 경로는 저장소 소스를 로컬에서 빌드하는 Slice A이며, 최초 Owner 위자드·Test Inbox·versioned release image·clean-host 출시 증거는 아직 없습니다. 관리형 DB 실연결, 백업 복원·부하·롤백도 별도 출시 게이트입니다. [현재 출시 체크리스트](RELEASE-CHECKLIST.md)를 함께 확인하세요.
+> **2026-09-17 검증 경계:** Safe Boot는 DB 비밀번호 설정·최초 관리자 계정·로그인·선택형 OTP 안내를 제공합니다. 현재 저장소 소스를 로컬에서 빌드하며, Test Inbox·versioned release image·clean-host 출시 증거는 아직 없습니다. 관리형 DB 실연결, 백업 복원·부하·롤백도 별도 출시 게이트입니다. [현재 출시 체크리스트](RELEASE-CHECKLIST.md)를 함께 확인하세요.
 
 ## 1. 빠른 시작 — Safe Boot Preview
 
 NudgeOn는 Apache-2.0 Open Source의 소유권·검토 가능성을 유지하면서, 기본 셀프호스팅 시작을 한 명령으로 줄이는 방향입니다. 현재 Safe Boot Preview는 Docker Engine, Compose v2, OpenSSL, cURL이 준비된 로컬 환경에서 다음처럼 실행합니다.
 
 ```bash
-git clone <repo> nudgeon && cd nudgeon
+git clone https://github.com/NudgeOn/nudgeon-platform.git
+cd nudgeon-platform
 ./nudgeon up
 ```
 
-명령은 호스트 전용 `.nudgeon/`에 설치 ID와 시크릿을 원자적으로 만들고, 전용 `deploy/compose.safe.yaml`을 사용해 setup shell과 gateway를 먼저 연 뒤 나머지 서비스를 빌드·기동합니다. 개발 seed는 넣지 않으며 PostgreSQL·ClickHouse·Redis·API·worker·console은 호스트 포트를 열지 않습니다. 기본 진입점은 gateway 하나인 <http://localhost:8080/setup>입니다.
+명령은 호스트 전용 `.nudgeon/`에 설치 ID와 시크릿을 원자적으로 만들고, 전용 `deploy/compose.safe.yaml`을 사용해 setup shell과 gateway를 먼저 엽니다. 처음 설치할 때는 터미널의 링크를 열어 DB 비밀번호를 저장한 뒤 나머지 서비스를 빌드·기동합니다. 터미널을 닫지 말고 위자드를 진행하세요. 개발 seed는 넣지 않으며 PostgreSQL·ClickHouse·Redis·API·worker·console은 호스트 포트를 열지 않습니다. 기본 진입점은 gateway 하나인 <http://localhost:8080/setup>입니다.
 
-**설치 소유권 claim → 첫 Owner (Slice B).** `./nudgeon up`이 끝나면 터미널에 **설치 코드가 붙은 URL**(`/setup#token=…`)이 한 번 표시됩니다. 그 링크로 들어가면 setup 화면이 코드를 URL에서 지우고 API와 교환해 15분짜리 Bootstrap 세션을 얻고, 워크스페이스·첫 앱·Owner를 한 트랜잭션으로 만든 뒤 설치를 영구히 잠급니다(설치 코드 폐기, 이후 bootstrap 요청은 410). SDK/Server Key는 그 화면에서 한 번만 보입니다. `MODE=single_tenant`에서는 설치 전후 모두 `/v1/auth/signup`이 404입니다.
+### 위자드에서 처음부터 대시보드까지
+
+1. **DB 비밀번호**: 추천 비밀번호(암호학적 난수 24바이트, 48자리)를 생성하거나 직접 입력합니다. 12~128자이며 공백·특수문자·한글을 허용하고 제어 문자는 허용하지 않습니다. **비밀번호 파일 다운로드**로 선택한 값과 DB 사용자/DB 이름을 JSON 파일에 저장할 수 있습니다. 파일에는 평문 비밀번호가 들어 있으니 안전한 곳에 보관하세요.
+2. **서비스 준비**: **이 비밀번호로 설치 시작**을 누르면 CLI가 값을 받아 PostgreSQL의 첫 기동 전에 적용하고 나머지 서비스를 자동으로 시작합니다. 상태 API는 비밀번호를 반환하지 않습니다. 설치 후 비밀번호는 서버의 `.nudgeon/secrets/postgres_password`에 보관되며 기존 설치에는 이 단계를 다시 표시하지 않습니다.
+3. **관리자 계정 만들기**: 링크의 설치 코드를 확인한 뒤 워크스페이스·첫 앱·관리자 이름·**로그인 이메일과 로그인 비밀번호**를 설정합니다. DB 비밀번호와 콘솔 로그인 비밀번호는 별개입니다.
+4. **로그인**: 완료 화면의 **만든 계정으로 로그인하기**를 눌러 방금 만든 계정으로 접속합니다. SDK/Server Key는 완료 화면에서 한 번만 표시되므로 별도로 보관하세요.
+5. **OTP(선택)**: 인증 앱에 키를 등록하고 6자리 코드로 활성화한 뒤 백업 코드를 보관하거나, **지금은 건너뛰고 대시보드로**를 선택합니다. 나중에도 앱 설정에서 켤 수 있습니다. 조직이 2FA를 강제하는 경우에는 기존 필수 등록 정책이 우선합니다.
+6. **메인 대시보드**: 로그인한 대시보드에 도착합니다. 앱 연결은 대시보드의 시작 안내에서 이어갈 수 있고 온보딩에서도 건너뛰기가 가능합니다. 실제 푸시에는 SDK·FCM/APNs·테스트 기기 연결이 추가로 필요합니다.
+
+자동화 환경은 최초 실행에 `./nudgeon up --defaults`를 사용합니다. DB 비밀번호는 자동 생성되어 서버 시크릿 파일에 저장됩니다. 이미 웹 설정을 시작한 설치는 `--defaults`로 덮어쓰지 않으며 `./nudgeon up`으로 재개합니다. 기존 DB의 비밀번호 변경/회전 기능은 아닙니다.
+
+**설치 소유권 확인 → 관리자 로그인 계정.** `./nudgeon up` 실행 중 터미널에 **설치 코드가 붙은 URL**(`/setup#token=…`)이 표시됩니다. 그 링크로 들어가면 setup 화면이 코드를 URL에서 지우고 API와 교환해 15분짜리 Bootstrap 세션을 얻고, 워크스페이스·첫 앱·Owner를 한 트랜잭션으로 만든 뒤 초기 설정을 완료합니다(설치 코드 폐기, 이후 신규 bootstrap 요청은 410). SDK/Server Key는 그 화면에서 한 번만 보입니다. `MODE=single_tenant`에서는 설치 전후 모두 `/v1/auth/signup`이 404입니다.
 
 - 코드를 다시 보려면 `./nudgeon setup-url --token`, 분실·유출 시 `./nudgeon setup-token rotate`(이전 코드와 진행 중 claim 즉시 폐기).
 - 원격 서버에서는 평문 HTTP claim이 거부됩니다 — gateway가 `127.0.0.1`에만 바인딩된 상태에서 SSH 터널(`ssh -L 8080:localhost:8080`)로 접속하거나, TLS reverse proxy(`X-Forwarded-Proto: https`) 뒤에 두세요.
@@ -40,8 +52,8 @@ NUDGEON_PORT=18080 ./nudgeon up
 
 - 현재 gateway는 `127.0.0.1` 바인딩만 허용합니다. 인터넷이나 원격 사설망에 직접 공개하지 마세요.
 - 현재 이미지는 registry의 versioned release image가 아니라 checkout 소스를 `development` 태그로 로컬 빌드합니다.
-- Slice B(설치 claim·최초 Owner 원자 생성·Bootstrap 영구 잠금)는 구현됐습니다. recovery bundle export(`./nudgeon secrets backup`)와 master key fingerprint 안내는 아직입니다.
-- NudgeOn Test Inbox와 재개 가능한 activation은 **Slice C·D**입니다. 설치가 잠기면 콘솔 온보딩 위저드(4단계)로 이어집니다.
+- Slice B(설치 claim·최초 Owner 원자 생성·Bootstrap 영구 잠금)는 구현됐습니다. recovery bundle export(`./nudgeon secrets backup`)와 master key fingerprint 안내도 제공합니다.
+- NudgeOn Test Inbox와 재개 가능한 activation은 **Slice C·D**입니다. 초기 설정 후 로그인·선택형 OTP를 거쳐 대시보드로 이동합니다. 앱 연결은 콘솔 온보딩 위저드(4단계)에서 진행합니다.
 - Docker Compose config·단위 테스트나 한 환경의 기동만으로 clean Linux/arm64 지원, production readiness, 백업·복구를 입증하지 않습니다.
 
 전체 목표 계약과 Slice별 상태는 [P0 Docker Setup Wizard PRD](DOCKER-SETUP-WIZARD-PRD.md)에 정리되어 있습니다.

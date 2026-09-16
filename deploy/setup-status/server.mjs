@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { connect } from "node:net";
+import { databaseSetup } from "./database-setup.mjs";
 
 const port = Number(process.env.PORT ?? 9091);
 const timeoutMs = Number(process.env.CHECK_TIMEOUT_MS ?? 1200);
@@ -13,6 +14,7 @@ const files = new Map(
       ["/setup.js", "setup.js", "text/javascript; charset=utf-8"],
       ["/setup-diagnostics.mjs", "setup-diagnostics.mjs", "text/javascript; charset=utf-8"],
       ["/setup-wizard.mjs", "setup-wizard.mjs", "text/javascript; charset=utf-8"],
+      ["/setup-database.mjs", "setup-database.mjs", "text/javascript; charset=utf-8"],
       ["/setup.css", "setup.css", "text/css; charset=utf-8"],
     ].map(async ([route, file, type]) => [
       route,
@@ -96,10 +98,36 @@ const securityHeaders = {
   "x-frame-options": "DENY",
 };
 
-export function createStatusServer() {
+export function createStatusServer(env = process.env) {
+  const database = databaseSetup(env);
   return createServer(async (request, response) => {
     const path = new URL(request.url ?? "/", "http://setup-status").pathname;
     for (const [key, value] of Object.entries(securityHeaders)) response.setHeader(key, value);
+
+    if (path === "/setup-status/v1/database") {
+      const send = (status, body) => {
+        response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify(body));
+      };
+      if (request.method === "GET") { send(200, await database.status()); return; }
+      if (request.method !== "POST") { send(405, { error: "method_not_allowed" }); return; }
+      if (request.headers["content-type"]?.split(";")[0].trim() !== "application/json") {
+        send(415, { error: "json_required" }); return;
+      }
+      try {
+        const chunks = []; let size = 0;
+        for await (const chunk of request) {
+          size += chunk.length;
+          if (size > 4096) { send(413, { error: "body_too_large" }); return; }
+          chunks.push(chunk);
+        }
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        if (!body || typeof body !== "object" || Array.isArray(body)) { send(400, { error: "invalid_request" }); return; }
+        const { status, ...result } = await database.submit(request, body);
+        send(status, result);
+      } catch { send(400, { error: "invalid_request" }); }
+      return;
+    }
 
     if (path === "/livez" || path === "/readyz") {
       response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
@@ -107,7 +135,7 @@ export function createStatusServer() {
       return;
     }
     if (path === "/setup-status/v1/state") {
-      const status = await collectStatus();
+      const status = await collectStatus(env);
       response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
       response.end(JSON.stringify(status));
       return;

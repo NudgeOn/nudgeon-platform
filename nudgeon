@@ -19,6 +19,7 @@ VERSION_EXPLICIT=0
 DEFAULT_PORT=${NUDGEON_PORT:-8080}
 DEFAULT_BIND=${NUDGEON_BIND_ADDRESS:-127.0.0.1}
 DEFAULT_VERSION=${NUDGEON_VERSION:-development}
+USE_DEFAULTS=0
 
 umask 077
 
@@ -77,6 +78,9 @@ write_value() {
 create_state() {
   require_command openssl
   if secret_state_ready; then
+    if [ "$USE_DEFAULTS" -eq 1 ] && [ -f "$STATE_DIR/database_setup_pending" ]; then
+      fail "웹 위자드에서 비밀번호 설정을 진행 중입니다. './nudgeon up'으로 이어서 진행하세요."
+    fi
     return
   fi
   if [ -e "$STATE_DIR" ]; then
@@ -122,6 +126,7 @@ create_state() {
   } >"$temp/secrets/redis.conf"
   chmod 644 "$temp/secrets/redis.conf"
 
+  if [ "$USE_DEFAULTS" -eq 0 ]; then : >"$temp/database_setup_pending"; fi
   mv "$temp" "$STATE_DIR"
   rmdir "$lock"
   trap - EXIT HUP INT TERM
@@ -137,6 +142,11 @@ write_compose_env() {
     printf 'NUDGEON_BIND_ADDRESS=%s\n' "$DEFAULT_BIND"
     printf 'NUDGEON_PORT=%s\n' "$DEFAULT_PORT"
     printf 'NUDGEON_PUBLIC_ORIGIN=http://localhost:%s\n' "$DEFAULT_PORT"
+    if [ -f "$STATE_DIR/database_setup_pending" ]; then
+      printf 'NUDGEON_DATABASE_SETUP_REQUIRED=true\n'
+    else
+      printf 'NUDGEON_DATABASE_SETUP_REQUIRED=false\n'
+    fi
     printf 'JOURNEY_GRAPH_V2_ENABLED=false\n'
   } >"$temp"
   chmod 600 "$temp"
@@ -215,7 +225,9 @@ setup_token_rotate() {
   require_state
   preflight_docker
   write_value "$SECRETS_DIR/setup_token" 644 "$(random_hex 32)"
-  compose restart api >/dev/null  # API는 기동 시에만 토큰 파일을 읽어 해시를 등록한다
+  if [ ! -f "$STATE_DIR/database_setup_pending" ]; then
+    compose restart api >/dev/null  # API는 기동 시에만 토큰 파일을 읽어 해시를 등록한다
+  fi
   note "setup 토큰을 교체했습니다. 이전 코드와 claim lease는 폐기됩니다."
   note "새 설치 URL: $(setup_url_with_token)"
 }
@@ -362,9 +374,34 @@ status() {
   fi
 }
 
+configure_database() {
+  [ -f "$STATE_DIR/database_setup_pending" ] || return 0
+  note "웹 위자드에서 PostgreSQL 비밀번호를 확인하고 저장해 주세요. 이 터미널은 열린 채로 두세요."
+  while ! selected_password=$(compose exec -T setup-status node /app/database-setup.mjs read 2>/dev/null); do
+    sleep 2
+  done
+  if state_volumes_exist; then
+    fail "기존 데이터 볼륨이 있어 비밀번호를 변경하지 않습니다. 설치 상태를 확인해 주세요."
+  fi
+  # Encode every UTF-8 byte: special characters must never become URL syntax.
+  encoded_password=$(printf '%s' "$selected_password" | LC_ALL=C od -An -v -tx1 | tr -d ' \n' | sed 's/../%&/g')
+  write_value "$SECRETS_DIR/postgres_password" 644 "$selected_password"
+  write_value "$SECRETS_DIR/database_url" 644 "postgres://nudgeon:${encoded_password}@postgres:5432/nudgeon"
+  unset selected_password encoded_password value
+  rm "$STATE_DIR/database_setup_pending"
+  write_compose_env
+}
+
 up() {
+  for arg in "$@"; do
+    case "$arg" in --defaults) USE_DEFAULTS=1 ;; *) fail "알 수 없는 up 옵션: $arg" ;; esac
+  done
   preflight_docker
   create_state
+  up_lock="$STATE_DIR.up.lock"
+  mkdir "$up_lock" 2>/dev/null || fail "다른 설치 명령이 진행 중이거나 lock이 남아 있습니다: $up_lock"
+  trap 'rmdir "$up_lock" 2>/dev/null || true' EXIT
+  trap 'exit 130' HUP INT TERM
   load_persisted_runtime
   write_compose_env
   preflight_runtime
@@ -372,7 +409,8 @@ up() {
   note "NudgeOn setup shell을 먼저 시작합니다..."
   compose up -d --build setup-status gateway
   wait_for_gateway || fail "setup shell이 제한 시간 안에 준비되지 않았습니다."
-  note "NudgeOn setup 화면: $(setup_url)"
+  note "NudgeOn setup 화면: $(setup_url_with_token)"
+  configure_database
   note "나머지 서비스를 시작합니다. setup 화면에서 진행 상태를 확인할 수 있습니다."
   if ! compose up -d --build; then
     compose ps
@@ -400,7 +438,8 @@ usage() {
 Usage: ./nudgeon <command>
 
 Commands:
-  up          Generate secrets and start the safe self-host stack
+  up          Open the install wizard, choose a DB password, and start services
+              --defaults: generate the DB password without the browser step
   status      Show containers and redacted setup status
   setup-url   Print the local setup shell URL (--token: include the one-time install code)
   setup-token rotate
