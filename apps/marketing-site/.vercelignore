@@ -1,0 +1,5 @@
+design/
+README.md
+node_modules/
+dist/
+.env*

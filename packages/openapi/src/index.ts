@@ -279,10 +279,11 @@ export class NudgeOnClient {
   };
 
   readonly messageLog = {
-    list: (appId: string, params?: { status?: string; journey_id?: string; limit?: number }) => {
+    list: (appId: string, params?: { status?: string; journey_id?: string; test_run_id?: string; limit?: number }) => {
       const q = new URLSearchParams();
       if (params?.status) q.set("status", params.status);
       if (params?.journey_id) q.set("journey_id", params.journey_id);
+      if (params?.test_run_id) q.set("test_run_id", params.test_run_id);
       if (params?.limit) q.set("limit", String(params.limit));
       const qs = q.toString();
       return this.request<MessageLogResponse>(

@@ -1,0 +1,26 @@
+.j-starters { margin-top: 32px; padding: 26px; border: 1px solid var(--j-border); border-radius: 14px; background: var(--j-surface); }
+.j-starters-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.j-starters-heading h2 { margin: 0; color: var(--j-text); font-size: 20px; font-weight: 650; letter-spacing: -.04em; }
+.j-starters-heading p { margin: 8px 0 0; color: var(--j-muted); font-size: 13px; line-height: 1.8; }
+.j-starters-heading > span { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; font-size: 11px; color: var(--j-accent); }
+.j-starters-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; margin-top: 25px; }
+.j-starter { display: flex; flex-direction: column; min-width: 0; padding: 4px 0; color: var(--j-text); text-decoration: none; }
+.j-starter + .j-starter { padding-left: 26px; border-left: 1px solid var(--j-border); }
+.j-starter-number { color: var(--j-accent); font-size: 11px; font-weight: 600; letter-spacing: .08em; }
+.j-starter h3 { margin: 12px 0 8px; font-size: 16px; font-weight: 650; letter-spacing: -.025em; }
+.j-starter p { margin: 0; font-size: 12px; line-height: 1.8; color: var(--j-muted); word-break: keep-all; }
+.j-starter-path { margin-top: auto; padding-top: 17px; font-size: 11px; color: var(--j-muted); }
+.j-starter-action { display: flex; align-items: center; gap: 10px; margin-top: 16px; color: var(--j-accent); font-size: 12px; font-weight: 600; }
+.j-starter:hover .j-starter-action { text-decoration: underline; text-underline-offset: 4px; }
+.j-starter:focus-visible { outline: 2px solid var(--j-accent); outline-offset: 6px; border-radius: 3px; }
+@media (max-width: 800px) {
+  .j-starters-heading { align-items: flex-start; flex-direction: column; gap: 13px; }
+  .j-starters-options { gap: 18px; }
+  .j-starter + .j-starter { padding-left: 18px; }
+}
+@media (max-width: 600px) {
+  .j-starters { padding: 22px 19px; }
+  .j-starters-options { grid-template-columns: 1fr; gap: 20px; }
+  .j-starter + .j-starter { padding: 20px 0 0; border-left: 0; border-top: 1px solid var(--j-border); }
+  .j-starters-heading h2 { font-size: 18px; }
+}

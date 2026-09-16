@@ -344,6 +344,67 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/JourneyReport" }
         "404": { description: Version not found }
+  /v1/apps/{appId}/message-log:
+    parameters:
+      - { $ref: "#/components/parameters/AppId" }
+    get:
+      operationId: messageLogList
+      description: Latest message-log rows, newest first. Requires analytics:read. sent means provider acceptance, not device delivery. recent_hour is an app-wide row count independent of list filters.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: status
+          in: query
+          description: Exact status, or skipped to include all skipped_* reasons.
+          schema: { type: string, maxLength: 64 }
+        - name: journey_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: test_run_id
+          in: query
+          description: Match campaign_ref to test:<test_run_id> from a test-push response.
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        "200":
+          description: Message rows and app-wide recent-hour statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [messages, recent_hour]
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      type: object
+                      required: [message_id, idempotency_key, journey_id, journey_version, node_index, campaign_ref, user_id, device_id, channel, status, failure_class, failure_detail, sent_at]
+                      properties:
+                        message_id: { type: string, format: uuid }
+                        idempotency_key: { type: string }
+                        journey_id: { type: string, format: uuid }
+                        journey_version: { type: integer }
+                        node_index: { type: integer }
+                        campaign_ref: { type: string }
+                        user_id: { type: string, format: uuid }
+                        device_id: { type: string, format: uuid }
+                        channel: { type: string }
+                        status: { type: string }
+                        failure_class: { type: string }
+                        failure_detail: { type: string }
+                        sent_at: { type: string, description: ClickHouse timestamp formatted as YYYY-MM-DD HH:mm:ss }
+                  recent_hour:
+                    type: object
+                    required: [total, failed, failure_rate]
+                    properties:
+                      total: { type: integer }
+                      failed: { type: integer }
+                      failure_rate: { type: number }
+        "400": { description: Invalid filters }
+        "401": { description: Sign-in required }
+        "403": { description: Missing analytics:read permission }
+        "404": { description: App not found in the current tenant }
 components:
   parameters:
     AppId:
