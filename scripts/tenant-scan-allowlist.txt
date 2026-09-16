@@ -10,7 +10,6 @@ apps/api/src/messaging/message-log.controller.ts::8586a3b6d58d   # message_log: 
 
 # --- app_id 스코프: app_id는 uuid PK로 단일 테넌트 소속 → 교차 테넌트 불가 ---
 apps/api/src/data/data.controller.ts::363172899ed7   # attribute_registry DELETE by app_id (assertApp로 tenant 선검증)
-apps/api/src/messaging/test-push.controller.ts::1610ab0fc9cb   # devices JOIN users WHERE u.app_id (app_id 스코프)
 apps/api/src/messaging/uninstall.controller.ts::3ccc550efa66   # devices JOIN users WHERE u.app_id (삭제 스윕, assertApp 후 app_id 스코프)
 apps/api/src/analytics/analytics.controller.ts::299339662317   # 활성 디바이스 count by u.app_id (삭제율 분모, assertApp 후 app_id 스코프)
 apps/worker/internal/ingest/tokens.go::fa26595a3775   # devices by app_id (수집 워커, 큐 envelope의 app_id)

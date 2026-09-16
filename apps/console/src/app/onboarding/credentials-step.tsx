@@ -106,8 +106,9 @@ function FcmForm({ appId, onDone }: { appId: string; onDone: () => void }) {
         }
       }}
     >
-      <Label>{t("fcmLabel")}</Label>
+      <Label htmlFor="onboarding-fcm">{t("fcmLabel")}</Label>
       <textarea
+        id="onboarding-fcm"
         className="h-32 rounded-md border border-border bg-card p-2 font-mono text-xs"
         placeholder='{"type":"service_account","project_id":"…"}'
         value={json}
@@ -143,17 +144,18 @@ function ApnsForm({ appId, onDone }: { appId: string; onDone: () => void }) {
         upsert.mutate();
       }}
     >
-      <Label>{t("apnsLabel")}</Label>
+      <Label htmlFor="onboarding-apns">{t("apnsLabel")}</Label>
       <textarea
+        id="onboarding-apns"
         className="h-16 rounded-md border border-border bg-card p-2 font-mono text-xs"
         placeholder="-----BEGIN PRIVATE KEY-----"
         value={form.p8}
         onChange={(e) => setForm({ ...form, p8: e.target.value })}
       />
-      <div className="grid grid-cols-3 gap-2">
-        <Input placeholder="Key ID" value={form.key_id} onChange={set("key_id")} />
-        <Input placeholder="Team ID" value={form.team_id} onChange={set("team_id")} />
-        <Input placeholder="Bundle ID" value={form.bundle_id} onChange={set("bundle_id")} />
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Input aria-label="APNs Key ID" placeholder="Key ID" value={form.key_id} onChange={set("key_id")} />
+        <Input aria-label="APNs Team ID" placeholder="Team ID" value={form.team_id} onChange={set("team_id")} />
+        <Input aria-label="APNs Bundle ID" placeholder="Bundle ID" value={form.bundle_id} onChange={set("bundle_id")} />
       </div>
       {upsert.isError && (
         <p className="text-xs text-destructive">{t("apnsFailed")}</p>

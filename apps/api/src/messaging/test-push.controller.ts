@@ -1,101 +1,80 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  HttpCode,
-  Inject,
-  NotFoundException,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Req,
-  UseGuards,
-} from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Headers, HttpCode, Inject, NotFoundException,
+  Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import { z } from "zod";
-import { QueueProducer } from "@nudgeon/libqueue";
-import { STREAMS, type SendPushPayload } from "@nudgeon/queue-schemas";
-import { PG, QUEUE } from "../infra/infra.module";
+import { PG } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
 import { PermissionGuard } from "../authz/permission.guard";
 import { RequirePermission } from "../authz/require-permission.decorator";
+import { TestPushService } from "./test-push.service";
 
 const testPushSchema = z.object({
-  external_id: z.string().min(1).max(256),
-  title: z.string().min(1).max(256),
-  body: z.string().min(1).max(2048),
+  external_id: z.string().trim().min(1).max(256), title: z.string().min(1).max(256), body: z.string().min(1).max(2048),
+  device_id: z.string().uuid().optional(),
 });
 
-/**
- * 테스트 발송 (온보딩 위저드 4단계·M-1의 백엔드).
- * 대상 유저의 push 가능 디바이스 전부에 send.push 발행 — channel 워커가 실전송.
- * 테스트 발송은 transactional 취급 (정책 검사에 걸려 사라지지 않도록, PRD-03 6.3).
- */
 @Controller("v1/apps/:appId")
 @UseGuards(SessionGuard, PermissionGuard)
 export class TestPushController {
-  constructor(
-    @Inject(PG) private readonly pg: Pool,
-    @Inject(QUEUE) private readonly queue: QueueProducer,
-  ) {}
+  constructor(@Inject(PG) private readonly pg: Pool, private readonly tests: TestPushService) {}
 
-  // 실제 공급자 전송을 유발하는 작업 — 조회 전용(Viewer) 권한으로는 불가 (재검증: Viewer 발송 허용)
   @Post("test-push")
   @HttpCode(202)
   @RequirePermission("journeys:activate")
-  async testPush(
-    @Param("appId", ParseUUIDPipe) appId: string,
-    @Body() body: unknown,
-    @Req() req: SessionRequest,
-  ) {
-    // 앱 소속 확인을 본문 검증보다 먼저 — 타 테넌트 호출자에게 스키마(필드명)도 돌려주지 않는다 (M-6 전수 스위트).
-    const app = await this.pg.query(
-      `SELECT 1 FROM apps WHERE id = $1 AND tenant_id = $2`,
-      [appId, req.member.tenantId],
-    );
-    if (!app.rowCount) throw new NotFoundException("앱을 찾을 수 없습니다");
+  async testPush(@Param("appId", ParseUUIDPipe) appId: string, @Body() body: unknown,
+    @Req() req: SessionRequest, @Headers("idempotency-key") requestKey?: string) {
+    await this.assertApp(appId, req);
     const parsed = testPushSchema.safeParse(body);
-    if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
+    const key = z.string().uuid().safeParse(requestKey ?? randomUUID());
+    if (!parsed.success || !key.success) throw new BadRequestException("Invalid test push request");
+    return this.tests.accept(req.member.tenantId, appId, key.data.toLowerCase(), parsed.data);
+  }
 
-    // push 가능 디바이스: 토큰 active + OS 권한 granted (PRD-02 2.3 구성 요소)
+  @Get("test-push-targets")
+  @RequirePermission("journeys:activate")
+  async targets(@Param("appId", ParseUUIDPipe) appId: string, @Query("external_id") externalId: string,
+    @Req() req: SessionRequest) {
+    await this.assertApp(appId, req);
+    const parsed = z.string().trim().min(1).max(256).safeParse(externalId);
+    if (!parsed.success) throw new BadRequestException("Invalid test customer ID");
     const { rows } = await this.pg.query(
-      `SELECT d.id AS device_id, d.user_id, d.push_token, d.platform
-         FROM devices d
-         JOIN users u ON u.id = d.user_id
-        WHERE u.app_id = $1 AND u.external_id = $2 AND u.status = 'active'
-          AND d.push_token IS NOT NULL AND d.token_status = 'active'
-          AND d.os_permission = 'granted'`,
-      [appId, parsed.data.external_id],
+      `SELECT d.id AS device_id, d.platform, d.token_status, d.os_permission, d.last_active_at,
+              (d.push_token IS NOT NULL AND d.push_token <> '') AS has_token,
+              EXISTS (SELECT 1 FROM credentials c WHERE c.tenant_id = $1 AND c.app_id = $2
+                AND c.status = 'verified' AND c.kind::text =
+                CASE WHEN d.platform = 'ios' THEN 'push_apns' ELSE 'push_fcm' END) AS channel_verified
+         FROM devices d JOIN users u ON u.id = d.user_id
+        WHERE d.tenant_id = $1 AND d.app_id = $2 AND u.tenant_id = $1 AND u.app_id = $2
+          AND u.external_id = $3 AND u.status = 'active'
+        ORDER BY d.last_active_at DESC NULLS LAST, d.id LIMIT 100`,
+      [req.member.tenantId, appId, parsed.data],
     );
-    if (rows.length === 0) {
-      throw new BadRequestException(
-        "발송 가능한 디바이스가 없습니다 (토큰 active + OS 권한 granted 필요)",
-      );
-    }
+    return { devices: rows.map((row) => ({ ...row,
+      eligible: row.has_token && row.token_status === "active" && row.os_permission === "granted" && row.channel_verified,
+    })) };
+  }
 
-    const testRunId = randomUUID();
-    for (const device of rows) {
-      const payload: SendPushPayload = {
-        idempotency_key: `test:${testRunId}:${device.device_id}`,
-        message_id: randomUUID(), // 안정 발송 ID — message_log·SDK 도달/오픈 연결 (재검증 F)
-        user_id: device.user_id,
-        device_id: device.device_id,
-        push_token: device.push_token,
-        platform: device.platform,
-        content: {
-          push: { title: parsed.data.title, body: parsed.data.body },
-        },
-        category: "transactional",
-        campaign_ref: `test:${testRunId}`,
-      };
-      await this.queue.publish(STREAMS.sendPush, {
-        type: "send.push",
-        tenantId: req.member.tenantId,
-        appId,
-        payload: payload as unknown as Record<string, unknown>,
-      });
-    }
-    return { queued: rows.length, test_run_id: testRunId };
+  @Get("test-push-runs")
+  @RequirePermission("analytics:read")
+  async runs(@Param("appId", ParseUUIDPipe) appId: string, @Req() req: SessionRequest) {
+    await this.assertApp(appId, req);
+    const { rows } = await this.pg.query(
+      `SELECT r.id AS test_run_id, r.messages, r.accepted_at,
+              (SELECT count(*)::int FROM journey_outbox o WHERE o.tenant_id = $1 AND o.app_id = $2
+                AND o.id = ANY(r.outbox_ids) AND o.published_at IS NOT NULL) AS queued_count,
+              (SELECT count(*)::int FROM journey_outbox o WHERE o.tenant_id = $1 AND o.app_id = $2
+                AND o.id = ANY(r.outbox_ids) AND o.published_at IS NULL) AS pending_count,
+              (jsonb_array_length(r.messages) - (SELECT count(*)::int FROM journey_outbox o
+                WHERE o.tenant_id = $1 AND o.app_id = $2 AND o.id = ANY(r.outbox_ids))) AS removed_count
+         FROM test_push_runs r WHERE r.tenant_id = $1 AND r.app_id = $2
+        ORDER BY r.accepted_at DESC, r.id DESC LIMIT 20`, [req.member.tenantId, appId],
+    );
+    return { runs: rows };
+  }
+
+  private async assertApp(appId: string, req: SessionRequest) {
+    const app = await this.pg.query(`SELECT 1 FROM apps WHERE id = $1 AND tenant_id = $2`, [appId, req.member.tenantId]);
+    if (!app.rowCount) throw new NotFoundException("App not found");
   }
 }

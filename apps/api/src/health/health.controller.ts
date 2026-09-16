@@ -25,6 +25,7 @@ const REQUIRED_POSTGRES_RELATIONS = [
   "public.journey_states",
   "public.journey_node_executions",
   "public.journey_outbox",
+  "public.test_push_runs",
   "public.event_customer_cursors",
   "public.event_receipts",
   "public.user_merges",

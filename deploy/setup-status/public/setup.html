@@ -96,7 +96,7 @@
             <label>첫 앱 이름<input name="app_name" required maxlength="100" value="Default App" /></label>
             <label>이름<input name="owner_name" required maxlength="100" autocomplete="name" /></label>
             <label>이메일<input name="owner_email" type="email" required autocomplete="username" /></label>
-            <label>비밀번호 (8자 이상)<input name="owner_password" type="password" minlength="8" required autocomplete="new-password" /></label>
+            <label>비밀번호 (8자 이상)<input name="owner_password" type="password" minlength="8" maxlength="128" required autocomplete="new-password" /></label>
             <label>시간대<input name="timezone" required maxlength="64" /></label>
           </div>
           <button type="submit" class="primary">Owner 만들고 설치 잠그기</button>

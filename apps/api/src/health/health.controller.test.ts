@@ -18,7 +18,7 @@ interface Mocks {
   };
 }
 
-const POSTGRES_RELATION_COUNT = 23;
+const POSTGRES_RELATION_COUNT = 24;
 const CLICKHOUSE_TABLE_COUNT = 12;
 
 function readyMocks(): Mocks {

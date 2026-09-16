@@ -88,11 +88,12 @@ export class NudgeOnClient {
     method: string,
     path: string,
     body?: unknown,
+    headers?: Record<string, string>,
   ): Promise<T> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
       credentials: "include", // httpOnly 세션 쿠키 (ADR-8)
-      headers: body ? { "content-type": "application/json" } : undefined,
+      headers: { ...(body ? { "content-type": "application/json" } : {}), ...headers },
       body: body ? JSON.stringify(body) : undefined,
     });
     const text = await res.text();
@@ -193,12 +194,13 @@ export class NudgeOnClient {
       this.request<{ ok: true }>("DELETE", `/v1/apps/${appId}/keys/${keyId}`),
     ingestStatus: (appId: string) =>
       this.request<IngestStatus>("GET", `/v1/apps/${appId}/ingest-status`),
-    testPush: (appId: string, input: { external_id: string; title: string; body: string }) =>
-      this.request<{ queued: number; test_run_id: string }>(
-        "POST",
-        `/v1/apps/${appId}/test-push`,
-        input,
-      ),
+    testPush: (appId: string, input: TestPushInput, requestKey?: string) =>
+      this.request<TestPushAccepted>("POST", `/v1/apps/${appId}/test-push`, input,
+        requestKey ? { "Idempotency-Key": requestKey } : undefined),
+    testPushTargets: (appId: string, externalId: string) =>
+      this.request<{ devices: TestPushTarget[] }>("GET", `/v1/apps/${appId}/test-push-targets?external_id=${encodeURIComponent(externalId)}`),
+    testPushRuns: (appId: string) =>
+      this.request<{ runs: TestPushRun[] }>("GET", `/v1/apps/${appId}/test-push-runs`),
   };
 
   readonly segments = {
@@ -837,3 +839,14 @@ export interface ApnsCredentialInput {
   bundle_id: string;
   environment?: "production" | "sandbox";
 }
+
+export interface TestPushInput { external_id: string; title: string; body: string; device_id?: string }
+export interface TestPushTarget {
+  device_id: string; platform: "ios" | "android"; token_status: string; os_permission: string;
+  last_active_at: string | null; has_token: boolean; channel_verified: boolean; eligible: boolean;
+}
+export interface TestPushRun {
+  test_run_id: string; accepted_at: string; queued_count: number; pending_count: number; removed_count: number;
+  messages: Array<{ message_id: string; device_id: string; platform: string }>;
+}
+export interface TestPushAccepted extends Omit<TestPushRun, "queued_count" | "pending_count" | "removed_count"> { state: "accepted"; queued: number }

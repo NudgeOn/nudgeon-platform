@@ -405,6 +405,117 @@ paths:
         "401": { description: Sign-in required }
         "403": { description: Missing analytics:read permission }
         "404": { description: App not found in the current tenant }
+  /v1/apps/{appId}/test-push:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+    post:
+      operationId: testPush
+      security: [{ sessionCookie: [] }]
+      description: Requires journeys:activate. Saves a test and its outbox jobs atomically. Without device_id, legacy behavior targets all eligible devices. A selected device also requires a verified push credential.
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          description: Optional UUID. Reuse with identical input after uncertain responses; a different payload returns 409. Omission creates a new test every time.
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [external_id, title, body]
+              properties:
+                external_id: { type: string, minLength: 1, maxLength: 256 }
+                title: { type: string, minLength: 1, maxLength: 256 }
+                body: { type: string, minLength: 1, maxLength: 2048 }
+                device_id: { type: string, format: uuid }
+      responses:
+        '202':
+          description: Durably accepted, including idempotent replays. Does not confirm queue publication or delivery.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/TestPushRun'
+                  - type: object
+                    required: [state, queued]
+                    properties:
+                      state: { type: string, const: accepted }
+                      queued: { type: integer, description: Legacy count of durably accepted jobs, minimum: 1 }
+        '400': { description: Invalid request or no eligible device }
+        '401': { description: Session required }
+        '403': { description: Sending permission required }
+        '404': { description: App not owned by session tenant }
+        '409': { description: Idempotency key already used for different input }
+  /v1/apps/{appId}/test-push-targets:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+    get:
+      operationId: testPushTargets
+      security: [{ sessionCookie: [] }]
+      description: Requires journeys:activate. Latest 100 devices for an active customer. Never returns push tokens.
+      parameters:
+        - in: query
+          name: external_id
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 256 }
+      responses:
+        '200':
+          description: Devices and current readiness (rechecked on send)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [devices]
+                properties:
+                  devices:
+                    type: array
+                    items:
+                      type: object
+                      required: [device_id, platform, token_status, os_permission, last_active_at, has_token, channel_verified, eligible]
+                      properties:
+                        device_id: { type: string, format: uuid }
+                        platform: { type: string, enum: [ios, android] }
+                        token_status: { type: string }
+                        os_permission: { type: string }
+                        last_active_at: { type: [string, 'null'], format: date-time }
+                        has_token: { type: boolean }
+                        channel_verified: { type: boolean }
+                        eligible: { type: boolean }
+        '400': { description: Invalid customer ID }
+        '401': { description: Session required }
+        '403': { description: Sending permission required }
+        '404': { description: App not owned by session tenant }
+  /v1/apps/{appId}/test-push-runs:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+    get:
+      operationId: testPushRuns
+      security: [{ sessionCookie: [] }]
+      description: Requires analytics:read. Latest 20 durable tests for this tenant and app, newest first.
+      responses:
+        '200':
+          description: Saved test history and outbox publication counts, not provider or device receipts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [runs]
+                properties:
+                  runs:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/TestPushRun'
+                        - type: object
+                          required: [queued_count, pending_count, removed_count]
+                          properties:
+                            queued_count: { type: integer, minimum: 0 }
+                            pending_count: { type: integer, minimum: 0 }
+                            removed_count: { type: integer, minimum: 0, description: Jobs removed by data deletion; publication state is unavailable }
+        '401': { description: Session required }
+        '403': { description: Analytics permission required }
+        '404': { description: App not owned by session tenant }
 components:
   parameters:
     AppId:
@@ -429,6 +540,21 @@ components:
               name: { type: string, minLength: 1, maxLength: 200 }
               definition: { $ref: "#/components/schemas/JourneyDefinition" }
   schemas:
+    TestPushRun:
+      type: object
+      required: [test_run_id, accepted_at, messages]
+      properties:
+        test_run_id: { type: string, format: uuid }
+        accepted_at: { type: string, format: date-time }
+        messages:
+          type: array
+          items:
+            type: object
+            required: [message_id, device_id, platform]
+            properties:
+              message_id: { type: string, format: uuid }
+              device_id: { type: string, format: uuid }
+              platform: { type: string, enum: [ios, android] }
     JourneySummary:
       type: object
       properties:
