@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Inject,
@@ -11,6 +12,7 @@ import {
 } from "@nestjs/common";
 import type { ClickHouseClient } from "@clickhouse/client";
 import type { Pool } from "pg";
+import { z } from "zod";
 import { CLICKHOUSE, PG } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
 import { PermissionGuard } from "../authz/permission.guard";
@@ -33,11 +35,22 @@ export class MessageLogController {
     @Query("journey_id") journeyId: string | undefined,
     @Query("limit") limit: string | undefined,
     @Req() req: SessionRequest,
+    @Query("test_run_id") testRunId?: string,
   ) {
     await this.assertApp(appId, req);
+    // Reject malformed filters before they reach ClickHouse, after the tenant check.
+    const parsed = z.object({
+      status: z.string().max(64).optional(),
+      journeyId: z.string().uuid().optional(),
+      testRunId: z.string().uuid().optional(),
+      limit: z.coerce.number().int().min(1).max(500).default(100),
+    }).safeParse({ status, journeyId, testRunId, limit });
+    if (!parsed.success) throw new BadRequestException("Invalid message log filters");
     const conds = ["tenant_id = {tid:UUID}", "app_id = {aid:UUID}"];
     const params: Record<string, unknown> = { tid: req.member.tenantId, aid: appId };
-    if (status) {
+    if (status === "skipped") {
+      conds.push("startsWith(status, 'skipped_')");
+    } else if (status) {
       conds.push("status = {status:String}");
       params.status = status;
     }
@@ -45,7 +58,11 @@ export class MessageLogController {
       conds.push("journey_id = {jid:UUID}");
       params.jid = journeyId;
     }
-    const max = Math.min(Number(limit) || 100, 500);
+    if (testRunId) {
+      conds.push("campaign_ref = {campaign:String}");
+      params.campaign = `test:${testRunId}`;
+    }
+    const max = parsed.data.limit;
 
     const res = await this.ch.query({
       query: `SELECT message_id, idempotency_key, journey_id, journey_version, node_index,

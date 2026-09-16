@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { ApiError } from "@nudgeon/api-client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -220,9 +221,9 @@ function TestPushStep({ appId, onQueued }: { appId: string; onQueued: () => void
   const t = useTranslations("onboarding.testPush");
   const [externalId, setExternalId] = useState("");
   const send = useMutation({
-    mutationFn: () =>
+    mutationFn: (customerId: string) =>
       api.apps.testPush(appId, {
-        external_id: externalId,
+        external_id: customerId,
         title: t("pushTitle"),
         body: t("pushBody"),
       }),
@@ -234,30 +235,42 @@ function TestPushStep({ appId, onQueued }: { appId: string; onQueued: () => void
       className="flex flex-col gap-3 text-sm"
       onSubmit={(e) => {
         e.preventDefault();
-        send.mutate();
+        if (externalId.trim() && !send.isPending) send.mutate(externalId.trim());
       }}
     >
       <p className="text-muted-foreground">
         {t.rich("instruction", { code: (c) => <code>{c}</code> })}
       </p>
-      <div className="flex gap-2">
+      <Label htmlFor="test-customer-id">{t("externalId")}</Label>
+      <div className="flex flex-wrap gap-2">
         <Input
+          id="test-customer-id"
           placeholder="external_id"
+          maxLength={256}
+          disabled={send.isPending}
           value={externalId}
           onChange={(e) => setExternalId(e.target.value)}
           className="max-w-xs"
         />
-        <Button type="submit" disabled={!externalId || send.isPending}>
-          {t("send")}
+        <Button type="submit" disabled={!externalId.trim() || send.isPending}>
+          {send.isPending ? t("sending") : t("send")}
         </Button>
       </div>
       {send.isSuccess && (
-        <p className="text-primary">✓ {t("queued", { count: send.data.queued })}</p>
+        <div className="rounded-md border border-border bg-muted p-4" role="status">
+          <p className="font-medium">{t("queued", { count: send.data.queued })}</p>
+          <p className="mt-2 text-muted-foreground">{t("queueNote")}</p>
+          <p className="mt-2 break-all text-xs text-muted-foreground">{t("runId")}: {send.data.test_run_id}</p>
+          <Link className="mt-3 inline-block font-medium text-primary underline" href={`/logs?test_run_id=${encodeURIComponent(send.data.test_run_id)}`}>{t("viewLogs")} →</Link>
+        </div>
       )}
       {send.isError && (
-        <p className="text-destructive">
-          {t("failed")}
-        </p>
+        <div role="alert"><p className="text-destructive">
+          {send.error instanceof ApiError && send.error.status === 400 ? t("failed")
+            : send.error instanceof ApiError && send.error.status === 403 ? t("permissionDenied")
+            : send.error instanceof ApiError && send.error.status === 401 ? t("loginRequired") : t("requestFailed")}
+        </p><Link className="mt-2 inline-block text-primary underline" href={send.error instanceof ApiError && send.error.status === 401 ? "/login" : "/logs"}>
+          {send.error instanceof ApiError && send.error.status === 401 ? t("login") : t("viewAllLogs")}</Link></div>
       )}
     </form>
   );
