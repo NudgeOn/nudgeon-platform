@@ -22,7 +22,7 @@ for (const language of ['en', 'ko']) {
       `Unexpected external destination: ${match[1]}`);
   }
   for (const match of html.matchAll(/href="#([^"]+)"/g)) assert(html.includes(`id="${match[1]}"`), `Missing target: ${match[1]}`);
-  for (const match of html.matchAll(/(?:src|href|srcset)="(\/(?:assets\/|style\.css|guide\.css|landing\.css|landing-responsive\.css|journey-demo\.js|site\.js)[^"]*)"/g)) await access(path.join(root, 'public', match[1]));
+  for (const match of html.matchAll(/(?:src|href|srcset)="(\/(?:assets\/|style\.css|guide\.css|landing\.css|landing-responsive\.css|installation\.css|install-tour\.js|journey-demo\.js|site\.js)[^"]*)"/g)) await access(path.join(root, 'public', match[1]));
   assert.deepEqual(Object.keys(content.en).sort(), Object.keys(content.ko).sort());
  }
 }
