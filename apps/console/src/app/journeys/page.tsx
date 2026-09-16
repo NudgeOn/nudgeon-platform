@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 import { JourneyIcon, JourneyStatus, JourneyTopbar } from "./journey-ui";
+import { JourneyStarters } from "./JourneyStarters";
 import "./journey-list.css";
 
 type StatusFilter = "all" | JourneySummary["status"];
@@ -94,6 +95,8 @@ export default function JourneysPage() {
             </button>
           )}
         </header>
+
+        {hasResults && journeys.data.capabilities?.graph_v2 && <JourneyStarters />}
 
         <section aria-label={t("listLabel")}>
           <div className="j-list-toolbar">

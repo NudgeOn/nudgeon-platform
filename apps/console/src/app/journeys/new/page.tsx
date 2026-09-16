@@ -3,18 +3,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "@nudgeon/api-client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 import { JourneyAppGate } from "../JourneyAppGate";
 import { JourneyEditor } from "../JourneyEditor";
 import { JourneyState } from "../journey-ui";
+import { createJourneyTemplate, isJourneyTemplate } from "../journey-templates";
 
 export default function NewJourneyPage() {
-  return <JourneyAppGate>{(appId) => <NewJourneyView key={appId} appId={appId} />}</JourneyAppGate>;
+  return <JourneyAppGate>{(appId) => <Suspense fallback={null}><NewJourneyView key={appId} appId={appId} /></Suspense>}</JourneyAppGate>;
 }
 
 function NewJourneyView({ appId }: { appId: string }) {
   const t = useTranslations("journeyEditor");
+  const starter = useTranslations("journeys.starters");
+  const template = useSearchParams().get("template");
   const server = useQuery({ queryKey: ["journeys", appId], queryFn: () => api.journeys.list(appId) });
   if (server.isPending) return <JourneyState title={t("new.preparingTitle")} description={t("new.preparingBody")} />;
   if (server.isError) {
@@ -27,5 +32,10 @@ function NewJourneyView({ appId }: { appId: string }) {
   if (!server.data.capabilities?.graph_v2) return <JourneyState title={t("new.unsupportedTitle")}
     description={t("new.unsupportedBody")}
     action={<Link href="/journeys" className="j-button">{t("new.backToList")}</Link>} />;
-  return <JourneyEditor appId={appId} capabilities={server.data.capabilities} />;
+  const selected = isJourneyTemplate(template) ? template : null;
+  return <JourneyEditor key={selected ?? "blank"} appId={appId} capabilities={server.data.capabilities}
+    initialName={selected ? starter(`${selected}.name`) : undefined}
+    initialDef={selected ? createJourneyTemplate(selected, {
+      title: starter(`${selected}.pushTitle`), body: starter(`${selected}.pushBody`),
+    }) : undefined} />;
 }

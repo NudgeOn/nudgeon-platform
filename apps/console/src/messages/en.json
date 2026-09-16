@@ -358,6 +358,33 @@
       "updated": "Updated",
       "kst": "{time} (Korea time)",
       "unknownTime": "Time unavailable"
+    },
+    "starters": {
+      "title": "Start with a moment that matters.",
+      "description": "Choose a starting point. Make the event, timing and message your own.",
+      "draftOnly": "Opens an editable draft",
+      "use": "Use this journey",
+      "welcome": {
+        "name": "Welcome new users",
+        "description": "A thoughtful first hello, right when they join.",
+        "path": "Sign up → 10 minutes → Push",
+        "pushTitle": "A good place to start",
+        "pushBody": "Your next favorite thing is waiting. Take a look around."
+      },
+      "return": {
+        "name": "Bring them back",
+        "description": "Continue the conversation after a meaningful visit. Exit when they purchase.",
+        "path": "Product viewed → 1 day → Push",
+        "pushTitle": "Still on your mind?",
+        "pushBody": "Pick up where you left off. Your next discovery is just a tap away."
+      },
+      "update": {
+        "name": "Share an update",
+        "description": "Keep subscribers in the loop when their content changes.",
+        "path": "Playlist updated → Push",
+        "pushTitle": "Your playlist has an update",
+        "pushBody": "Something changed in a playlist you follow. Tap to see what is new."
+      }
     }
   },
   "userDetail": {

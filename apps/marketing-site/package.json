@@ -1,0 +1,16 @@
+{
+  "name": "nudgeon-webpage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "NudgeOn \u2014 English and Korean product website",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/server.mjs",
+    "preview": "node scripts/server.mjs --production",
+    "check": "node --check scripts/build.mjs && node --check scripts/server.mjs && node --check public/journey-demo.js && node scripts/check.mjs"
+  }
+}

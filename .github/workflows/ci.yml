@@ -28,6 +28,10 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - name: Public website validation and build
+        run: |
+          npm --prefix apps/marketing-site run check
+          npm --prefix apps/marketing-site run build
 
   go:
     name: Go (vet · test · build)
