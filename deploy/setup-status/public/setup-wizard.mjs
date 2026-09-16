@@ -147,12 +147,12 @@ export async function initWizard() {
   const st = status.json ?? {};
   statusCache = st;
   const note = $("#install-state-note");
-  if (st.mode !== "single_tenant") { note.textContent = "멀티테넌트 모드 — 콘솔 가입으로 시작하세요."; $("#next-step").querySelector("div").insertAdjacentHTML("beforeend", '<p><a class="next-link" href="/signup">콘솔에서 시작하기 →</a></p>'); return; }
+  if (st.mode !== "single_tenant") { note.textContent = "멀티테넌트 모드 — 콘솔 가입으로 시작하세요."; $("#next-step").querySelector("div").insertAdjacentHTML("beforeend", '<p class="next-actions"><a class="next-link" href="/signup">콘솔에서 시작하기 →</a></p>'); return; }
   if (st.state === "secured" && sessionStorage.getItem(IDEM_KEY)) {
     const recovered = await api("GET", "setup-result", { headers: { "Idempotency-Key": sessionStorage.getItem(IDEM_KEY) } });
     if (recovered.ok) { renderSecured(recovered.json); return; }
   }
-  if (st.state === "secured") { markSecured(); note.textContent = "설치가 이미 완료됐어요."; $("#next-step").querySelector("div").insertAdjacentHTML("beforeend", '<p><a class="next-link" href="/login">콘솔 로그인 →</a></p>'); return; }
+  if (st.state === "secured") { markSecured(); note.textContent = "설치가 이미 완료됐어요."; $("#next-step").querySelector("div").insertAdjacentHTML("beforeend", '<p class="next-actions"><a class="next-link" href="/login">콘솔 로그인 →</a></p>'); return; }
   if (!st.setup_token_configured) { note.textContent = "setup 토큰이 설정되지 않아 claim할 수 없어요. ./nudgeon setup-token rotate (또는 NUDGEON_SETUP_TOKEN_FILE) 뒤 API를 다시 띄우세요."; return; }
   note.textContent = st.state === "claimed" ? "다른 브라우저가 lease를 갖고 있을 수 있어요. 만료되면 다시 claim할 수 있습니다." : "";
   show("claim");

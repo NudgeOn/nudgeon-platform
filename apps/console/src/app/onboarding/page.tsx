@@ -73,6 +73,10 @@ function Wizard({ appId, appName }: { appId: string; appName: string }) {
         <p className="text-sm text-muted-foreground">
           {t("subtitle")}
         </p>
+        <div className="mt-5 flex flex-col items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p id="onboarding-skip-note" className="text-sm text-muted-foreground">{t("skipNote")}</p>
+          <SkipOnboarding describedBy="onboarding-skip-note" />
+        </div>
       </header>
 
       <div className="flex flex-col gap-6">
@@ -92,8 +96,17 @@ function Wizard({ appId, appName }: { appId: string; appName: string }) {
           <TestPushStep appId={appId} />
         </Step>
       </div>
+      <footer className="mt-6 flex justify-end"><SkipOnboarding describedBy="onboarding-skip-note" /></footer>
     </main>
   );
+}
+
+function SkipOnboarding({ describedBy }: { describedBy: string }) {
+  const t = useTranslations("onboarding");
+  return <Link href="/" aria-describedby={describedBy}
+    className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    {t("skipForNow")}
+  </Link>;
 }
 
 function Step({
