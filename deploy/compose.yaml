@@ -118,6 +118,7 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://nudgeon:nudgeon@clickhouse:8123/nudgeon}
       MODE: ${MODE:-multi_tenant}
+      PG_CONNECT_TIMEOUT_MS: ${PG_CONNECT_TIMEOUT_MS:-5000}
       NUDGEON_MASTER_KEY: ${NUDGEON_MASTER_KEY:?NUDGEON_MASTER_KEY 필수 (openssl rand -base64 32)}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       JOURNEY_GRAPH_V2_ENABLED: ${JOURNEY_GRAPH_V2_ENABLED:-false}

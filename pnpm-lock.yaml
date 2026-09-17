@@ -62,6 +62,9 @@ importers:
       pg:
         specifier: ^8.13.0
         version: 8.23.0
+      pg-connection-string:
+        specifier: 2.14.0
+        version: 2.14.0
       postcss:
         specifier: 8.5.6
         version: 8.5.6

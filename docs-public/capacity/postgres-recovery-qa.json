@@ -1,0 +1,26 @@
+{
+  "verified_at_kst": "2026-09-18T00:36:00+09:00",
+  "scope": "local PostgreSQL 16, real TLS, API pool factory in separate Node processes",
+  "managed_service_certified": false,
+  "runner": "tests/ops/postgres-recovery/run.mjs",
+  "result": "PASS",
+  "assertions": {
+    "baseline_crashes_on_idle_disconnect": true,
+    "same_process_reconnects_with_tls": true,
+    "exhausted_pool_deadline_and_recovery": true,
+    "untrusted_certificate_rejected": true,
+    "wrong_hostname_rejected": true,
+    "invalid_password_rejected": true,
+    "no_oom": true,
+    "unrelated_containers_unchanged": true
+  },
+  "unit_tests_passed": 202,
+  "integration_tests_without_database_env_skipped": 41,
+  "api_typecheck_and_build": "PASS",
+  "remaining": [
+    "Actual managed PostgreSQL failover and DNS transition",
+    "Managed Redis and ClickHouse TLS/authentication/recovery",
+    "Managed migrations and backup/restore drill",
+    "Capacity and 24-hour soak gates"
+  ]
+}

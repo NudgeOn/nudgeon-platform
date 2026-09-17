@@ -40,6 +40,16 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: PostgreSQL TLS · idle disconnect recovery
+        run: node tests/ops/postgres-recovery/run.mjs
+      - name: PostgreSQL recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-recovery-evidence
+          path: .nudgeon/nudgeon-pg-recovery-*/result.json
+          include-hidden-files: true
+          if-no-files-found: ignore
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
