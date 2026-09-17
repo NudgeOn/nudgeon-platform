@@ -24,19 +24,38 @@ export function exampleFiles(): InAppFile[] {
     {
       path: "index.html",
       base64: encode(
-        '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="styles.css"></head><body><main><span class="tag">NUDGEON · SPECIAL EVENT</span><div class="art">✦</div><h1>A little surprise,<br>just for you.</h1><p>Your next favorite moment starts here.</p><button id="join">Explore the event ↗</button><small>Made with NudgeOn</small></main><script src="main.js"></script></body></html>',
+        '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="styles.css"></head><body><main><span class="tag">NUDGEON · SPECIAL EVENT</span><div class="art">✦</div><h1>A little surprise,<br>just for you.</h1><p>Your next favorite moment starts here.</p><button id="join">Explore the event ↗</button><div class="dismiss-actions"><button id="hide-today" type="button">오늘 하루 안 보기</button><button id="close" type="button">닫기</button></div><p id="status" role="status" aria-live="polite"></p><small>UTC 자정까지 · 한국 시간 오전 9시</small></main><script src="main.js"></script></body></html>',
       ),
     },
     {
       path: "styles.css",
       base64: encode(
-        "*{box-sizing:border-box}html,body{margin:0;background:transparent;font-family:system-ui,sans-serif}body{min-height:100vh;display:grid;place-items:center;padding:30px 24px;color:#17251e}main{width:100%;max-width:330px;text-align:center;background:#f1f7dd;border-radius:28px;padding:34px 24px;box-shadow:0 16px 70px #1233}.tag{font-size:10px;letter-spacing:2px;font-weight:700}.art{color:#466840;font-size:104px;line-height:1.3}h1{font-size:30px;line-height:1.15;letter-spacing:-1px;margin:8px 0 18px}p{font-size:14px;line-height:1.6;color:#53644f;margin:0 0 30px}button{width:100%;border:0;border-radius:14px;background:#273e2c;color:white;padding:17px 10px;font-size:14px;font-weight:700;cursor:pointer}small{display:block;margin-top:20px;color:#738069;font-size:10px}",
+        "*{box-sizing:border-box}html,body{margin:0;background:transparent;font-family:system-ui,sans-serif}body{min-height:100vh;display:grid;place-items:center;padding:30px 24px;color:#17251e}main{width:100%;max-width:330px;text-align:center;background:#f1f7dd;border-radius:28px;padding:34px 24px;box-shadow:0 16px 70px #1233}.tag{font-size:10px;letter-spacing:2px;font-weight:700}.art{color:#466840;font-size:104px;line-height:1.3}h1{font-size:30px;line-height:1.15;letter-spacing:-1px;margin:8px 0 18px}p{font-size:14px;line-height:1.6;color:#53644f;margin:0 0 30px}button{width:100%;border:0;border-radius:14px;background:#273e2c;color:white;padding:17px 10px;font-size:14px;font-weight:700;cursor:pointer}.dismiss-actions{display:flex;gap:12px;margin-top:20px}.dismiss-actions button{width:auto;flex:1;background:transparent;color:#354b32;border:1px solid #879877;padding:12px 6px;font-size:12px;min-height:44px}button:focus-visible{outline:3px solid #64884b;outline-offset:3px}button:disabled{opacity:.6;cursor:wait}#status{font-size:12px;margin:12px 0 0;color:#714322}#status:empty{display:none}small{display:block;margin-top:16px;color:#738069;font-size:10px}",
       ),
     },
     {
       path: "main.js",
       base64: encode(
-        "window.addEventListener('nudgeon:ready', () => { document.querySelector('#join').addEventListener('click', () => { window.nudgeonBridge.performAction('join_event').catch(() => {}); }); });",
+        `window.addEventListener('nudgeon:ready', () => {
+  const status = document.querySelector('#status');
+  function bind(id, action) {
+    const button = document.querySelector(id);
+    button.addEventListener('click', async () => {
+      button.disabled = true; status.textContent = '';
+      try {
+        const result = await action();
+        if (result && result.preview) status.textContent = '미리보기에서는 실제로 닫거나 숨기지 않아요. 게시한 캠페인에서 확인하세요.';
+      } catch (error) {
+        status.textContent = error.message === 'LIVE_CAMPAIGN_REQUIRED'
+          ? '테스트 연결에서는 숨김이 저장되지 않아요. 게시한 캠페인에서 확인하세요.'
+          : '처리하지 못했어요. SDK 0.2.1 이상인지 확인하고 다시 시도해 주세요.';
+      } finally { button.disabled = false; }
+    });
+  }
+  bind('#join', () => window.nudgeonBridge.performAction('join_event'));
+  bind('#hide-today', () => window.nudgeonBridge.hideToday());
+  bind('#close', () => window.nudgeonBridge.dismiss('close_button'));
+});`,
       ),
     },
   ];

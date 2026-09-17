@@ -15,7 +15,7 @@ export const bridgeBootstrap = String.raw`(()=>{
     });
   }
   function receive(result){const p=pending.get(result.request_id);if(!p)return;clearTimeout(p.timer);pending.delete(result.request_id);result.ok?p.resolve(result.result):p.reject(new Error(result.error&&result.error.code||'ACTION_FAILED'));}
-  const api=Object.freeze({ready:()=>emit('ready',{}),performAction:action_id=>emit('performAction',{action_id}),dismiss:reason=>emit('dismiss',{reason:reason||'close_button'})});
+  const api=Object.freeze({ready:()=>emit('ready',{}),performAction:action_id=>emit('performAction',{action_id}),dismiss:reason=>emit('dismiss',{reason:reason||'close_button'}),hideToday:()=>emit('hideToday',{})});
   Object.defineProperty(window,'nudgeonBridge',{value:api,writable:false});
   window.__nudgeonReply=receive;
   window.__nudgeonConnect=function(execution_id,nonce){
