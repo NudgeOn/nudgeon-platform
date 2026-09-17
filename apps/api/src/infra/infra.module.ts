@@ -1,6 +1,6 @@
 import { Global, Inject, Logger, Module, type OnApplicationShutdown } from "@nestjs/common";
 import { createClient, type ClickHouseClient } from "@clickhouse/client";
-import Redis from "ioredis";
+import type Redis from "ioredis";
 import type { Pool } from "pg";
 import { QueueProducer } from "@nudgeon/libqueue";
 import { loadConfig, type AppConfig } from "../config";
@@ -8,6 +8,7 @@ import { ShutdownState } from "./shutdown-state";
 import { bounded, SHUTDOWN_BUDGET } from "./shutdown";
 import { CapacityMetrics } from "./capacity-metrics";
 import { createPostgresPool } from "./postgres";
+import { createRedisClient } from "./redis";
 
 export const CONFIG = "CONFIG";
 export const PG = "PG";
@@ -35,7 +36,7 @@ export const QUEUE = "QUEUE";
       provide: REDIS,
       inject: [CONFIG],
       useFactory: (cfg: AppConfig) =>
-        new Redis(cfg.redisUrl, { maxRetriesPerRequest: 2 }),
+        createRedisClient(cfg),
     },
     {
       provide: CLICKHOUSE,
