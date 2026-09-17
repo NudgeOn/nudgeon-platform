@@ -53,14 +53,14 @@ export default function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-4xl p-8">
-      <header className="mb-8 flex items-center justify-between">
-        <div>
+      <header className="mb-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 break-words">
           <h1 className="text-2xl font-bold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">
             {me.data.name} ({me.data.email}) · {me.data.role}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
           <LocaleSwitcher />
           <Button variant="outline" onClick={() => logout.mutate()}>
             {t("logout")}
@@ -149,13 +149,11 @@ export default function DashboardPage() {
 
 function Stat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
   return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={`mt-1 text-2xl font-bold ${accent ? "text-destructive" : ""}`}>
-          {value.toLocaleString()}
-        </p>
-      </CardContent>
+    <Card className="p-5">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`mt-2 text-2xl font-bold ${accent ? "text-destructive" : ""}`}>
+        {value.toLocaleString()}
+      </p>
     </Card>
   );
 }
