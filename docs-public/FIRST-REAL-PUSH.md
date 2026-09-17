@@ -12,7 +12,7 @@
 | FCM 서비스 계정 JSON | Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 | HTTP v1 API. `project_id`·`client_email`·`private_key` 포함 |
 | `google-services.json` | Firebase 콘솔 → Android 앱 추가 (패키지명 = 샘플앱 applicationId) | Android 샘플앱에만 필요 |
 | APNs 인증 키 `.p8` + Key ID + Team ID | Apple Developer → Keys → APNs 활성화 | Bundle ID = 샘플앱 번들 ID. 개발 빌드는 `environment: sandbox` |
-| 실단말 | iPhone(iOS 15+), Android(13+ 권장 — 알림 권한 팝업 검증) | 시뮬레이터/에뮬레이터는 실공급자 푸시 불가 |
+| 실단말 | iPhone(iOS 15+), Android(13+ 권장 — 알림 권한 팝업 검증) | B-2는 실제 단말의 수신 증거를 기록. 모의 콜백 기록과 구분 |
 | NudgeOn 실행 환경 | `docker compose … --profile full --profile app up -d` | 단말에서 접근 가능한 API 주소 필요 (아래 1단계) |
 
 ## 1. NudgeOn를 단말이 닿는 주소로 띄우기
@@ -48,7 +48,7 @@ curl -X PUT http://<host>:8080/v1/apps/<app_id>/credentials \
 
 ## 3. 샘플앱 설정·설치
 
-- **iOS**: `Examples/NudgeOnDemo`의 설정(스킴 환경 변수 또는 `Config.xcconfig`)에 `NUDGEON_SDK_KEY=pk_…`, `NUDGEON_API_HOST=http://<host>:8080`. 서명 팀·Bundle ID를 APNs 키에 등록한 값과 맞추고 **Push Notifications capability**와 NSE 타깃의 App Group을 확인한 뒤 실기기에 설치.
+- **iOS**: `Examples/NudgeOnDemo`의 설정(스킴 환경 변수 또는 `project.yml`의 Info.plist 설정)에 `NUDGEON_SDK_KEY=pk_…`, `NUDGEON_API_HOST=http://<host>:8080`. 서명 팀·Bundle ID를 APNs 키에 등록한 값과 맞추고 **Push Notifications capability**와 NSE 타깃의 App Group을 확인한 뒤 실기기에 설치.
 - **Android**: `sample-app/google-services.json` 배치, `local.properties`(gitignore)에 `nudgeon.sdkKey=pk_…`, `nudgeon.apiHost=http://<host>:8080`. `./gradlew :sample-app:installDebug`.
 
 앱을 열고 **알림 권한 허용**을 진행한다. 로컬 device_id·푸시 토큰 표시만으로 서버 등록 성공을 판단하지 않는다. 콘솔 `/users` 에서 해당 사용자를 찾아 `token_status=active`, `os_permission=granted`인지 확인한다.
@@ -71,7 +71,7 @@ curl -X POST http://<host>:8080/v1/apps/<app_id>/test-push \
 
 ## 5. 수신 → 열기 → 대사
 
-1. 단말에 알림이 뜬다. iOS는 NSE가 `nudgeon.message_id`를 읽어 **`$push_delivered`** 를 보낸다(백그라운드/종료 상태 모두). Android는 `onMessageReceived`에서 표시와 동시에 보고한다.
+1. 단말에 알림이 뜬다. iOS는 NSE 실행 경로에서 `nudgeon.message_id`를 읽어 **`$push_delivered`** 를 보고한다. 백그라운드·종료 상태는 각각 확인하고, 실제 기기 수신과 SDK 보고 도착을 별도로 기록한다. Android는 `onMessageReceived`에서 표시와 동시에 보고한다.
 2. 알림을 **탭**한다 → 앱이 열리며 **`$push_opened`** 전송, 딥링크가 있으면 라우팅.
 3. 대사: 아래 세 곳의 `message_id`가 같아야 한다.
 
