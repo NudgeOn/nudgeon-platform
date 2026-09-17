@@ -31,6 +31,7 @@
     "ioredis": "^5.4.0",
     "parse5": "7.3.0",
     "pg": "^8.13.0",
+    "pg-connection-string": "2.14.0",
     "postcss": "8.5.6",
     "postcss-value-parser": "4.2.0",
     "reflect-metadata": "^0.2.2",

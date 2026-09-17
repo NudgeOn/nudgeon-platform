@@ -1,12 +1,13 @@
 import { Global, Inject, Logger, Module, type OnApplicationShutdown } from "@nestjs/common";
 import { createClient, type ClickHouseClient } from "@clickhouse/client";
 import Redis from "ioredis";
-import { Pool } from "pg";
+import type { Pool } from "pg";
 import { QueueProducer } from "@nudgeon/libqueue";
 import { loadConfig, type AppConfig } from "../config";
 import { ShutdownState } from "./shutdown-state";
 import { bounded, SHUTDOWN_BUDGET } from "./shutdown";
 import { CapacityMetrics } from "./capacity-metrics";
+import { createPostgresPool } from "./postgres";
 
 export const CONFIG = "CONFIG";
 export const PG = "PG";
@@ -25,7 +26,7 @@ export const QUEUE = "QUEUE";
       provide: PG,
       inject: [CONFIG, CapacityMetrics],
       useFactory: (cfg: AppConfig, metrics: CapacityMetrics) => {
-        const pool = new Pool({ connectionString: cfg.databaseUrl, max: 10 });
+        const pool = createPostgresPool(cfg);
         metrics.registerPool(pool);
         return pool;
       },

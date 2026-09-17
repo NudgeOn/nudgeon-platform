@@ -12,6 +12,8 @@ export interface AppConfig {
   corsOrigin: string;
   /** Individual readiness dependency probe timeout. */
   readinessTimeoutMs: number;
+  /** Bound connection establishment and pool acquisition during DB outages. */
+  pgConnectTimeoutMs?: number;
   /** Enable only after every worker understands graph schema v2. */
   journeyGraphV2Enabled: boolean;
   /** Opt-in coarse last_used_at writes; never caches authorization decisions. */
@@ -68,7 +70,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     mode: env.MODE === "single_tenant" ? "single_tenant" : "multi_tenant",
     sessionTtlHours: Number(env.SESSION_TTL_HOURS ?? 72),
     corsOrigin: env.CORS_ORIGIN ?? "http://localhost:3000",
-    readinessTimeoutMs: positiveNumber(env.READINESS_TIMEOUT_MS, 3_000),
+    readinessTimeoutMs: positiveNumber(env.READINESS_TIMEOUT_MS, 3_000, "READINESS_TIMEOUT_MS"),
+    pgConnectTimeoutMs: positiveNumber(env.PG_CONNECT_TIMEOUT_MS, 5_000, "PG_CONNECT_TIMEOUT_MS"),
     journeyGraphV2Enabled: env.JOURNEY_GRAPH_V2_ENABLED === "true",
     apiKeyUsageCoalesceEnabled: env.API_KEY_USAGE_COALESCE_ENABLED === "true",
     setupToken,
@@ -77,11 +80,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   };
 }
 
-function positiveNumber(value: string | undefined, fallback: number): number {
+function positiveNumber(value: string | undefined, fallback: number, key: string): number {
   if (value === undefined) return fallback;
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error("READINESS_TIMEOUT_MS는 0보다 큰 숫자여야 합니다");
+  if (!Number.isSafeInteger(parsed) || parsed <= 0 || parsed > 2_147_483_647) {
+    throw new Error(`${key}는 1~2147483647 사이의 정수여야 합니다`);
   }
   return parsed;
 }

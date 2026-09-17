@@ -99,6 +99,7 @@ services:
       # 게이트웨이 바인딩 주소 — loopback이면 평문 HTTP claim 허용(호스트 밖에서 닿을 수 없다). 스크립트가 127.0.0.1만 허용한다.
       NUDGEON_PUBLIC_BIND_ADDRESS: ${NUDGEON_BIND_ADDRESS:-127.0.0.1}
       MODE: single_tenant
+      PG_CONNECT_TIMEOUT_MS: ${PG_CONNECT_TIMEOUT_MS:-5000}
       CORS_ORIGIN: ${NUDGEON_PUBLIC_ORIGIN:-http://localhost:8080}
       IN_APP_ENABLED: ${IN_APP_ENABLED:-false}
       IN_APP_CAMPAIGNS_ENABLED: ${IN_APP_CAMPAIGNS_ENABLED:-false}

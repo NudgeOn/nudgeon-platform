@@ -20,6 +20,14 @@ function secret(value: string): string {
 }
 
 describe("loadConfig *_FILE support", () => {
+  it("bounds PostgreSQL connection waits and rejects invalid timeout settings", () => {
+    const env = { DATABASE_URL: "postgres://fixture", REDIS_URL: "redis://fixture", CLICKHOUSE_URL: "http://fixture" };
+    expect(loadConfig(env).pgConnectTimeoutMs).toBe(5_000);
+    expect(loadConfig({ ...env, PG_CONNECT_TIMEOUT_MS: "1500" }).pgConnectTimeoutMs).toBe(1500);
+    for (const value of ["", "0", "-1", "1.5", "NaN", "Infinity", "2147483648"]) {
+      expect(() => loadConfig({ ...env, PG_CONNECT_TIMEOUT_MS: value })).toThrow("PG_CONNECT_TIMEOUT_MS");
+    }
+  });
   it("keeps usage coalescing opt-in with an explicit false rollback", () => {
     const env = { DATABASE_URL: "postgres://fixture", REDIS_URL: "redis://fixture", CLICKHOUSE_URL: "http://fixture" };
     expect(loadConfig(env).apiKeyUsageCoalesceEnabled).toBe(false);

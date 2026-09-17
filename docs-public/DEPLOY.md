@@ -99,9 +99,9 @@ docker compose -f deploy/compose.yaml --env-file deploy/.env --profile full --pr
 
 ```bash
 # deploy/.env (실제 인증 정보는 로컬 환경 파일에만 보관)
-DATABASE_URL=postgres://user:pass@your-rds:5432/nudgeon
-REDIS_URL=redis://your-elasticache:6379
-CLICKHOUSE_URL=http://user:pass@your-ch-cloud:8123/nudgeon
+DATABASE_URL=postgres://user:pass@your-rds:5432/nudgeon?sslmode=verify-full
+REDIS_URL=rediss://user:pass@your-elasticache:6379
+CLICKHOUSE_URL=https://user:pass@your-ch-cloud:8443/nudgeon
 
 # 앱만 기동 (DB는 외부)
 docker compose -f deploy/compose.yaml --env-file deploy/.env --profile app up -d
@@ -109,6 +109,9 @@ docker compose -f deploy/compose.yaml --env-file deploy/.env --profile app up -d
 
 - 검증 대상: RDS/Aurora PostgreSQL 15+, ElastiCache(Redis 7 호환), ClickHouse(자체/Cloud/Altinity). 현재 확정된 호환성 인증 목록은 아닙니다.
 - 스키마 적용: `migrator` 서비스가 자동 실행. 수동은 `docker run nudgeon-worker /nudgeon-migrate /db`.
+- 실제 제공자가 안내한 호스트·포트·인증서 체인을 사용합니다. 사설 CA는 해당 프로세스가 신뢰하도록 마운트·설정해야 하며 인증서 검증을 끄지 않습니다. PG의 `sslrootcert` 경로는 호스트 경로가 아니라 **컨테이너 안의 경로**입니다. API(Node)와 워커·migrator(Go) 모두에서 검증합니다.
+- API의 `PG_CONNECT_TIMEOUT_MS` 기본값은 5,000ms입니다. 새 PG 연결과 풀 대기 시간을 제한하며 SQL 실행 시간 제한이나 트랜잭션 재시도 설정은 아닙니다. 유휴 연결이 끊어지면 `postgres_idle_connection_lost`를 기록하고 다음 요청에서 새 연결을 만듭니다. 진행 중이던 요청의 성공을 보장하지 않습니다.
+- [로컬 TLS·재연결 회귀 시험](../tests/ops/postgres-recovery/README.md)은 기존 풀의 종료 문제와 수정 후 재연결, 잘못된 CA·호스트명·비밀번호 거부를 확인합니다. 실제 관리형 DB의 failover·DNS 전환·복구 검증을 대체하지 않습니다.
 
 ## 3. 스키마 마이그레이션
 
