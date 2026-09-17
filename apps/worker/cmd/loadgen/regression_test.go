@@ -273,6 +273,10 @@ func TestRunEvidenceAndConnectionMetrics(t *testing.T) {
 	}))
 	defer server.Close()
 	cfg := testConfig(server.URL)
+	// Keep ten requests but give filesystem/CI scheduling room. This test
+	// verifies journal and connection accounting, not a 250 ms capacity gate.
+	cfg.rate = 10
+	cfg.duration = time.Second
 	cfg.concurrency = 1
 	cfg.outputDir = filepath.Join(t.TempDir(), "run")
 	r, err := runLoad(context.Background(), cfg, server.Client())
