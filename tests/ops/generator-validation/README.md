@@ -38,3 +38,12 @@ The original failure's root cause is not established. Loadgen now reports only
 sanitized bounded error categories (EOF/reset/refused/timeout/DNS/TLS/etc.) so
 future errors can be investigated without publishing URLs or credentials.
 A later pass does not erase the failed run or prove sustained production capacity.
+
+
+The subsequent requested 600-second probe stopped at about 340 seconds when
+available disk crossed the 20 GiB reserve. It retained `ABORTED_RESOURCE`, about
+2.52 million receiver acknowledgments, and the full failure/drop counts. Its
+transport categories included two resets, one EOF and one cancellation. Neither
+the short passes nor this resource-aborted run qualifies a stable 10-minute or
+24-hour result. A passing runner result also requires at least one resource
+sample; a too-short run with no sample cannot qualify.

@@ -113,6 +113,14 @@ docker compose -f deploy/compose.yaml --env-file deploy/.env --profile app up -d
 - API의 `PG_CONNECT_TIMEOUT_MS` 기본값은 5,000ms입니다. 새 PG 연결과 풀 대기 시간을 제한하며 SQL 실행 시간 제한이나 트랜잭션 재시도 설정은 아닙니다. 유휴 연결이 끊어지면 `postgres_idle_connection_lost`를 기록하고 다음 요청에서 새 연결을 만듭니다. 진행 중이던 요청의 성공을 보장하지 않습니다.
 - [로컬 TLS·재연결 회귀 시험](../tests/ops/postgres-recovery/README.md)은 기존 풀의 종료 문제와 수정 후 재연결, 잘못된 CA·호스트명·비밀번호 거부를 확인합니다. 실제 관리형 DB의 failover·DNS 전환·복구 검증을 대체하지 않습니다.
 
+### Redis TLS·재연결 로컬 회귀
+
+[격리 Redis 7 회귀](../tests/ops/redis-recovery/README.md)는 API와 같은
+클라이언트 생성 경로로 `rediss://` 연결의 인증서 검증·인증 실패·동일 클라이언트
+재연결을 확인한다. 사설 CA는 Node 시작 전에 `NODE_EXTRA_CA_CERTS`로 읽기 전용
+인증서 파일을 지정한다. TLS 검증을 비활성화하지 않는다. 이 결과는 실제
+ElastiCache/Cluster/IAM/DNS 전환·데이터 복구 인증을 대체하지 않는다.
+
 ## 3. 스키마 마이그레이션
 
 - **새 PostgreSQL DB**: `nudgeon-migrate`가 enum·기본 테이블을 만드는 `db/postgres/schema.sql`을 먼저 적용한 뒤 `db/postgres/upgrades/*.sql`을 이름순으로 재적용합니다.

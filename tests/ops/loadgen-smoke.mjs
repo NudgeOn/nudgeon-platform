@@ -1,7 +1,8 @@
 // Tests the built CLI against a loopback-only synthetic responder. No NudgeOn
 // services, databases, provider credentials or Docker containers are used.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
+import { reconstruct } from './loadgen-failures/reconstruct.mjs';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import http from 'node:http';
@@ -12,18 +13,27 @@ const binary = process.argv[2];
 if (!binary || !path.isAbsolute(binary)) throw new Error('Usage: node tests/ops/loadgen-smoke.mjs /absolute/path/to/loadgen');
 const evidence = await fs.mkdtemp(path.join(os.tmpdir(), 'nudgeon-loadgen-smoke-'));
 const key = 'pk_synthetic_loadgen_smoke_only';
+const tenants = [1, 2, 3].map(n => ({tenant_id: `${n}`.repeat(8) + '-' + `${n}`.repeat(4) + '-4' + `${n}`.repeat(3) + '-8' + `${n}`.repeat(3) + '-' + `${n}`.repeat(12), sdk_key: `pk_synthetic_tenant_${n}`}));
+const keysFile = path.join(evidence, 'keys.json');
+await fs.writeFile(keysFile, JSON.stringify(tenants), {mode: 0o600});
 let mode = 'normal', requestCount = 0, firstRequest;
 const observedIDs = new Set();
 const observedByRun = new Map();
+const observedBodies = new Map();
 const server = http.createServer(async (req, res) => {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   assert.equal(req.url, '/v1/track');
-  assert.equal(req.headers.authorization, `Bearer ${key}`);
+  assert([key, ...tenants.map(t => t.sdk_key)].some(k => req.headers.authorization === `Bearer ${k}`));
   const body = JSON.parse(Buffer.concat(chunks));
+  observedBodies.set(`${body.batch[0].properties.load_run_id}:${Math.floor(body.batch[0].properties.load_sequence/body.batch.length)}`,body);
   for (const event of body.batch) {
     observedIDs.add(event.insert_id);
     const run = event.properties.load_run_id;
+    if (event.properties.load_tenant_id) {
+      const tenant = tenants.find(t => t.tenant_id === event.properties.load_tenant_id);
+      assert.equal(req.headers.authorization, `Bearer ${tenant.sdk_key}`);
+    }
     if (!observedByRun.has(run)) observedByRun.set(run, []);
     observedByRun.get(run).push(event);
   }
@@ -38,7 +48,8 @@ const url = `http://127.0.0.1:${server.address().port}`;
 
 async function run(label, args = [], interrupt = false, logLabel = label) {
   const outputDir = path.join(evidence, label);
-  const child = spawn(binary, ['--url', url, '--key-file', '-', '--rate', '200', '--dur', '1s',
+  const credentials = args.includes('--keys-file') ? [] : ['--key-file', '-'];
+  const child = spawn(binary, ['--url', url, ...credentials, '--rate', '200', '--dur', '1s',
     '--concurrency', '8', '--request-timeout', '1s', '--max-p99', '500ms', '--run-id', label,
     '--output-dir', outputDir, ...args], { stdio: ['pipe', 'pipe', 'pipe'] });
   const output = [];
@@ -51,7 +62,7 @@ async function run(label, args = [], interrupt = false, logLabel = label) {
   const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('close', resolve); });
   clearTimeout(timeout);
   const text = Buffer.concat(output).toString();
-  assert(!text.includes(key), 'key leaked in output');
+  assert([key, ...tenants.map(t => t.sdk_key)].every(k => !text.includes(k)), 'key leaked in output');
   await fs.writeFile(path.join(evidence, `${logLabel}.log`), text, { mode: 0o600 });
   let summary;
   try { summary = JSON.parse(await fs.readFile(path.join(outputDir, 'summary.json'), 'utf8')); } catch {}
@@ -121,6 +132,23 @@ try {
   }
   assert.equal(reconstructed, 2000);
 
+  const tenantSeed = await run('tenant-seed', ['--keys-file', keysFile, '--workload', 'seed', '--identity-seed', 'multi-pool', '--identity-count', '100', '--rate', '300']);
+  assert.equal(tenantSeed.code, 0, tenantSeed.text);
+  const tenantMixed = await run('tenant-mixed', ['--keys-file', keysFile, '--workload', 'M1', '--identity-seed', 'multi-pool', '--identity-count', '100', '--rate', '300']);
+  assert.equal(tenantMixed.code, 0, tenantMixed.text);
+  assert.equal(tenantMixed.summary.tenants.length, 3);
+  assert(tenantMixed.summary.tenants.every(t => t.expected_requests === 100 && t.accepted_requests === 100 && t.failed_requests === 0));
+  for (const tenant of tenants) {
+    const pool = new Set(observedByRun.get('tenant-seed').filter(e => e.properties.load_tenant_id === tenant.tenant_id).map(e => e.anon_id));
+    assert.equal(pool.size, 100);
+    const events = observedByRun.get('tenant-mixed').filter(e => e.properties.load_tenant_id === tenant.tenant_id);
+    assert.equal(events.filter(e => !pool.has(e.anon_id)).length, 1);
+  }
+  const tenantAbort = await run('tenant-abort', ['--keys-file', keysFile, '--rate', '30', '--dur', '30s'], true);
+  assert.equal(tenantAbort.summary.outcome, 'ABORTED');
+  assert.equal(tenantAbort.summary.tenants.reduce((n,t) => n + t.expected_requests, 0), 900);
+  assert.equal(tenantAbort.summary.tenants.reduce((n,t) => n + t.failed_requests, 0), tenantAbort.summary.failed_total);
+
   mode = 'late';
   const late = await run('late', ['--rate', '10', '--dur', '100ms']);
   assert.equal(late.code, 1); assert.equal(late.summary.counters.accepted, 1);
@@ -143,8 +171,25 @@ try {
   assert.equal(c.started + c.dropped, 300);
   assert.equal(interrupted.summary.failed_total, 300 - c.accepted);
 
+  // Reconstruct payload fields, including nanosecond timestamps, from saved evidence.
+  for (const label of ['normal', 'profile-seed', 'profile-M0', 'profile-M1', 'profile-M4', 'tenant-seed', 'tenant-mixed']) {
+    const manifest = JSON.parse(await fs.readFile(path.join(evidence,label,'manifest.json'),'utf8'));
+    for (const event of observedByRun.get(label)) {
+      const batchSize=manifest.batch_size ?? 1;
+      const sequence=event.properties.load_sequence;
+      assert.deepEqual(reconstruct(manifest,Math.floor(sequence/batchSize)),observedBodies.get(`${label}:${Math.floor(sequence/batchSize)}`));
+    }
+  }
+  const exported = path.join(evidence,'invalid-export');
+  execFileSync(process.execPath, ['tests/ops/loadgen-failures/export.mjs', invalid.outputDir, exported], {stdio:'pipe'});
+  const exportResult=JSON.parse(await fs.readFile(path.join(exported,'result.json'),'utf8'));
+  assert.equal(exportResult.requests_sent,0); assert.equal(exportResult.failed_requests,2);
+  assert.equal(exportResult.status,'REVIEW_REQUIRED_NO_SEND');
+  const failures=(await fs.readFile(path.join(exported,'failed-requests.jsonl'),'utf8')).trim().split('\n').map(JSON.parse);
+  for (const failure of failures) assert.deepEqual(failure.payload.batch[0],observedByRun.get('invalid').find(e => e.properties.load_sequence===failure.request_sequence));
+
   const summary = { scope: 'CLI on loopback synthetic responder only; not platform capacity',
-    casesPassed: 9, normalRequests: 200, reconstructedAcceptedIDs: successes.size,
+    casesPassed: 12, normalRequests: 200, reconstructedAcceptedIDs: successes.size,
     tcpConnectionsOpened: normal.summary.counters.tcp_connections_opened,
     connectionsReused: normal.summary.counters.connections_reused,
     evidence };

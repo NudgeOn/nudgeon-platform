@@ -45,6 +45,8 @@ type loadConfig struct {
 	minRateRatio   float64
 	maxP99         time.Duration
 	runID          string
+	keysFile       string
+	tenants        []tenantKey
 	keyFile        string
 	outputDir      string
 	workload       string
@@ -124,6 +126,7 @@ type loadResult struct {
 	endToEndLatency     latencyStats
 	httpStatusCounts    map[int]int64
 	networkErrorClasses map[string]int64
+	tenantResults       []tenantResult
 }
 
 func main() {
@@ -149,6 +152,7 @@ func runMain() int {
 	flag.StringVar(&cfg.workload, "workload", "M2", "M2=all new, seed=prepare users, M0=returning, M1=1% new, M4=returning batch of 10")
 	flag.StringVar(&cfg.identitySeed, "identity-seed", "", "seed/M0/M1/M4 shared identity namespace (not a credential)")
 	flag.IntVar(&cfg.identityCount, "identity-count", 10000, "number of pre-seeded identities for M0/M1/M4")
+	flag.StringVar(&cfg.keysFile, "keys-file", "", "private JSON array of tenant_id/sdk_key pairs (1..100 tenants)")
 	flag.Parse()
 	if err := cfg.resolveKey(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -199,6 +203,9 @@ func runMain() int {
 func noRedirect(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 
 func (c *loadConfig) resolveKey() error {
+	if c.keysFile != "" {
+		return c.resolveTenantKeys()
+	}
 	if c.keyFile == "" {
 		return nil
 	}
@@ -266,6 +273,9 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 	if planned < 1 || planned > (1<<53)/float64(cfg.batchSize()) {
 		return loadResult{}, errors.New("목표 요청 수는 1~2^53 범위여야 합니다")
 	}
+	if planned < float64(cfg.tenantCount()) {
+		return loadResult{}, errors.New("planned request count must cover every tenant")
+	}
 	expected := int64(planned)
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -277,7 +287,8 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 	endToEndLatencies := &latencyRecorder{}
 	statusCounts := &statusRecorder{}
 	networkClasses := &errorClassRecorder{}
-	// Record the exact single-tenant workload; returning-user pre-seeding is verified separately.
+	tenantCounts := newTenantRecorder(cfg, expected)
+	// Record workload/tenant assignment; returning-user pre-seeding is verified separately.
 	loadStartedAt := time.Now()
 	evidence, err := newEvidence(cfg.outputDir, map[string]any{
 		"schema_version": 1, "run_id": cfg.runID, "started_at": loadStartedAt.UTC(),
@@ -285,8 +296,9 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 		"concurrency": cfg.concurrency, "queue_capacity": cfg.queueCapacity,
 		"request_timeout_ns": int64(cfg.requestTimeout), "workload": cfg.workloadName(),
 		"batch_size": cfg.batchSize(), "expected_events": expected * int64(cfg.batchSize()),
-		"identity_seed": cfg.identitySeed, "identity_count": cfg.identityCount, "tenant_count": 1,
+		"identity_seed": cfg.identitySeed, "identity_count": cfg.identityCount, "tenant_count": cfg.tenantCount(), "tenant_ids": cfg.tenantIDs(),
 		"returning_identities_verified": false,
+		"tenant_assignment":             "round-robin request_sequence%tenant_count; local_sequence=floor(request_sequence/tenant_count); tenant-qualified identity namespace when keys-file is used",
 		"identity_scheme":               "uuid-v5: namespace=URL(nudgeon-loadgen:v1:<run_id>); name=<event|anon|device>:<sequence>",
 		"journal_record_bytes":          eventRecordBytes, "journal_format": "uint8 kind + uint64 little-endian sequence + uint64 little-endian count",
 		"journal_kinds":   map[string]byte{"attempt_started": eventStarted, "accepted": eventAccepted, "dropped": eventDropped, "http_error": eventHTTPError, "network_error": eventNetworkError, "response_error": eventResponseError},
@@ -344,6 +356,7 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 			defer wg.Done()
 			for job := range jobs {
 				evidence.record(eventStarted, job.sequence, 1)
+				tenantCounts.record(job.sequence, eventStarted, false)
 				startedAt := time.Now()
 				counters.started.Add(1)
 				queueLatencies.record(nonNegative(startedAt.Sub(job.scheduledAt)))
@@ -378,6 +391,7 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 					statusCounts.add(outcome.statusCode)
 				}
 				evidence.record(kind, job.sequence, 1)
+				tenantCounts.record(job.sequence, kind, completedAt.Before(activeDeadline))
 			}
 		}()
 	}
@@ -421,6 +435,7 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 		endToEndLatency:     endToEndLatencies.stats(),
 		httpStatusCounts:    statusCounts.snapshot(),
 		networkErrorClasses: networkClasses.snapshot(),
+		tenantResults:       tenantCounts.snapshot(),
 	}
 	if runErr == nil {
 		runErr = ctx.Err()
@@ -508,7 +523,7 @@ func postTrackConfig(ctx context.Context, client *http.Client, cfg loadConfig, j
 	if err != nil {
 		return requestResult{err: err}
 	}
-	req.Header.Set("Authorization", "Bearer "+cfg.key)
+	req.Header.Set("Authorization", "Bearer "+cfg.requestKey(job.sequence))
 	req.Header.Set("Content-Type", "application/json")
 	// Do not replay a body on a stale pooled connection. The caller must see
 	// failures, not a transparent retry that changes the offered workload.
@@ -581,7 +596,7 @@ func evaluate(result loadResult, cfg loadConfig) []string {
 	if cfg.maxP99 > 0 && result.endToEndLatency.p99 > cfg.maxP99 {
 		violations = append(violations, fmt.Sprintf("종단 p99 %s > 허용 %s", result.endToEndLatency.p99.Round(time.Microsecond), cfg.maxP99))
 	}
-	return violations
+	return append(violations, evaluateTenants(result.tenantResults, cfg)...)
 }
 
 func printResult(result loadResult, cfg loadConfig) {
@@ -593,7 +608,7 @@ func printResult(result loadResult, cfg loadConfig) {
 
 	fmt.Println("\n=== loadgen 결과 ===")
 	fmt.Printf("run_id:          %s\n", result.runID)
-	fmt.Printf("workload:        %s (batch=%d, single tenant)\n", cfg.workloadName(), cfg.batchSize())
+	fmt.Printf("workload:        %s (batch=%d, tenants=%d)\n", cfg.workloadName(), cfg.batchSize(), cfg.tenantCount())
 	fmt.Printf("부하 구간:       %s\n", result.activeDuration.Round(time.Millisecond))
 	fmt.Printf("drain 시간:      %s\n", result.drainDuration.Round(time.Millisecond))
 	fmt.Printf("전체 경과:       %s\n", result.wallDuration.Round(time.Millisecond))

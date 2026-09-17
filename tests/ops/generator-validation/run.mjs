@@ -51,7 +51,7 @@ const child = spawn(binary, ['--url', `http://127.0.0.1:${server.address().port}
   '--workload', 'M0', '--identity-seed', 'generator-only', '--identity-count', '10000',
   '--output-dir', resolve(dir, 'loadgen')], { env: { ...process.env, GOMAXPROCS: '2' }, stdio: ['pipe', log.fd, log.fd] });
 child.stdin.on('error', () => {}); child.stdin.end(key);
-let resourceAbort = null, maxGeneratorRss = 0, maxResponderRss = 0, sampling = Promise.resolve();
+let resourceAbort = null, maxGeneratorRss = 0, maxResponderRss = 0, resourceSamples = 0, sampling = Promise.resolve();
 function abort(reason) { if (!resourceAbort) { resourceAbort = reason; child.kill('SIGTERM'); } }
 const interrupt = () => abort('interrupted');
 process.on('SIGINT', interrupt); process.on('SIGTERM', interrupt);
@@ -65,6 +65,7 @@ const interval = setInterval(() => {
     const generatorRss = Number(rss) * 1024;
     const responderRss = process.memoryUsage().rss;
     if (!Number.isFinite(generatorRss) || generatorRss <= 0) { abort('invalid_resource_sample'); return; }
+    resourceSamples++;
     maxGeneratorRss = Math.max(maxGeneratorRss, generatorRss); maxResponderRss = Math.max(maxResponderRss, responderRss);
     const disk = await statfs(dir);
     const free = disk.bavail * disk.bsize;
@@ -85,7 +86,7 @@ finally {
 }
 let summary = null;
 try { summary = JSON.parse(await readFile(resolve(dir, 'loadgen/summary.json'), 'utf8')); } catch {}
-const passed = code === 0 && !resourceAbort && summary?.outcome === 'PASS' && received === expected && invalid === 0 && duplicate === 0 && summary.counters.accepted === received;
+const passed = resourceSamples > 0 && code === 0 && !resourceAbort && summary?.outcome === 'PASS' && received === expected && invalid === 0 && duplicate === 0 && summary.counters.accepted === received;
 const result = {
   schema_version: 1, scope: 'bounded loopback generator validation only; no platform, DB, provider or managed-service capacity qualification',
   outcome: passed ? 'PASS_GENERATOR' : resourceAbort ? 'ABORTED_RESOURCE' : 'INVALID_GENERATOR',
@@ -93,7 +94,7 @@ const result = {
   binary_sha256: sourceHash, rate_rps: rate, duration_seconds: seconds, expected_requests: expected,
   received_requests: received, invalid_requests: invalid, duplicate_requests: duplicate,
   body_bytes: bytes, max_generator_rss_bytes: maxGeneratorRss, max_responder_rss_bytes: maxResponderRss,
-  gomaxprocs: 2, resource_abort: resourceAbort, loadgen_outcome: summary?.outcome ?? null,
+  gomaxprocs: 2, resource_sample_count: resourceSamples, resource_abort: resourceAbort, loadgen_outcome: summary?.outcome ?? null,
   capacity_qualified: false, physical_device_push: false,
 };
 await writeFile(resolve(dir, 'result.json'), `${JSON.stringify(result, null, 2)}\n`, { flag: 'wx', mode: 0o600 });

@@ -1,0 +1,28 @@
+{
+  "scope": "isolated local Redis 7 TLS/auth/reconnect; not managed service certification",
+  "name": "nudgeon-redis-recovery-38ee354d",
+  "startedAt": "2026-09-17T22:45:12.514Z",
+  "pass": true,
+  "checks": {
+    "sameClientReconnectsWithTLS": true,
+    "untrustedCARejected": true,
+    "wrongHostnameRejected": true,
+    "wrongPasswordRejected": true
+  },
+  "containersBefore": [
+    "nudgeon-clickhouse-1",
+    "nudgeon-postgres-1",
+    "nudgeon-redis-1"
+  ],
+  "revision": "808f25cd0b4130a2a9fabe192f1950edcfff8656",
+  "sourceSHA256": "4a8977420aa992f1df972525b5692ceb33dc321aecb731e1de290435741963ca",
+  "imageId": "sha256:71da9275c5f3fcb97d0fa0c8c5b36cc995327265420f17a04bfd544f458059f7",
+  "oomKilled": false,
+  "containersAfter": [
+    "nudgeon-clickhouse-1",
+    "nudgeon-postgres-1",
+    "nudgeon-redis-1"
+  ],
+  "unrelatedContainersUnchanged": true,
+  "finishedAt": "2026-09-17T22:45:20.820Z"
+}
