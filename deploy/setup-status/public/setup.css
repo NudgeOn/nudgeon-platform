@@ -104,3 +104,10 @@ footer { display: flex; align-items: center; gap: 12px; min-height: 48px; color:
 #secured > .next-link { display: inline-flex; margin-top: 16px; }
 
 .wizard > h2 + p { margin-top: 12px; line-height: 1.65; }
+
+.in-app-setup { margin: 24px 0; padding: 20px; border: 1px solid var(--line, #d7dee6); border-radius: 12px; }
+.in-app-setup legend { padding: 0 8px; font-weight: 600; }
+.in-app-setup .check-row { display: flex; align-items: center; flex-direction: row; gap: 10px; margin: 12px 0; }
+.in-app-setup input[type=checkbox] { width: 18px; height: 18px; min-height: 18px; padding: 0; flex: 0 0 18px; }
+#in-app-options > input { box-sizing: border-box; width: 100%; min-width: 0; margin: 8px 0 16px; }
+@media (max-width: 560px) { .component strong { grid-column: 3; grid-row: 1; white-space: nowrap; } }

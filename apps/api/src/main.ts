@@ -19,6 +19,8 @@ async function bootstrap() {
   const shutdown = app.get(ShutdownState);
   app.use(app.get(CapacityMetrics).middleware);
   app.use(shutdown.middleware);
+  // Only the bounded web-source upload route accepts larger JSON/base64 payloads.
+  app.use(/^\/v1\/apps\/[0-9a-f-]+\/in-app\/revisions$/, express.json({ limit: "15mb" }));
   app.use(
     express.json({
       limit: "1mb",

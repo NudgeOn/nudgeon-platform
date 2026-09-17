@@ -118,6 +118,7 @@ export default function DashboardPage() {
           </Button>
           {me.data.permissions?.includes("journeys:read") && (
             <>
+              <Button variant="outline" onClick={() => router.push("/in-app")}>{t("nav.inApp")}</Button>
               <Button variant="outline" onClick={() => router.push("/email-templates")}>
                 {t("nav.emailTemplates")}
               </Button>

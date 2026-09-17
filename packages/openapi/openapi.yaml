@@ -9,6 +9,62 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
+  /v1/apps/{appId}/in-app/campaigns:
+    $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1campaigns"
+  /v1/apps/{appId}/in-app/campaigns/{id}:
+    $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1campaigns~1{id}"
+  /v1/apps/{appId}/in-app/campaigns/{id}/publish:
+    $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1campaigns~1{id}~1publish"
+  /v1/apps/{appId}/in-app/campaigns/{id}/pause:
+    $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1campaigns~1{id}~1pause"
+  /v1/apps/{appId}/in-app/reviews:
+    $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1reviews"
+  /v1/apps/{appId}/in-app/campaigns/{id}/report:
+    $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1campaigns~1{id}~1report"
+  /v1/in-app/live/installations:
+    $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1in-app~1live~1installations"
+  /v1/in-app/live/decisions:
+    $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1in-app~1live~1decisions"
+  /v1/in-app/live/deliveries/{id}/authorize:
+    $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1in-app~1live~1deliveries~1{id}~1authorize"
+  /v1/in-app/live/deliveries/{id}:
+    $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1in-app~1live~1deliveries~1{id}"
+  /v1/in-app/live/deliveries/{id}/events:
+    $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1in-app~1live~1deliveries~1{id}~1events"
+  /v1/in-app/live/revoke:
+    $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1in-app~1live~1revoke"
+  /v1/apps/{appId}/in-app/status:
+    $ref: './in-app.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1status'
+  /v1/apps/{appId}/in-app/revisions:
+    $ref: './in-app.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1revisions'
+  /v1/apps/{appId}/in-app/revisions/{id}:
+    $ref: './in-app.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1revisions~1{id}'
+  /v1/apps/{appId}/in-app/revisions/{id}/preview:
+    $ref: './in-app.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1revisions~1{id}~1preview'
+  /v1/apps/{appId}/in-app/devices:
+    $ref: './in-app.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1devices'
+  /v1/apps/{appId}/in-app/pairings:
+    $ref: './in-app.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1pairings'
+  /v1/apps/{appId}/in-app/devices/{id}/confirm:
+    $ref: './in-app.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1devices~1{id}~1confirm'
+  /v1/apps/{appId}/in-app/devices/{id}/revoke:
+    $ref: './in-app.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1devices~1{id}~1revoke'
+  /v1/apps/{appId}/in-app/runs:
+    $ref: './in-app.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1runs'
+  /v1/apps/{appId}/in-app/runs/{id}/events:
+    $ref: './in-app.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1runs~1{id}~1events'
+  /v1/apps/{appId}/in-app/runs/{id}/cancel:
+    $ref: './in-app.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1runs~1{id}~1cancel'
+  /v1/in-app/test/pair:
+    $ref: './in-app.openapi.json#/paths/~1v1~1in-app~1test~1pair'
+  /v1/in-app/test/commands:
+    $ref: './in-app.openapi.json#/paths/~1v1~1in-app~1test~1commands'
+  /v1/in-app/test/runs/{id}/claim:
+    $ref: './in-app.openapi.json#/paths/~1v1~1in-app~1test~1runs~1{id}~1claim'
+  /v1/in-app/test/runs/{id}/events:
+    $ref: './in-app.openapi.json#/paths/~1v1~1in-app~1test~1runs~1{id}~1events'
+  /v1/in-app/test/end:
+    $ref: './in-app.openapi.json#/paths/~1v1~1in-app~1test~1end'
   /healthz:
     get:
       operationId: healthz
@@ -793,6 +849,10 @@ components:
         model: { type: string }
         locale: { type: string }
   securitySchemes:
+    installationCredential:
+      type: apiKey
+      in: header
+      name: X-NudgeOn-Installation
     sessionCookie:
       type: apiKey
       in: cookie

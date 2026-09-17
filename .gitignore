@@ -60,3 +60,6 @@ docs/
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# Local in-app workbench assets (persistent volume in containers)
+.nudgeon-assets/

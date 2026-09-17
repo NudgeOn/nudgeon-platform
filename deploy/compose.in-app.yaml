@@ -1,0 +1,6 @@
+# Optional overlay for compose.safe.yaml. Reverse-proxy a separate HTTPS content hostname
+# to this loopback listener; uploaded HTML must never share the console hostname.
+services:
+  gateway:
+    ports:
+      - "127.0.0.1:${CONTENT_PORT:-8082}:8082"

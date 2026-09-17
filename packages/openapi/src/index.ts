@@ -1,3 +1,7 @@
+import { inAppCampaignClient } from "./in-app-campaigns";
+export * from "./in-app-campaigns";
+import { inAppClient } from "./in-app";
+export * from "./in-app";
 /**
  * NudgeOn API 클라이언트.
  * TODO(S3): openapi.yaml 코드젠 산출물로 대체한다 (ADR-5). 그 전까지 스펙과
@@ -101,6 +105,9 @@ export class NudgeOnClient {
     if (!res.ok) throw new ApiError(res.status, json);
     return json as T;
   }
+
+  readonly inAppCampaigns = inAppCampaignClient(this.request.bind(this));
+  readonly inApp = inAppClient(this.request.bind(this));
 
   readonly auth = {
     signup: (input: {

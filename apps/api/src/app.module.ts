@@ -1,3 +1,11 @@
+import { InAppCampaigns } from "./in-app/campaign.service";
+import { InAppCampaignController } from "./in-app/campaign.controller";
+import { InAppDelivery } from "./in-app/delivery.service";
+import { InAppDeliveryController } from "./in-app/delivery.controller";
+import { InAppAssets } from "./in-app/assets.service";
+import { InAppWorkbench } from "./in-app/workbench.service";
+import { InAppWorkbenchController } from "./in-app/workbench.controller";
+import { InAppTestSdkController } from "./in-app/sdk.controller";
 import { Module } from "@nestjs/common";
 import { InfraModule } from "./infra/infra.module";
 import { HealthController } from "./health/health.controller";
@@ -46,6 +54,7 @@ import { PermissionGuard } from "./authz/permission.guard";
 @Module({
   imports: [InfraModule],
   controllers: [
+    InAppWorkbenchController, InAppTestSdkController, InAppCampaignController, InAppDeliveryController,
     HealthController,
     ConnectorCatalogController,
     AuthController,
@@ -75,6 +84,7 @@ import { PermissionGuard } from "./authz/permission.guard";
     DataController,
   ],
   providers: [
+    InAppAssets, InAppWorkbench, InAppCampaigns, InAppDelivery,
     TestPushService,
     ApiKeyGuard,
     SessionGuard,

@@ -19,6 +19,7 @@ const fs=require('fs'),a=process.argv.slice(2),d=process.env.TEST_DIR;
 fs.appendFileSync(d+'/calls',JSON.stringify(a)+'\\n');
 if(a[0]==='volume')process.exit(process.env.TEST_EXISTING_VOLUME==='1'||(process.env.TEST_LATE_VOLUME==='1'&&fs.existsSync(d+'/selected'))?0:1);
 if(a.includes('port'))console.log('127.0.0.1:57599');
+if(a.includes('read-in-app')){process.stdout.write(process.env.TEST_IN_APP_CONFIG || 'IN_APP_ENABLED=false\\nIN_APP_CAMPAIGNS_ENABLED=false\\nCONTENT_PUBLIC_ORIGIN=\\nCONTENT_PORT=8082\\n');process.exit(0);}
 if(a.includes('exec')){fs.writeFileSync(d+'/selected','yes');process.stdout.write(process.env.TEST_PASSWORD);}
 `, { mode: 0o755 });
   await writeFile(join(bin, 'curl'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
@@ -70,4 +71,17 @@ test('unknown flags, existing volumes, and simultaneous runs fail without replac
   await assert.rejects(run('up'), /다른 설치 명령/);
   assert.equal(await readFile(join(state, 'secrets/postgres_password'), 'utf8'), previous);
   await access(state+'.up.lock');
+});
+
+
+test('in-app selection persists and includes the content overlay on restart', async t => {
+  const { env,dir,state,run } = await fixture(t);
+  env.TEST_IN_APP_CONFIG = 'IN_APP_ENABLED=true\nIN_APP_CAMPAIGNS_ENABLED=true\nCONTENT_PUBLIC_ORIGIN=https://content.example.com\nCONTENT_PORT=18082\n';
+  await run('up');
+  assert.equal(await readFile(join(state,'in-app.env'),'utf8'),env.TEST_IN_APP_CONFIG);
+  assert.match(await readFile(join(state,'compose.env'),'utf8'),/CONTENT_PORT=18082/);
+  await writeFile(join(dir,'calls'),'');
+  await run('up');
+  assert.match(await readFile(join(dir,'calls'),'utf8'),/compose.in-app.yaml/);
+  assert.match(await readFile(join(state,'compose.env'),'utf8'),/IN_APP_CAMPAIGNS_ENABLED=true/);
 });

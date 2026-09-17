@@ -147,6 +147,7 @@ write_compose_env() {
     else
       printf 'NUDGEON_DATABASE_SETUP_REQUIRED=false\n'
     fi
+    if [ -f "$STATE_DIR/in-app.env" ]; then cat "$STATE_DIR/in-app.env"; fi
     printf 'JOURNEY_GRAPH_V2_ENABLED=false\n'
   } >"$temp"
   chmod 600 "$temp"
@@ -181,7 +182,11 @@ require_state() {
 }
 
 compose() {
-  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+  if [ -f "$STATE_DIR/in-app.env" ] && grep -q '^IN_APP_ENABLED=true$' "$STATE_DIR/in-app.env"; then
+    docker compose -f "$COMPOSE_FILE" -f "$ROOT_DIR/deploy/compose.in-app.yaml" --env-file "$ENV_FILE" "$@"
+  else
+    docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+  fi
 }
 
 preflight_docker() {
@@ -387,6 +392,10 @@ configure_database() {
   encoded_password=$(printf '%s' "$selected_password" | LC_ALL=C od -An -v -tx1 | tr -d ' \n' | sed 's/../%&/g')
   write_value "$SECRETS_DIR/postgres_password" 644 "$selected_password"
   write_value "$SECRETS_DIR/database_url" 644 "postgres://nudgeon:${encoded_password}@postgres:5432/nudgeon"
+  in_app_temp="$STATE_DIR/in-app.env.tmp.$$"
+  compose exec -T setup-status node /app/database-setup.mjs read-in-app >"$in_app_temp" || fail "인앱 설정을 저장하지 못했습니다."
+  chmod 600 "$in_app_temp"
+  mv "$in_app_temp" "$STATE_DIR/in-app.env"
   unset selected_password encoded_password value
   rm "$STATE_DIR/database_setup_pending"
   write_compose_env

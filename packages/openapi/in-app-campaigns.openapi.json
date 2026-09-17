@@ -1,0 +1,1452 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "NudgeOn in-app campaigns",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/apps/{appId}/in-app/campaigns": {
+      "get": {
+        "operationId": "listInAppCampaigns",
+        "description": "Session-scoped campaign management. Publishing and review require in_app:publish (admin/owner).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "campaigns": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Campaign"
+                      }
+                    }
+                  },
+                  "required": [
+                    "campaigns"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createInAppCampaign",
+        "description": "Session-scoped campaign management. Publishing and review require in_app:publish (admin/owner).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/campaigns/{id}": {
+      "post": {
+        "operationId": "updateInAppCampaign",
+        "description": "Session-scoped campaign management. Publishing and review require in_app:publish (admin/owner).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/campaigns/{id}/publish": {
+      "post": {
+        "operationId": "publishInAppCampaign",
+        "description": "Session-scoped campaign management. Publishing and review require in_app:publish (admin/owner).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Version"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/campaigns/{id}/pause": {
+      "post": {
+        "operationId": "pauseInAppCampaign",
+        "description": "Session-scoped campaign management. Publishing and review require in_app:publish (admin/owner).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Version"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/reviews": {
+      "get": {
+        "operationId": "listInAppReviews",
+        "description": "Session-scoped campaign management. Publishing and review require in_app:publish (admin/owner).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reviews": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Review"
+                      }
+                    }
+                  },
+                  "required": [
+                    "reviews"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        }
+      },
+      "post": {
+        "operationId": "reviewInAppRevision",
+        "description": "Session-scoped campaign management. Publishing and review require in_app:publish (admin/owner).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/campaigns/{id}/report": {
+      "get": {
+        "operationId": "inAppCampaignReport",
+        "description": "Session-scoped campaign management. Publishing and review require in_app:publish (admin/owner).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deliveries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "state": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "state",
+                          "count"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "count"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "failures": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "detail": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "created_at",
+                          "detail"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "deliveries",
+                    "events",
+                    "failures"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        }
+      }
+    },
+    "/v1/in-app/live/installations": {
+      "post": {
+        "operationId": "registerInAppInstallation",
+        "description": "Public installation-scoped campaigns. Feature flag required. No user identity or private personalization.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "credential": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "credential"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "platform": {
+                    "enum": [
+                      "ios",
+                      "android"
+                    ]
+                  }
+                },
+                "required": [
+                  "platform"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/in-app/live/decisions": {
+      "post": {
+        "operationId": "decideInAppCampaign",
+        "description": "Public installation-scoped campaigns. Feature flag required. No user identity or private personalization.",
+        "security": [
+          {
+            "apiKey": [],
+            "installationCredential": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "delivery": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/Artifact"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "delivery"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/in-app/live/deliveries/{id}/authorize": {
+      "post": {
+        "operationId": "authorizeInAppDisplay",
+        "description": "Public installation-scoped campaigns. Feature flag required. No user identity or private personalization.",
+        "security": [
+          {
+            "apiKey": [],
+            "installationCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "expires_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "expires_at"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/in-app/live/deliveries/{id}": {
+      "get": {
+        "operationId": "inAppDeliveryStatus",
+        "description": "Public installation-scoped campaigns. Feature flag required. No user identity or private personalization.",
+        "security": [
+          {
+            "apiKey": [],
+            "installationCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "active": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "active"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        }
+      }
+    },
+    "/v1/in-app/live/deliveries/{id}/events": {
+      "post": {
+        "operationId": "recordInAppDeliveryEvent",
+        "description": "Public installation-scoped campaigns. Feature flag required. No user identity or private personalization.",
+        "security": [
+          {
+            "apiKey": [],
+            "installationCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/in-app/live/revoke": {
+      "post": {
+        "operationId": "revokeInAppInstallation",
+        "description": "Public installation-scoped campaigns. Feature flag required. No user identity or private personalization.",
+        "security": [
+          {
+            "apiKey": [],
+            "installationCredential": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or required device review missing"
+          },
+          "401": {
+            "description": "Invalid session, API key or installation credential"
+          },
+          "403": {
+            "description": "Permission or origin rejected"
+          },
+          "404": {
+            "description": "Not found in this scope"
+          },
+          "409": {
+            "description": "Version conflict, closed delivery, idempotency mismatch or limit"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Trigger": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "const": "foreground"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": [
+                  "screen",
+                  "event"
+                ]
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              }
+            },
+            "required": [
+              "type",
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "CampaignConfig": {
+        "type": "object",
+        "properties": {
+          "platforms": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "ios",
+                "android"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 2,
+            "uniqueItems": true
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/Trigger"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cooldown_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 31536000
+          },
+          "max_per_day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "max_total": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "default": 0
+          }
+        },
+        "required": [
+          "platforms",
+          "trigger",
+          "starts_at",
+          "ends_at",
+          "cooldown_seconds",
+          "max_per_day",
+          "max_total",
+          "priority"
+        ],
+        "additionalProperties": false
+      },
+      "CampaignInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "config": {
+            "$ref": "#/components/schemas/CampaignConfig"
+          }
+        },
+        "required": [
+          "name",
+          "revision_id",
+          "config"
+        ],
+        "additionalProperties": false
+      },
+      "Version": {
+        "type": "object",
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "additionalProperties": false
+      },
+      "ReviewInput": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "layout_checked": {
+            "type": "boolean"
+          },
+          "close_checked": {
+            "type": "boolean"
+          },
+          "actions_checked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "run_id",
+          "passed",
+          "layout_checked",
+          "close_checked",
+          "actions_checked"
+        ],
+        "additionalProperties": false
+      },
+      "Review": {
+        "type": "object",
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "platform": {
+            "enum": [
+              "ios",
+              "android"
+            ]
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "revision_id",
+          "platform",
+          "run_id",
+          "passed",
+          "reviewed_at"
+        ],
+        "additionalProperties": true
+      },
+      "DecisionInput": {
+        "type": "object",
+        "properties": {
+          "request_key": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/Trigger"
+          }
+        },
+        "required": [
+          "request_key",
+          "session_id",
+          "trigger"
+        ],
+        "additionalProperties": false
+      },
+      "EventInput": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "enum": [
+              "bridge_ready",
+              "content_ready",
+              "presented",
+              "impression",
+              "action",
+              "dismiss",
+              "failed",
+              "log",
+              "hide_today"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 200,
+            "default": ""
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "SDK event time. Enables ordered offline replay for up to seven days; does not reopen closed deliveries."
+          }
+        },
+        "required": [
+          "event_id",
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "Ok": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false
+      },
+      "Campaign": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "config": {
+            "$ref": "#/components/schemas/CampaignConfig"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "published",
+              "paused"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "name",
+          "revision_id",
+          "config",
+          "id",
+          "version",
+          "state",
+          "updated_at"
+        ],
+        "additionalProperties": true
+      },
+      "CampaignUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "config": {
+            "$ref": "#/components/schemas/CampaignConfig"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "name",
+          "revision_id",
+          "config",
+          "expected_version"
+        ],
+        "additionalProperties": false
+      },
+      "Artifact": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "campaign_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "html": {
+            "type": "string"
+          },
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "manifest": {
+            "$ref": "./in-app.openapi.json#/components/schemas/Manifest"
+          }
+        },
+        "required": [
+          "id",
+          "campaign_id",
+          "revision_id",
+          "expires_at",
+          "html",
+          "artifact_sha256",
+          "manifest"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "nudgeon_session"
+      },
+      "apiKey": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "installationCredential": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-NudgeOn-Installation"
+      }
+    }
+  }
+}
