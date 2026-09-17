@@ -1,4 +1,4 @@
-// Tests the built CLI against a loopback-only synthetic responder. No Onda
+// Tests the built CLI against a loopback-only synthetic responder. No NudgeOn
 // services, databases, provider credentials or Docker containers are used.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -14,18 +14,24 @@ const evidence = await fs.mkdtemp(path.join(os.tmpdir(), 'nudgeon-loadgen-smoke-
 const key = 'pk_synthetic_loadgen_smoke_only';
 let mode = 'normal', requestCount = 0, firstRequest;
 const observedIDs = new Set();
+const observedByRun = new Map();
 const server = http.createServer(async (req, res) => {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   assert.equal(req.url, '/v1/track');
   assert.equal(req.headers.authorization, `Bearer ${key}`);
   const body = JSON.parse(Buffer.concat(chunks));
-  observedIDs.add(body.batch[0].insert_id);
+  for (const event of body.batch) {
+    observedIDs.add(event.insert_id);
+    const run = event.properties.load_run_id;
+    if (!observedByRun.has(run)) observedByRun.set(run, []);
+    observedByRun.get(run).push(event);
+  }
   requestCount++;
   firstRequest?.(); firstRequest = undefined;
   if (mode === 'late') await new Promise(resolve => setTimeout(resolve, 150));
   res.writeHead(202, { 'content-type': 'application/json' });
-  res.end(mode === 'invalid' ? '{"accepted":0}' : '{"accepted":1}');
+  res.end(JSON.stringify({ accepted: mode === 'invalid' ? 0 : body.batch.length }));
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const url = `http://127.0.0.1:${server.address().port}`;
@@ -87,6 +93,34 @@ try {
     assert.equal(histogram.buckets.reduce((total, [, count]) => total + count, histogram.overflow), 200);
   }
 
+  const profiles = {};
+  for (const workload of ['seed', 'M0', 'M1', 'M4']) {
+    const label = `profile-${workload}`;
+    profiles[workload] = await run(label, ['--workload', workload, '--identity-seed', 'smoke-pool', '--identity-count', '200']);
+    assert.equal(profiles[workload].code, 0, profiles[workload].text);
+    assert.equal(profiles[workload].summary.events.accepted, workload === 'M4' ? 2000 : 200);
+    for (const event of observedByRun.get(label)) assert.equal(Buffer.byteLength(JSON.stringify(event.properties)), 1024);
+  }
+  const seeded = new Set(observedByRun.get('profile-seed').map(e => e.anon_id));
+  assert.equal(seeded.size, 200);
+  assert(observedByRun.get('profile-M0').every(e => seeded.has(e.anon_id)));
+  assert.equal(observedByRun.get('profile-M1').filter(e => !seeded.has(e.anon_id)).length, 2);
+  const batched = observedByRun.get('profile-M4');
+  assert(batched.every(e => seeded.has(e.anon_id)));
+  assert.equal(new Set(batched.map(e => e.insert_id)).size, 2000);
+  const batchJournal = await fs.readFile(path.join(profiles.M4.outputDir, 'events.bin'));
+  const batchNamespace = uuidV5('6ba7b811-9dad-11d1-80b4-00c04fd430c8', 'nudgeon-loadgen:v1:profile-M4');
+  let reconstructed = 0;
+  for (let offset = 0; offset < batchJournal.length; offset += 17) {
+    if (batchJournal[offset] !== 2) continue;
+    const request = Number(batchJournal.readBigUInt64LE(offset + 1));
+    for (let i = 0; i < 10; i++) {
+      assert(observedIDs.has(uuidV5(batchNamespace, `event:${request * 10 + i}`)));
+      reconstructed++;
+    }
+  }
+  assert.equal(reconstructed, 2000);
+
   mode = 'late';
   const late = await run('late', ['--rate', '10', '--dur', '100ms']);
   assert.equal(late.code, 1); assert.equal(late.summary.counters.accepted, 1);
@@ -110,7 +144,7 @@ try {
   assert.equal(interrupted.summary.failed_total, 300 - c.accepted);
 
   const summary = { scope: 'CLI on loopback synthetic responder only; not platform capacity',
-    casesPassed: 5, normalRequests: 200, reconstructedAcceptedIDs: successes.size,
+    casesPassed: 9, normalRequests: 200, reconstructedAcceptedIDs: successes.size,
     tcpConnectionsOpened: normal.summary.counters.tcp_connections_opened,
     connectionsReused: normal.summary.counters.connections_reused,
     evidence };

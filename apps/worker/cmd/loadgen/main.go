@@ -47,6 +47,9 @@ type loadConfig struct {
 	runID          string
 	keyFile        string
 	outputDir      string
+	workload       string
+	identitySeed   string
+	identityCount  int
 }
 
 type loadJob struct {
@@ -142,6 +145,9 @@ func runMain() int {
 	flag.Float64Var(&cfg.minRateRatio, "min-rate-ratio", 0.99, "목표 대비 최소 202 처리량 비율(0~1)")
 	flag.DurationVar(&cfg.maxP99, "max-p99", 0, "허용 종단 p99(0이면 지연 게이트 비활성)")
 	flag.StringVar(&cfg.runID, "run-id", "", "대사용 실행 ID(비우면 UUID 생성)")
+	flag.StringVar(&cfg.workload, "workload", "M2", "M2=all new, seed=prepare users, M0=returning, M1=1% new, M4=returning batch of 10")
+	flag.StringVar(&cfg.identitySeed, "identity-seed", "", "seed/M0/M1/M4 shared identity namespace (not a credential)")
+	flag.IntVar(&cfg.identityCount, "identity-count", 10000, "number of pre-seeded identities for M0/M1/M4")
 	flag.Parse()
 	if err := cfg.resolveKey(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -248,7 +254,7 @@ func (c loadConfig) validate() error {
 	case c.maxP99 < 0:
 		return errors.New("--max-p99는 0 이상이어야 합니다")
 	}
-	return nil
+	return c.validateWorkload()
 }
 
 func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResult, error) {
@@ -256,7 +262,7 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 		return loadResult{}, err
 	}
 	planned := math.Round(float64(cfg.rate) * cfg.duration.Seconds())
-	if planned < 1 || planned > 1<<53 {
+	if planned < 1 || planned > (1<<53)/float64(cfg.batchSize()) {
 		return loadResult{}, errors.New("목표 요청 수는 1~2^53 범위여야 합니다")
 	}
 	expected := int64(planned)
@@ -269,16 +275,18 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 	serviceLatencies := &latencyRecorder{}
 	endToEndLatencies := &latencyRecorder{}
 	statusCounts := &statusRecorder{}
-	// Metadata describes the actual all-new, single-event workload. It never
-	// claims the planned returning-user/multi-tenant profile is implemented.
+	// Record the exact single-tenant workload; returning-user pre-seeding is verified separately.
 	loadStartedAt := time.Now()
 	evidence, err := newEvidence(cfg.outputDir, map[string]any{
 		"schema_version": 1, "run_id": cfg.runID, "started_at": loadStartedAt.UTC(),
 		"expected": expected, "rate_rps": cfg.rate, "duration_ns": int64(cfg.duration),
 		"concurrency": cfg.concurrency, "queue_capacity": cfg.queueCapacity,
-		"request_timeout_ns": int64(cfg.requestTimeout), "workload": "all_new_identity_single_event",
-		"identity_scheme":      "uuid-v5: namespace=URL(nudgeon-loadgen:v1:<run_id>); name=<event|anon|device>:<sequence>",
-		"journal_record_bytes": eventRecordBytes, "journal_format": "uint8 kind + uint64 little-endian sequence + uint64 little-endian count",
+		"request_timeout_ns": int64(cfg.requestTimeout), "workload": cfg.workloadName(),
+		"batch_size": cfg.batchSize(), "expected_events": expected * int64(cfg.batchSize()),
+		"identity_seed": cfg.identitySeed, "identity_count": cfg.identityCount, "tenant_count": 1,
+		"returning_identities_verified": false,
+		"identity_scheme":               "uuid-v5: namespace=URL(nudgeon-loadgen:v1:<run_id>); name=<event|anon|device>:<sequence>",
+		"journal_record_bytes":          eventRecordBytes, "journal_format": "uint8 kind + uint64 little-endian sequence + uint64 little-endian count",
 		"journal_kinds":   map[string]byte{"attempt_started": eventStarted, "accepted": eventAccepted, "dropped": eventDropped, "http_error": eventHTTPError, "network_error": eventNetworkError, "response_error": eventResponseError},
 		"histogram":       "cumulative us: index=shift*1024+(us>>shift), shift=max(0,bit_length(us)-11); range=0..60s; upper-rounded",
 		"automatic_retry": false,
@@ -330,9 +338,8 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 	var wg sync.WaitGroup
 	for i := 0; i < cfg.concurrency; i++ {
 		wg.Add(1)
-		go func(seed int) {
+		go func() {
 			defer wg.Done()
-			rng := rand.New(rand.NewPCG(uint64(seed+1), 7))
 			for job := range jobs {
 				evidence.record(eventStarted, job.sequence, 1)
 				startedAt := time.Now()
@@ -340,7 +347,7 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 				queueLatencies.record(nonNegative(startedAt.Sub(job.scheduledAt)))
 
 				reqCtx, reqCancel := context.WithTimeout(httptrace.WithClientTrace(ctx, trace), cfg.requestTimeout)
-				outcome := postTrack(reqCtx, client, cfg.url, cfg.key, cfg.runID, job, rng)
+				outcome := postTrackConfig(reqCtx, client, cfg, job)
 				reqCancel()
 				completedAt := time.Now()
 				serviceLatencies.record(completedAt.Sub(startedAt))
@@ -369,7 +376,7 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 				}
 				evidence.record(kind, job.sequence, 1)
 			}
-		}(i)
+		}()
 	}
 
 	var runErr error
@@ -485,15 +492,19 @@ var errResponse = errors.New("invalid or oversized track response")
 // rng stays in the signature for the existing diagnostic overlay; IDs and
 // payload values no longer depend on worker assignment or random state.
 func postTrack(ctx context.Context, client *http.Client, url, key, runID string, job loadJob, _ *rand.Rand) requestResult {
-	body, err := trackBody(runID, job)
+	return postTrackConfig(ctx, client, loadConfig{url: url, key: key, runID: runID}, job)
+}
+
+func postTrackConfig(ctx context.Context, client *http.Client, cfg loadConfig, job loadJob) requestResult {
+	body, err := workloadBody(cfg, job)
 	if err != nil {
 		return requestResult{err: err}
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(url, "/")+"/v1/track", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(cfg.url, "/")+"/v1/track", bytes.NewReader(body))
 	if err != nil {
 		return requestResult{err: err}
 	}
-	req.Header.Set("Authorization", "Bearer "+key)
+	req.Header.Set("Authorization", "Bearer "+cfg.key)
 	req.Header.Set("Content-Type", "application/json")
 	// Do not replay a body on a stale pooled connection. The caller must see
 	// failures, not a transparent retry that changes the offered workload.
@@ -514,7 +525,7 @@ func postTrack(ctx context.Context, client *http.Client, url, key, runID string,
 		var ack struct {
 			Accepted *int `json:"accepted"`
 		}
-		if json.Unmarshal(data, &ack) != nil || ack.Accepted == nil || *ack.Accepted != 1 {
+		if json.Unmarshal(data, &ack) != nil || ack.Accepted == nil || *ack.Accepted != cfg.batchSize() {
 			return requestResult{statusCode: res.StatusCode, err: errResponse}
 		}
 	}
@@ -578,6 +589,7 @@ func printResult(result loadResult, cfg loadConfig) {
 
 	fmt.Println("\n=== loadgen 결과 ===")
 	fmt.Printf("run_id:          %s\n", result.runID)
+	fmt.Printf("workload:        %s (batch=%d, single tenant)\n", cfg.workloadName(), cfg.batchSize())
 	fmt.Printf("부하 구간:       %s\n", result.activeDuration.Round(time.Millisecond))
 	fmt.Printf("drain 시간:      %s\n", result.drainDuration.Round(time.Millisecond))
 	fmt.Printf("전체 경과:       %s\n", result.wallDuration.Round(time.Millisecond))
@@ -593,6 +605,7 @@ func printResult(result loadResult, cfg loadConfig) {
 	fmt.Printf("네트워크 오류:   %d (timeout %d)\n", c.networkErrors, c.timeouts)
 	fmt.Printf("응답 계약 오류:  %d\n", c.responseErrors)
 	fmt.Printf("202 처리량:      %.1f req/s (구간 내 완료만)\n", acceptedRate)
+	fmt.Printf("이벤트 처리량:   %.1f events/s (구간 내 완료만)\n", acceptedRate*float64(cfg.batchSize()))
 	fmt.Printf("완료 처리량:     %.1f req/s (drain 포함)\n", wallRate)
 	fmt.Printf("요청 오류율:     %.4f%%\n", errorRate*100)
 	fmt.Printf("TCP 연결 생성:   %d, 연결 획득 %d, 재사용 %d\n", c.connectionsOpened, c.connectionsAcquired, c.connectionsReused)
