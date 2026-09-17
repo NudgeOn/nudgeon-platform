@@ -24,7 +24,7 @@ export function exampleFiles(): InAppFile[] {
     {
       path: "index.html",
       base64: encode(
-        '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="styles.css"></head><body><main><span class="tag">NUDGEON · SPECIAL EVENT</span><div class="art">✦</div><h1>A little surprise,<br>just for you.</h1><p>Your next favorite moment starts here.</p><button id="join">Explore the event ↗</button><div class="dismiss-actions"><button id="hide-today" type="button">오늘 하루 안 보기</button><button id="close" type="button">닫기</button></div><p id="status" role="status" aria-live="polite"></p><small>UTC 자정까지 · 한국 시간 오전 9시</small></main><script src="main.js"></script></body></html>',
+        '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="styles.css"></head><body><main><span class="tag">NUDGEON · SPECIAL EVENT</span><div class="art">✦</div><h1>A little surprise,<br>just for you.</h1><p>Your next favorite moment starts here.</p><button id="join" disabled>Explore the event ↗</button><div class="dismiss-actions"><button id="hide-today" type="button" disabled>오늘 하루 안 보기</button><button id="close" type="button" disabled>닫기</button></div><p id="status" role="status" aria-live="polite"></p><small>UTC 자정까지 · 한국 시간 오전 9시</small></main><script src="main.js"></script></body></html>',
       ),
     },
     {
@@ -40,6 +40,7 @@ export function exampleFiles(): InAppFile[] {
   const status = document.querySelector('#status');
   function bind(id, action) {
     const button = document.querySelector(id);
+    button.disabled = false;
     button.addEventListener('click', async () => {
       button.disabled = true; status.textContent = '';
       try {
