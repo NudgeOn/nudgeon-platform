@@ -5,7 +5,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { Pool } from "pg";
-import { afterAll, beforeAll, describe, it, expect } from "vitest";
+import { afterAll, beforeAll, describe, it, expect, vi } from "vitest";
 import { InAppAssets } from "./assets.service";
 import { InAppWorkbench } from "./workbench.service";
 import { InAppCampaigns } from "./campaign.service";
@@ -466,6 +466,87 @@ describe.skipIf(!url)("live in-app campaigns", () => {
     await expect(live.event(i,d.id,{event_id:randomUUID(),kind:"log",occurred_at:new Date(Date.now()-8*86400000).toISOString()})).rejects.toMatchObject({status:409});
     const { context: other } = await installation();
     await expect(live.event(other,d.id,presented)).rejects.toMatchObject({status:404});
+  });
+
+  it("validates zones and keeps non-UTC campaigns away from legacy SDKs", async () => {
+    await expect(create({ time_zone: "Not/AZone" })).rejects.toMatchObject({ status: 400 });
+    const c = await create({ time_zone: "Asia/Seoul", trigger: { type: "event", name: "zone-capability" } });
+    await publish(c);
+    const { context: i } = await installation();
+    const b = { ...input(), trigger: { type: "event", name: "zone-capability" } };
+    expect((await live.decide(i,b)).delivery).toBeNull();
+    const d = (await live.decide(i,b,true)).delivery!;
+    expect(d.time_zone).toBe("Asia/Seoul");
+    expect(d.lifecycle_events).toBe(true);
+    expect((await live.decide(i,b)).delivery).toBeNull();
+    expect((await live.decide(i,b,true)).delivery?.id).toBe(d.id);
+  });
+  it("resets the daily authorization cap at campaign-local midnight", async () => {
+    const name = randomUUID();
+    const c = await create({ time_zone: "Asia/Seoul", trigger: { type: "event", name }, max_per_day: 1, max_total: 10 });
+    await publish(c);
+    const { context: i } = await installation();
+    const decide = () => live.decide(i, { ...input(), trigger: { type: "event", name } }, true);
+    const d = (await decide()).delivery!;
+    await live.authorize(i, d.id);
+    await event(i, d.id, "presented");
+    await event(i, d.id, "dismiss");
+    await pg.query("UPDATE in_app_deliveries SET authorized_at=(date_trunc('day',now() AT TIME ZONE 'Asia/Seoul') AT TIME ZONE 'Asia/Seoul') WHERE id=$1", [d.id]);
+    expect((await decide()).delivery).toBeNull();
+    // Same campaign/installation, but an authorization on the previous Korean day.
+    await pg.query("UPDATE in_app_deliveries SET authorized_at=authorized_at-interval '2 minutes' WHERE id=$1", [d.id]);
+    expect((await decide()).delivery?.campaign_id).toBe(c.id);
+  });
+  it("uses publication-local midnight including DST and ignores a subsequently edited zone", async () => {
+    for (const [zone, when, until] of [
+      ["Asia/Seoul", "2026-09-17T14:59:30.000Z", "2026-09-17T15:00:00.000Z"],
+      ["Asia/Seoul", "2026-09-17T15:00:00.000Z", "2026-09-18T15:00:00.000Z"],
+      ["America/New_York", "2026-03-08T06:30:00.000Z", "2026-03-09T04:00:00.000Z"],
+      ["America/New_York", "2026-11-01T05:30:00.000Z", "2026-11-02T05:00:00.000Z"],
+      ["Asia/Kathmandu", "2026-09-17T12:00:00.000Z", "2026-09-17T18:15:00.000Z"],
+    ] as const) {
+      const name = randomUUID();
+      const c = await create({ time_zone: zone, trigger: { type: "event", name } }); await publish(c);
+      const { context: i } = await installation();
+      const d = (await live.decide(i,{...input(), trigger:{type:"event",name}},true)).delivery!;
+      await live.authorize(i,d.id);
+      await pg.query("UPDATE in_app_deliveries SET created_at=$2::timestamptz-interval '1 minute',authorized_at=$2,expires_at=$2::timestamptz+interval '5 minutes' WHERE id=$1",[d.id,when]);
+      // A later campaign edit must not change the immutable publication's suppression semantics.
+      await pg.query("UPDATE in_app_campaigns SET config=jsonb_set(config,'{time_zone}','\"UTC\"') WHERE id=$1",[c.id]);
+      const clock = vi.spyOn(Date,"now").mockReturnValue(Date.parse(when));
+      try {
+        await live.event(i,d.id,{event_id:randomUUID(),kind:"presented",occurred_at:when});
+        await live.event(i,d.id,{event_id:randomUUID(),kind:"hide_today",occurred_at:when});
+        const row = (await pg.query("SELECT until_at FROM in_app_suppressions WHERE installation_id=$1 AND campaign_id=$2",[i.id,c.id])).rows[0];
+        expect(new Date(row.until_at).toISOString()).toBe(until);
+      } finally { clock.mockRestore(); }
+    }
+  });
+  it("does not extend an offline hide into the next local day", async () => {
+    const name = randomUUID(), when = "2026-09-17T14:59:30.000Z";
+    const c=await create({time_zone:"Asia/Seoul",trigger:{type:"event",name}});await publish(c);
+    const {context:i}=await installation();const d=(await live.decide(i,{...input(),trigger:{type:"event",name}},true)).delivery!;
+    await live.authorize(i,d.id);
+    await pg.query("UPDATE in_app_deliveries SET created_at=$2::timestamptz-interval '1 minute',expires_at=$2::timestamptz+interval '5 minutes' WHERE id=$1",[d.id,when]);
+    const clock=vi.spyOn(Date,"now").mockReturnValue(Date.parse("2026-09-17T15:00:30.000Z"));
+    try {
+      await live.event(i,d.id,{event_id:randomUUID(),kind:"presented",occurred_at:when});
+      await live.event(i,d.id,{event_id:randomUUID(),kind:"hide_today",occurred_at:when});
+      expect((await pg.query("SELECT 1 FROM in_app_suppressions WHERE installation_id=$1",[i.id])).rowCount).toBe(0);
+    } finally { clock.mockRestore(); }
+  });
+  it("separates normal cancellations and legacy context changes from render failures", async () => {
+    const name=randomUUID(),c=await create({trigger:{type:"event",name}});await publish(c);
+    for (const [kind,detail] of [["cancelled","background"],["failed","CONTEXT_CHANGED"],["failed","WEBVIEW_ERROR"]] as const) {
+      const {context:i}=await installation();const d=(await live.decide(i,{...input(),trigger:{type:"event",name}})).delivery!;
+      // Cancellation before presentation is valid and does not claim an impression.
+      await event(i,d.id,kind,detail);
+    }
+    const report=await campaigns.report(tenant,app,c.id);
+    expect(report.interruptions.map(e=>e.reason).sort()).toEqual(["background","legacy_context_changed"]);
+    expect(report.failures.map(e=>e.detail)).toEqual(["WEBVIEW_ERROR"]);
+    expect(report.deliveries.find(e=>e.state==="cancelled")?.count).toBe(1);
+    expect(report.events.find(e=>e.kind==="impression")).toBeUndefined();
   });
 
 });

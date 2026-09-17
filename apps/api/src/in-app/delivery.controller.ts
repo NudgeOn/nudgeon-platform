@@ -36,7 +36,7 @@ export class InAppDeliveryController {
     @Req() r: AuthedRequest,
     @Body() b: unknown,
   ) {
-    return this.service.decide(await this.auth(r), b);
+    return this.service.decide(await this.auth(r), b, (r.header("x-nudgeon-in-app-capabilities") ?? "").split(",").map(v => v.trim()).includes("campaign-time-zone"));
   }
   @Post("deliveries/:id/authorize") @RequireApiKey("sdk") async authorize(
     @Req() r: AuthedRequest,

@@ -222,10 +222,15 @@ export class InAppCampaigns {
       [tenant, app, id],
     );
     const failures = await this.workbench.pg.query(
-      "SELECT d.id,d.created_at,e.detail FROM in_app_deliveries d JOIN in_app_delivery_events e ON e.tenant_id=d.tenant_id AND e.app_id=d.app_id AND e.delivery_id=d.id WHERE d.tenant_id=$1 AND d.app_id=$2 AND d.campaign_id=$3 AND e.kind='failed' ORDER BY e.created_at DESC LIMIT 20",
+      "SELECT d.id,d.created_at,e.detail FROM in_app_deliveries d JOIN in_app_delivery_events e ON e.tenant_id=d.tenant_id AND e.app_id=d.app_id AND e.delivery_id=d.id WHERE d.tenant_id=$1 AND d.app_id=$2 AND d.campaign_id=$3 AND e.kind='failed' AND e.detail<>'CONTEXT_CHANGED' ORDER BY e.created_at DESC LIMIT 20",
+      [tenant, app, id],
+    );
+    const interruptions = await this.workbench.pg.query(
+      "SELECT d.id,e.created_at,CASE WHEN e.kind='failed' THEN 'legacy_context_changed' ELSE e.detail END AS reason FROM in_app_deliveries d JOIN in_app_delivery_events e ON e.tenant_id=d.tenant_id AND e.app_id=d.app_id AND e.delivery_id=d.id WHERE d.tenant_id=$1 AND d.app_id=$2 AND d.campaign_id=$3 AND (e.kind='cancelled' OR (e.kind='failed' AND e.detail='CONTEXT_CHANGED')) ORDER BY e.created_at DESC LIMIT 20",
       [tenant, app, id],
     );
     return {
+      interruptions: interruptions.rows,
       deliveries: deliveries.rows,
       events: events.rows,
       failures: failures.rows,

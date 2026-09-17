@@ -11,6 +11,7 @@ import { parseInput } from "./workbench.service";
 import { hash } from "./bundle";
 import {
   decisionSchema,
+  cancellationReasons,
   type Installation,
   type CampaignConfig,
 } from "./campaign-contract";
@@ -76,7 +77,7 @@ export class InAppDelivery {
     if (!d) throw new UnauthorizedException();
     return { id: d.id, tenant, app, platform: d.platform };
   }
-  async decide(i: Installation, input: unknown) {
+  async decide(i: Installation, input: unknown, supportsTimeZone = false) {
     const b = parseInput(decisionSchema, input),
       db = await this.pg.connect();
     let delivery: any;
@@ -110,7 +111,8 @@ export class InAppDelivery {
         )
           throw new ConflictException("REQUEST_KEY_REUSED");
         await db.query("COMMIT");
-        return old.state === "reserved"
+        const publication = (await db.query("SELECT config FROM in_app_publications WHERE tenant_id=$1 AND app_id=$2 AND campaign_id=$3 AND version=$4", [i.tenant, i.app, old.campaign_id, old.version])).rows[0];
+        return old.state === "reserved" && (supportsTimeZone || (publication?.config.time_zone ?? "UTC") === "UTC")
           ? this.artifact(i, old)
           : { delivery: null };
       }
@@ -136,6 +138,7 @@ export class InAppDelivery {
           now = Date.now();
         if (
           !cfg.platforms.includes(i.platform) ||
+          (!supportsTimeZone && (cfg.time_zone ?? "UTC") !== "UTC") ||
           Date.parse(cfg.starts_at) > now ||
           Date.parse(cfg.ends_at) <= now ||
           cfg.trigger.type !== b.trigger.type ||
@@ -154,8 +157,8 @@ export class InAppDelivery {
           continue;
         const f = (
           await db.query(
-            "SELECT count(*)::int AS total,count(*) FILTER(WHERE authorized_at>=(date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'))::int AS today,count(*) FILTER(WHERE session_id=$5)::int AS session,max(authorized_at) AS last FROM in_app_deliveries WHERE tenant_id=$1 AND app_id=$2 AND installation_id=$3 AND campaign_id=$4 AND authorized_at IS NOT NULL",
-            [i.tenant, i.app, i.id, c.id, b.session_id],
+            "SELECT count(*)::int AS total,count(*) FILTER(WHERE authorized_at>=(date_trunc('day',now() AT TIME ZONE $6) AT TIME ZONE $6))::int AS today,count(*) FILTER(WHERE session_id=$5)::int AS session,max(authorized_at) AS last FROM in_app_deliveries WHERE tenant_id=$1 AND app_id=$2 AND installation_id=$3 AND campaign_id=$4 AND authorized_at IS NOT NULL",
+            [i.tenant, i.app, i.id, c.id, b.session_id, cfg.time_zone ?? "UTC"],
           )
         ).rows[0];
         if (
@@ -207,8 +210,11 @@ export class InAppDelivery {
       i.app,
       d.revision_id,
     );
+    const publication = (await this.pg.query("SELECT config FROM in_app_publications WHERE tenant_id=$1 AND app_id=$2 AND campaign_id=$3 AND version=$4", [i.tenant, i.app, d.campaign_id, d.version])).rows[0];
     return {
       delivery: {
+        time_zone: publication?.config.time_zone ?? "UTC",
+        lifecycle_events: true,
         id: d.id,
         revision_id: d.revision_id,
         campaign_id: d.campaign_id,
@@ -286,7 +292,13 @@ export class InAppDelivery {
       )
     ).rows[0];
     if (!d) throw new NotFoundException();
+    const reason = d.campaign_state !== "published" ? "campaign_paused"
+      : d.version !== d.current_version ? "campaign_updated"
+      : Date.parse(d.config.ends_at) <= Date.now() ? "campaign_expired"
+      : new Date(d.expires_at).getTime() <= Date.now() ? "display_timeout"
+      : !["authorized", "presented"].includes(d.state) ? "delivery_inactive" : null;
     return {
+      reason,
       active:
         ["authorized", "presented"].includes(d.state) &&
         d.campaign_state === "published" &&
@@ -310,6 +322,7 @@ export class InAppDelivery {
               "failed",
               "log",
               "hide_today",
+              "cancelled",
             ]),
             detail: z.string().max(200).default(""),
             occurred_at: z.string().datetime({ offset: true }).optional(),
@@ -339,6 +352,7 @@ export class InAppDelivery {
         await db.query("COMMIT");
         return { ok: true };
       }
+      if (b.kind === "cancelled" && !(cancellationReasons as readonly string[]).includes(b.detail ?? "")) throw new ConflictException("INVALID_CANCELLATION_REASON");
       const now = Date.now();
       const occurred = b.occurred_at ? Date.parse(b.occurred_at) : now;
       const closed = !["reserved", "authorized", "presented"].includes(d.state) || new Date(d.expires_at).getTime() <= now;
@@ -376,17 +390,25 @@ export class InAppDelivery {
         "INSERT INTO in_app_delivery_events(tenant_id,app_id,delivery_id,event_id,kind,detail,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING",
         [i.tenant, i.app, id, b.event_id, b.kind, b.detail, b.occurred_at ?? null],
       );
-      const until = new Date(occurred); until.setUTCHours(24, 0, 0, 0);
-      if (b.kind === "hide_today" && until.getTime() > now)
-        await db.query(
+      if (b.kind === "hide_today") {
+        // Use the immutable publication that actually produced this delivery, including replay.
+        // Calendar arithmetic occurs in the campaign zone before conversion to an instant (DST-safe).
+        const publication = (await db.query(
+          "SELECT ((date_trunc('day', $5::timestamptz AT TIME ZONE COALESCE(config->>'time_zone','UTC')) + interval '1 day') AT TIME ZONE COALESCE(config->>'time_zone','UTC')) AS until_at FROM in_app_publications WHERE tenant_id=$1 AND app_id=$2 AND campaign_id=$3 AND version=$4",
+          [i.tenant, i.app, d.campaign_id, d.version, new Date(occurred).toISOString()],
+        )).rows[0];
+        if (publication && new Date(publication.until_at).getTime() > now) await db.query(
           "INSERT INTO in_app_suppressions(tenant_id,app_id,installation_id,campaign_id,until_at) VALUES($1,$2,$3,$4,$5) ON CONFLICT(tenant_id,app_id,installation_id,campaign_id) DO UPDATE SET until_at=GREATEST(in_app_suppressions.until_at,EXCLUDED.until_at)",
-          [i.tenant, i.app, i.id, d.campaign_id, until.toISOString()],
+          [i.tenant, i.app, i.id, d.campaign_id, publication.until_at],
         );
+      }
       const state = closed ? (new Date(d.expires_at).getTime() <= now && ["reserved", "authorized", "presented"].includes(d.state) ? "expired" : d.state) :
         b.kind === "presented"
           ? "presented"
           : b.kind === "dismiss"
             ? "completed"
+            : b.kind === "cancelled"
+              ? "cancelled"
             : b.kind === "failed"
               ? "failed"
               : d.state;

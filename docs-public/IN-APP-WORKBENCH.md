@@ -39,7 +39,7 @@ window.addEventListener('nudgeon:ready', () => {
 
 부트스트랩이 이미지·폰트와 DOM의 기본 준비를 확인합니다. 앱이 추가 준비를 해야 하면 `ready()`를 호출할 수도 있지만, 현재 테스트 버전은 자동 준비 신호를 사용하므로 수동 ready로 표시를 지연시키는 계약은 제공하지 않습니다. `dismiss('close_button')`으로 닫을 수 있으며 네이티브 닫기는 항상 별도로 제공됩니다.
 
-**오늘 하루 안 보기 예제 (SDK 0.2.1 이상):** **예제로 시작**에는 `오늘 하루 안 보기`와 `닫기` 버튼이 포함됩니다. `window.nudgeonBridge.hideToday()`는 표시 중인 라이브 캠페인을 다음 UTC 자정(한국 시간 오전 9시)까지 숨기고 닫습니다. 브라우저 미리보기는 모의 실행 안내를 표시하며 실제 숨김을 저장하지 않습니다. 기기 테스트 연결에서는 `LIVE_CAMPAIGN_REQUIRED`를 반환합니다. 재노출 차단은 검토 후 게시한 캠페인으로 확인하세요. SDK 0.2.0에서는 HTML 버튼 호출을 지원하지 않습니다.
+**오늘 하루 안 보기 예제 (SDK 0.2.1 이상):** **예제로 시작**에는 `오늘 하루 안 보기`와 `닫기` 버튼이 포함됩니다. `window.nudgeonBridge.hideToday()`는 표시 중인 라이브 캠페인을 캠페인 시간대의 다음 자정까지 숨기고 닫습니다. 시간대 설정은 서버와 SDK 0.2.2 이상에서 지원하며, `Asia/Seoul`이면 한국 시간 자정, 기존 UTC 설정이면 한국 시간 오전 9시입니다. 새 예제는 `window.nudgeonBridge.timeZone`으로 적용 시간대를 표시하고 폴드 가로 화면처럼 낮은 높이에도 대응합니다. 기존 저장 소스는 자동 변경되지 않으므로 새 버전으로 저장·검수·게시하세요. 브라우저 미리보기는 모의 실행 안내를 표시하며 실제 숨김을 저장하지 않습니다. 기기 테스트 연결에서는 `LIVE_CAMPAIGN_REQUIRED`를 반환합니다. 재노출 차단은 검토 후 게시한 캠페인으로 확인하세요. SDK 0.2.0에서는 HTML 버튼 호출을 지원하지 않습니다.
 
 액션 종류는 `dismiss`, `copy`, `open_url`(HTTPS), `deep_link`입니다. 실제 SDK에서는 호스트 앱이 등록한 scheme/host도 통과해야 합니다. 공개 코드 복사는 가능하며 개인별 쿠폰 지급·보상 완료 처리는 포함하지 않습니다.
 
@@ -98,7 +98,7 @@ await inApp.end()
 
 ## Android 적용
 
-별도 저장소 `nudgeon-android-sdk`의 신규 **nudgeon-inapp** 모듈입니다. Maven Central의 `io.nudgeon:nudgeon-inapp:0.2.0`으로 연결합니다. SDK 저장소 샘플 앱의 **In-app event test** 버튼으로 연결 화면을 열 수 있습니다. Android 8/API 26 이상이며 WebView의 `WEB_MESSAGE_LISTENER` 지원이 필요합니다.
+별도 저장소 `nudgeon-android-sdk`의 신규 **nudgeon-inapp** 모듈입니다. Maven Central의 `io.nudgeon:nudgeon-inapp:0.2.2`으로 연결합니다. SDK 저장소 샘플 앱의 **In-app event test** 버튼으로 연결 화면을 열 수 있습니다. Android 8/API 26 이상이며 WebView의 `WEB_MESSAGE_LISTENER` 지원이 필요합니다.
 
 ```kotlin
 val inApp = InAppTestClient(
@@ -132,7 +132,7 @@ inApp.destroy()        // 호스트 소유자가 SDK 인스턴스를 폐기할 �
 | 실행 명령 | 1회 원자 claim, 3초 polling, 고정 5분 상한. 응답 유실 시 취소/만료 후 새 run 생성 |
 | 테스트 기록 | 실패 목록·재실행·취소·중복 방지. 실기기 화면 스트리밍은 없음 |
 | 일반 사용자 캠페인 | 설치 기기 대상 게시·기간·트리거·빈도·오늘 그만 보기 구현. [운영 사용 안내](IN-APP-CAMPAIGNS.md). 사용자 세그먼트·저니는 후속 |
-| SDK 배포·파일럿 | SDK 0.2.0. Godspell 연결·시뮬레이터 검증과 별도로 실기기 검증 필요 |
-| 설치 위자드 | Compose 볼륨/콘텐츠 overlay 제공. 위자드 자동 설정·백업 UI는 후속 |
+| SDK·파일럿 | SDK 0.2.2 대상. Godspell 실기기의 정상 중단·KST 숨김·폴드 레이아웃 [검증 기록](IN-APP-DEVICE-QA-2026-09-17.md). 운영 서버·스토어 빌드는 별도 |
+| 설치 위자드 | 인앱 기능·콘텐츠 주소·포트 설정과 Compose 볼륨/overlay 제공. DNS/TLS 발급은 수동, CLI 자산 백업 절차는 [캠페인 안내](IN-APP-CAMPAIGNS.md) 참고 |
 
 브라우저와 모의 SDK 요청 검증은 실제 iOS/Android 기기 검증을 대체하지 않습니다. 검증 결과는 구현 완료 보고에서 구분합니다.

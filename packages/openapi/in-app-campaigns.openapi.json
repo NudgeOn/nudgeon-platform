@@ -586,6 +586,32 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "interruptions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "reason": {
+                            "type": "string",
+                            "description": "Cancellation reason, or legacy_context_changed for old SDK records."
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "created_at",
+                          "reason"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -713,7 +739,17 @@
             "installationCredential": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-NudgeOn-In-App-Capabilities",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated capabilities. campaign-time-zone permits non-UTC campaigns."
+          }
+        ],
         "responses": {
           "201": {
             "description": "Success",
@@ -889,6 +925,20 @@
                   "properties": {
                     "active": {
                       "type": "boolean"
+                    },
+                    "reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "campaign_paused",
+                        "campaign_updated",
+                        "campaign_expired",
+                        "display_timeout",
+                        "delivery_inactive",
+                        null
+                      ]
                     }
                   },
                   "required": [
@@ -1134,6 +1184,12 @@
             "minimum": 0,
             "maximum": 100,
             "default": 0
+          },
+          "time_zone": {
+            "type": "string",
+            "maxLength": 64,
+            "default": "UTC",
+            "description": "IANA time zone for daily frequency and hide-today. Missing legacy values mean UTC. Non-UTC campaigns require campaign-time-zone capability."
           }
         },
         "required": [
@@ -1286,13 +1342,15 @@
               "dismiss",
               "failed",
               "log",
-              "hide_today"
+              "hide_today",
+              "cancelled"
             ]
           },
           "detail": {
             "type": "string",
             "maxLength": 200,
-            "default": ""
+            "default": "",
+            "description": "Cancellation reasons: background, context_changed, screen_changed, session_ended, disabled, host_destroyed, host_blocked, campaign_paused, campaign_updated, campaign_expired, delivery_inactive, display_timeout."
           },
           "occurred_at": {
             "type": "string",
@@ -1418,6 +1476,14 @@
           },
           "manifest": {
             "$ref": "./in-app.openapi.json#/components/schemas/Manifest"
+          },
+          "time_zone": {
+            "type": "string",
+            "default": "UTC"
+          },
+          "lifecycle_events": {
+            "type": "boolean",
+            "description": "Supports cancelled events for normal host/campaign interruptions."
           }
         },
         "required": [

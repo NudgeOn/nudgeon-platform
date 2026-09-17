@@ -15,11 +15,11 @@ export const bridgeBootstrap = String.raw`(()=>{
     });
   }
   function receive(result){const p=pending.get(result.request_id);if(!p)return;clearTimeout(p.timer);pending.delete(result.request_id);result.ok?p.resolve(result.result):p.reject(new Error(result.error&&result.error.code||'ACTION_FAILED'));}
-  const api=Object.freeze({ready:()=>emit('ready',{}),performAction:action_id=>emit('performAction',{action_id}),dismiss:reason=>emit('dismiss',{reason:reason||'close_button'}),hideToday:()=>emit('hideToday',{})});
+  const api=Object.freeze({get timeZone(){return session?.time_zone||'UTC';},ready:()=>emit('ready',{}),performAction:action_id=>emit('performAction',{action_id}),dismiss:reason=>emit('dismiss',{reason:reason||'close_button'}),hideToday:()=>emit('hideToday',{})});
   Object.defineProperty(window,'nudgeonBridge',{value:api,writable:false});
   window.__nudgeonReply=receive;
-  window.__nudgeonConnect=function(execution_id,nonce){
-    if(session)return;session={execution_id,nonce};window.dispatchEvent(new Event('nudgeon:ready'));
+  window.__nudgeonConnect=function(execution_id,nonce,context){
+    if(session)return;session={execution_id,nonce,time_zone:typeof context?.time_zone==='string'?context.time_zone:'UTC'};window.dispatchEvent(new Event('nudgeon:ready'));
     const ready=()=>Promise.all(Array.from(document.images).map(i=>i.decode?i.decode():Promise.resolve())).then(()=>document.fonts?document.fonts.ready:null).then(()=>api.ready()).catch(()=>emit('log',{code:'RESOURCE_ERROR'}).catch(()=>{}));
     document.readyState==='loading'?document.addEventListener('DOMContentLoaded',ready,{once:true}):ready();
   };
