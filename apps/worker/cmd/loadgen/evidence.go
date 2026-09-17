@@ -180,7 +180,8 @@ func (r loadResult) report(cfg loadConfig, runErr error) map[string]any {
 		},
 		"active_duration_ns": int64(r.activeDuration), "wall_duration_ns": int64(r.wallDuration), "drain_duration_ns": int64(r.drainDuration),
 		"counters": r.counters.report(), "http_status_counts": r.httpStatusCounts,
-		"latency":      map[string]any{"queue": r.queueLatency.report(), "service": r.serviceLatency.report(), "end_to_end": r.endToEndLatency.report()},
-		"completed_at": time.Now().UTC(),
+		"network_error_classes": r.networkErrorClasses,
+		"latency":               map[string]any{"queue": r.queueLatency.report(), "service": r.serviceLatency.report(), "end_to_end": r.endToEndLatency.report()},
+		"completed_at":          time.Now().UTC(),
 	}
 }
