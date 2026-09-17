@@ -29,6 +29,10 @@
 
 ## 운영 시험 범위
 
+[관리형 저장소 검증 순서와 기록 양식](MANAGED-STORAGE-VALIDATION.md)에
+필요한 환경 정보와 실제 클라이언트별 TLS·복구·백업 대사 조건을 정리했다.
+현재 대상 환경이 없어 결과는 `NOT_RUN`이다.
+
 [PG 복구 증거](capacity/postgres-recovery-qa.json)는 로컬 격리 fixture다.
 관리형 서비스 인증서/네트워크/장애조치의 합격 증거는 아니다.
 [자원 사전 점검](capacity/preflight-local-2026-09-18.json)은 당시 디스크 여유와
