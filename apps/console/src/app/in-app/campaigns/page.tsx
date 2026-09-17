@@ -68,6 +68,7 @@ export default function CampaignPage() {
     [triggerName, setTriggerName] = useState("");
   const [start, setStart] = useState(""),
     [end, setEnd] = useState(""),
+    [timeZone, setTimeZone] = useState("UTC"),
     [cooldown, setCooldown] = useState(3600),
     [daily, setDaily] = useState(1),
     [total, setTotal] = useState(3),
@@ -90,6 +91,7 @@ export default function CampaignPage() {
     setName("");
     setRevision("");
     setRun("");
+    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
     setChecks([false, false, false]);
     setError("");
     setNotice("");
@@ -109,6 +111,7 @@ export default function CampaignPage() {
     setDaily(c.config.max_per_day);
     setTotal(c.config.max_total);
     setPriority(c.config.priority);
+    setTimeZone(c.config.time_zone ?? "UTC");
     setError("");
     setNotice("");
   }
@@ -155,7 +158,8 @@ export default function CampaignPage() {
       cooldown !== selected.config.cooldown_seconds ||
       daily !== selected.config.max_per_day ||
       total !== selected.config.max_total ||
-      priority !== selected.config.priority);
+      priority !== selected.config.priority ||
+      timeZone !== (selected.config.time_zone ?? "UTC"));
   const completed = (runs.data?.runs ?? []).filter(
     (r) => r.state === "completed",
   );
@@ -222,6 +226,7 @@ export default function CampaignPage() {
               onClick={() => {
                 setSelected(null);
                 setName("");
+                setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
                 setNotice("");
                 setError("");
               }}
@@ -268,6 +273,7 @@ export default function CampaignPage() {
                         : { type: trigger, name: triggerName },
                     starts_at: new Date(start).toISOString(),
                     ends_at: new Date(end).toISOString(),
+                    time_zone: timeZone,
                     cooldown_seconds: cooldown,
                     max_per_day: daily,
                     max_total: total,
@@ -376,6 +382,14 @@ export default function CampaignPage() {
                   />
                 </label>
               </div>
+              <label>
+                {t("timeZone")}
+                <input list="campaign-time-zones" required maxLength={64} value={timeZone} onChange={(e) => setTimeZone(e.target.value)} />
+                <datalist id="campaign-time-zones">
+                  {["Asia/Seoul", "UTC", "Asia/Tokyo", "America/New_York", "America/Los_Angeles", "Europe/London"].map(zone => <option key={zone} value={zone} />)}
+                </datalist>
+              </label>
+              <p className="ic-muted">{t("timeZoneHelp", { zone: timeZone })}</p>
               <div className="ic-pair">
                 <label>
                   {t("cooldown")}
@@ -578,6 +592,11 @@ export default function CampaignPage() {
                 </div>
                 <p className="ic-muted">{t("metricsNote")}</p>
                 {report.isError && <p role="alert">{t("loadError")}</p>}
+                <h3>{t("interruptions")}</h3>
+                <p className="ic-muted">{t("interruptionsHelp")}</p>
+                {report.data?.interruptions?.length ? <ul>{report.data.interruptions.map((item, index) => (
+                  <li key={`${item.id}-${index}`}><span>{t.has(`reasons.${item.reason}`) ? t(`reasons.${item.reason}`) : item.reason}</span><small>{new Date(item.created_at).toLocaleString()}</small></li>
+                ))}</ul> : <p className="ic-muted">{t("noInterruptions")}</p>}
                 <h3>{t("failures")}</h3>
                 {report.data?.failures.length ? (
                   <ul>

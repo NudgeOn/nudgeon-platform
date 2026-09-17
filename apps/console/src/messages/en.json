@@ -1650,7 +1650,7 @@
     "campaigns": "Campaigns",
     "new": "New campaign",
     "empty": "Create your first campaign from a saved web source.",
-    "frequencyNote": "Installation limits survive republishing. One attempt per campaign per session, at least 30 seconds between campaigns. Daily limits use UTC.",
+    "frequencyNote": "Installation limits survive republishing. One attempt per campaign per session, at least 30 seconds between campaigns. Daily limits use the campaign time zone.",
     "edit": "Campaign settings",
     "create": "Create a campaign",
     "name": "Campaign name",
@@ -1696,6 +1696,26 @@
     "dismiss": "Dismissals",
     "metricsNote": "Distinct executions reported by devices. Test runs are excluded.",
     "failures": "Recent failures",
-    "noFailures": "No failures recorded."
+    "noFailures": "No failures recorded.",
+    "timeZone": "Time zone for daily limits and hiding",
+    "timeZoneHelp": "Daily limits and hide-today reset at midnight in {zone}. Start/end inputs use your browser time zone. Non-UTC campaigns require a time-zone-capable SDK.",
+    "interruptions": "Normal interruptions · legacy context changes",
+    "interruptionsHelp": "Screen changes, consent withdrawal, and campaign stops are separate from errors. Legacy context changes have no detailed cause.",
+    "noInterruptions": "No interruptions.",
+    "reasons": {
+      "background": "App entered background",
+      "context_changed": "Display context changed",
+      "screen_changed": "Screen changed",
+      "session_ended": "Session changed",
+      "disabled": "In-app disabled",
+      "host_destroyed": "Host destroyed",
+      "host_blocked": "Host unavailable",
+      "campaign_paused": "Campaign paused",
+      "campaign_updated": "Publication changed",
+      "campaign_expired": "Campaign ended",
+      "delivery_inactive": "Delivery inactive",
+      "display_timeout": "Display time limit reached",
+      "legacy_context_changed": "Legacy SDK: context changed (cause unavailable)"
+    }
   }
 }

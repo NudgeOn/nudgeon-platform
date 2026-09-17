@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { bridgeBootstrap } from "./bridge";
 
 describe("HTML hide-today bridge", () => {
-  function connect() {
+  function connect(context?: { time_zone: string }) {
     const messages: any[] = [];
     const window: any = {
       addEventListener() {}, dispatchEvent() {},
@@ -13,9 +13,16 @@ describe("HTML hide-today bridge", () => {
       window, parent: window, Event: class {}, setTimeout, clearTimeout,
       document: { readyState: "loading", addEventListener() {} },
     });
-    window.__nudgeonConnect("delivery", "nonce");
+    window.__nudgeonConnect("delivery", "nonce", context);
     return { window, messages };
   }
+  it("exposes immutable campaign time zone with a UTC fallback for older hosts", () => {
+    expect(connect().window.nudgeonBridge.timeZone).toBe("UTC");
+    const {window}=connect({time_zone:"Asia/Seoul"});
+    expect(window.nudgeonBridge.timeZone).toBe("Asia/Seoul");
+    window.__nudgeonConnect("other","other",{time_zone:"UTC"});
+    expect(window.nudgeonBridge.timeZone).toBe("Asia/Seoul");
+  });
   it("sends a distinct authenticated request and resolves host acknowledgement", async () => {
     const { window, messages } = connect();
     const result = window.nudgeonBridge.hideToday();

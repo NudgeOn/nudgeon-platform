@@ -1650,7 +1650,7 @@
     "campaigns": "캠페인 목록",
     "new": "새 캠페인",
     "empty": "저장한 웹 소스로 첫 캠페인을 만들어 보세요.",
-    "frequencyNote": "기기별 제한은 다시 게시해도 유지됩니다. 캠페인마다 세션당 1회, 모든 캠페인 사이 최소 30초를 적용합니다. 일일 기준은 UTC입니다.",
+    "frequencyNote": "기기별 제한은 다시 게시해도 유지됩니다. 캠페인마다 세션당 1회, 모든 캠페인 사이 최소 30초를 적용합니다. 일일 기준은 선택한 캠페인 시간대입니다.",
     "edit": "캠페인 설정",
     "create": "새 캠페인 만들기",
     "name": "캠페인 이름",
@@ -1696,6 +1696,26 @@
     "dismiss": "닫힘",
     "metricsNote": "기기에서 보고한 실행별 기록입니다. 테스트 실행은 제외됩니다.",
     "failures": "최근 실패",
-    "noFailures": "기록된 실패가 없습니다."
+    "noFailures": "기록된 실패가 없습니다.",
+    "timeZone": "일일 제한·숨김 시간대",
+    "timeZoneHelp": "{zone} 기준 자정에 일일 제한과 오늘 하루 안 보기가 초기화됩니다. 시작·종료 시각 입력은 브라우저 시간대를 따릅니다. UTC 외 시간대는 지원 SDK에만 노출됩니다.",
+    "interruptions": "정상 중단 · 이전 SDK 상황 변경",
+    "interruptionsHelp": "화면 전환·동의 철회·캠페인 중지는 오류와 구분합니다. 이전 SDK 기록은 세부 원인을 구분할 수 없습니다.",
+    "noInterruptions": "중단 기록이 없습니다.",
+    "reasons": {
+      "background": "앱이 백그라운드로 이동",
+      "context_changed": "표시 조건 변경",
+      "screen_changed": "화면 이동",
+      "session_ended": "세션 전환",
+      "disabled": "인앱 기능 비활성화",
+      "host_destroyed": "앱 화면 종료",
+      "host_blocked": "표시할 수 없는 화면",
+      "campaign_paused": "운영자가 캠페인 중지",
+      "campaign_updated": "게시 버전 변경",
+      "campaign_expired": "캠페인 기간 종료",
+      "delivery_inactive": "실행 종료",
+      "display_timeout": "최대 표시 시간 종료",
+      "legacy_context_changed": "이전 SDK: 상황 변경 (세부 원인 미확인)"
+    }
   }
 }

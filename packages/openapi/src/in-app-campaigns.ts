@@ -4,6 +4,8 @@ export type InAppTrigger =
 export interface InAppCampaignConfig {
   platforms: ("ios" | "android")[];
   trigger: InAppTrigger;
+  /** IANA zone for daily limits and hide-today. Omitted legacy configurations use UTC. */
+  time_zone?: string;
   starts_at: string;
   ends_at: string;
   cooldown_seconds: number;
@@ -32,6 +34,7 @@ export interface InAppReview {
 export interface InAppCampaignReport {
   deliveries: { state: string; count: number }[];
   events: { kind: string; count: number }[];
+  interruptions?: { id: string; created_at: string; reason: string }[];
   failures: { id: string; created_at: string; detail: string }[];
 }
 type Request = <T>(method: string, path: string, body?: unknown) => Promise<T>;
