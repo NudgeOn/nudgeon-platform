@@ -192,11 +192,20 @@ SDK는 형제 저장소에 있습니다: [iOS](https://github.com/NudgeOn/nudgeo
 ## 빠른 시작 (개발)
 
 ```bash
+# 저장소 루트에서 실행. 기존 .env는 보존한다.
+test -f .env || cp .env.example .env
+set -a
+. ./.env
+set +a
 # 데이터 서비스만 (앱은 로컬 실행)
-docker compose -f deploy/compose.yaml --profile full up -d
-export NUDGEON_MASTER_KEY=$(openssl rand -base64 32)
+docker compose -f deploy/compose.yaml --profile full up -d --wait
 go run ./apps/worker/cmd/migrate db        # 스키마 적용 (멱등)
 pnpm install && pnpm build
+```
+
+다음 명령은 각각 별도 터미널에서 실행합니다. 각 터미널에서도 저장소 루트에서 `set -a; . ./.env; set +a`로 환경변수를 먼저 로드하세요. API와 worker는 같은 마스터키를 사용해야 합니다. `.env.example`의 키는 로컬 개발용이며, 실제 설치에는 `./nudgeon up`을 사용하세요.
+
+```bash
 pnpm --filter @nudgeon/api dev                # 관리·Ingestion API :8080
 go run ./apps/worker/cmd/worker --role=all # 워커 (전 역할)
 pnpm --filter @nudgeon/console dev            # 콘솔 :3000
