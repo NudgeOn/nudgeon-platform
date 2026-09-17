@@ -672,7 +672,7 @@ function Brand({ content }) {
   return (
     <a className="brand" href="#checklist" aria-label={content.brandHome}>
       <span className="brand-mark" aria-hidden="true">
-        <img src="/assets/nudgeon-logo.png" alt="" />
+        <img src="/assets/nudgeon-mark.svg" alt="" />
       </span>
       <span>{content.brand}</span>
     </a>
