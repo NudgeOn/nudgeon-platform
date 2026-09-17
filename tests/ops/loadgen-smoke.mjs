@@ -1,7 +1,8 @@
 // Tests the built CLI against a loopback-only synthetic responder. No NudgeOn
 // services, databases, provider credentials or Docker containers are used.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
+import { reconstruct } from './loadgen-failures/reconstruct.mjs';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import http from 'node:http';
@@ -18,12 +19,14 @@ await fs.writeFile(keysFile, JSON.stringify(tenants), {mode: 0o600});
 let mode = 'normal', requestCount = 0, firstRequest;
 const observedIDs = new Set();
 const observedByRun = new Map();
+const observedBodies = new Map();
 const server = http.createServer(async (req, res) => {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   assert.equal(req.url, '/v1/track');
   assert([key, ...tenants.map(t => t.sdk_key)].some(k => req.headers.authorization === `Bearer ${k}`));
   const body = JSON.parse(Buffer.concat(chunks));
+  observedBodies.set(`${body.batch[0].properties.load_run_id}:${Math.floor(body.batch[0].properties.load_sequence/body.batch.length)}`,body);
   for (const event of body.batch) {
     observedIDs.add(event.insert_id);
     const run = event.properties.load_run_id;
@@ -167,6 +170,23 @@ try {
   const c = interrupted.summary.counters;
   assert.equal(c.started + c.dropped, 300);
   assert.equal(interrupted.summary.failed_total, 300 - c.accepted);
+
+  // Reconstruct payload fields, including nanosecond timestamps, from saved evidence.
+  for (const label of ['normal', 'profile-seed', 'profile-M0', 'profile-M1', 'profile-M4', 'tenant-seed', 'tenant-mixed']) {
+    const manifest = JSON.parse(await fs.readFile(path.join(evidence,label,'manifest.json'),'utf8'));
+    for (const event of observedByRun.get(label)) {
+      const batchSize=manifest.batch_size ?? 1;
+      const sequence=event.properties.load_sequence;
+      assert.deepEqual(reconstruct(manifest,Math.floor(sequence/batchSize)),observedBodies.get(`${label}:${Math.floor(sequence/batchSize)}`));
+    }
+  }
+  const exported = path.join(evidence,'invalid-export');
+  execFileSync(process.execPath, ['tests/ops/loadgen-failures/export.mjs', invalid.outputDir, exported], {stdio:'pipe'});
+  const exportResult=JSON.parse(await fs.readFile(path.join(exported,'result.json'),'utf8'));
+  assert.equal(exportResult.requests_sent,0); assert.equal(exportResult.failed_requests,2);
+  assert.equal(exportResult.status,'REVIEW_REQUIRED_NO_SEND');
+  const failures=(await fs.readFile(path.join(exported,'failed-requests.jsonl'),'utf8')).trim().split('\n').map(JSON.parse);
+  for (const failure of failures) assert.deepEqual(failure.payload.batch[0],observedByRun.get('invalid').find(e => e.properties.load_sequence===failure.request_sequence));
 
   const summary = { scope: 'CLI on loopback synthetic responder only; not platform capacity',
     casesPassed: 12, normalRequests: 200, reconstructedAcceptedIDs: successes.size,
