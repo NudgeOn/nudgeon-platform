@@ -43,11 +43,12 @@ func workloadBody(cfg loadConfig, job loadJob) ([]byte, error) {
 	if cfg.workloadName() == "M2" {
 		return trackBody(cfg.runID, job)
 	}
-	identityRun := "identity-pool:" + cfg.identitySeed
-	identitySequence := job.sequence % int64(cfg.identityCount)
-	if cfg.workloadName() == "M1" && job.sequence%100 == 99 {
-		identityRun = cfg.runID
-		identitySequence = job.sequence
+	identityRun := cfg.identityNamespace("identity-pool:"+cfg.identitySeed, job.sequence)
+	tenantSequence := job.sequence / int64(cfg.tenantCount())
+	identitySequence := tenantSequence % int64(cfg.identityCount)
+	if cfg.workloadName() == "M1" && tenantSequence%100 == 99 {
+		identityRun = cfg.identityNamespace(cfg.runID, job.sequence)
+		identitySequence = tenantSequence
 	}
 	batch := make([]map[string]any, cfg.batchSize())
 	for i := range batch {
@@ -56,6 +57,9 @@ func workloadBody(cfg loadConfig, job loadJob) ([]byte, error) {
 			"load_run_id": cfg.runID, "load_sequence": sequence,
 			"load_request_sequence": job.sequence, "load_workload": cfg.workloadName(),
 			"padding": "",
+		}
+		if len(cfg.tenants) > 0 {
+			properties["load_tenant_id"] = cfg.tenants[cfg.tenantIndex(job.sequence)].TenantID
 		}
 		encoded, err := json.Marshal(properties)
 		if err != nil {

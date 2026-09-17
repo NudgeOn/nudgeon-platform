@@ -10,7 +10,7 @@
 | B-2 실단말 푸시 | 기존 인앱 팝업/KST 숨김 검증과 네이티브 SDK 릴리스 기록 보유 | 이번 작업에서 제외. 최신 공개 SDK로 푸시 전경/배경/종료·탭·중복 억제·리포트 대사 별도 |
 | B-3 외부 온보딩 | 설치 문서·native consumer fixture·CI 개선 | 외부 개발자 3명의 문서만 보고 30분 내 설치 기록. 내부 자동 시험으로 대체하지 않음 |
 | B-4 관리형 저장소 | 실제 pg pool의 idle disconnect 복구, 풀 대기 timeout, TLS CA/hostname/인증 거부 회귀. 로컬 격리 PG16 TLS fixture 통과 | 실제 관리형 PG/Redis/CH 대상에서 TLS·인증·migration·백업/복원·연결 복구 검증. 대상 환경 정보 필요 |
-| B-5 부하·장시간 | 자원 사전 점검, 결정적 seed/M0/M1/M4 생성기, 요청/이벤트 별도 집계, loopback 대사 회귀 | 격리된 목표 규모 환경, 실측 G0, 다중 tenant/key 대사·M3 장애 시험·5,000 events/s·100만 토큰·24시간 원본 결과 |
+| B-5 부하·장시간 | 자원 사전 점검, 결정적 seed/M0/M1/M4 생성기, 요청/이벤트·고객사별 집계, loopback 대사 회귀 | 격리된 목표 규모 환경, 실측 G0, 실제 PG/CH의 다중 tenant/key 대사·M3 장애 시험·5,000 events/s·100만 토큰·24시간 원본 결과 |
 | B-6 4 SDK 계약 | RN/Flutter 각 8개 JS/Dart 테스트와 4개 Swift 테스트, 공개 네이티브 0.2.2 소비 앱 빌드. Flutter 시뮬레이터 런타임 6항목 통과 | RN/Flutter 공개 게시 후 registry-only 신규 앱 설치·계약 검증. 단말 푸시는 B-2로 별도 |
 | B-7 Godspell 파일럿 | Godspell main에 SPM/Maven 0.2.2 반영, iOS 빌드·Android 빌드 및 20개 단위 테스트 통과 | 실제 스테이징 사용자 흐름과 공급자 발송·수신·열기 리허설. 이번 단말 푸시 제외 범위 |
 
