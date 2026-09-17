@@ -42,6 +42,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Capacity resource preflight contract
         run: node --test tests/ops/capacity-preflight/preflight.test.mjs
+      - name: Offline failed-request evidence contract
+        run: node --test tests/ops/loadgen-failures/export.test.mjs
       - name: PostgreSQL TLS · idle disconnect recovery
         run: node tests/ops/postgres-recovery/run.mjs
       - name: PostgreSQL recovery evidence
