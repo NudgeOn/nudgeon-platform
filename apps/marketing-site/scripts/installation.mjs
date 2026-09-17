@@ -5,6 +5,9 @@ const copy = {
     prepare: '시작 전 준비', prerequisites: 'Docker Engine · Compose v2 · Git · OpenSSL · cURL',
     command: '저장소를 내려받고 ./nudgeon up을 실행하세요.', copy: '설치 명령 복사', copied: '복사했어요', failed: '명령어를 직접 선택해 복사해 주세요.',
     hint: '터미널에 표시되는 설치 링크를 여세요. 첫 실행은 소스 빌드가 필요하며, 터미널을 열어 둔 채 위자드를 진행합니다.',
+    dockerTitle: 'Docker 설치 방식',
+    dockerCurrent: '현재 · 소스 빌드', dockerCurrentBody: 'DB 등 기반 서비스는 배포된 이미지를 내려받고, NudgeOn은 서버에서 소스를 빌드해 실행합니다. 위 명령으로 설치할 수 있습니다.',
+    dockerPlanned: '준비 중 · 이미지 다운로드', dockerPlannedBody: 'NudgeOn도 미리 빌드된 이미지를 내려받아 설치하는 방식을 준비하고 있습니다. 이미지 배포와 새 환경 검증이 끝나면, 소스 빌드 없이 같은 위자드로 설정할 수 있도록 제공할 예정입니다.',
     preview: '실제 화면으로 미리 보는 설치 과정', sample: '실제 제품 화면 · 예시 계정과 데이터',
     steps: [
       ['DB 비밀번호', '추천 비밀번호로 바로 시작.', '자동 생성된 비밀번호를 쓰거나 직접 입력하세요. 파일로 다운로드해 보관한 뒤 설치를 시작하면, 필요한 서비스가 자동으로 준비됩니다.', 'database'],
@@ -22,6 +25,9 @@ const copy = {
     prepare: 'Before you start', prerequisites: 'Docker Engine · Compose v2 · Git · OpenSSL · cURL',
     command: 'Clone the repository, then run ./nudgeon up.', copy: 'Copy install commands', copied: 'Copied', failed: 'Select the commands and copy them manually.',
     hint: 'Open the setup link printed in your terminal. The first run builds from source; keep the terminal open while you follow the wizard.',
+    dockerTitle: 'Installing with Docker',
+    dockerCurrent: 'Available now · Build from source', dockerCurrentBody: 'Infrastructure services such as the database use published images. NudgeOn is built from source on your server. Use the commands above to install it.',
+    dockerPlanned: 'Planned · Download prebuilt images', dockerPlannedBody: 'We plan to provide prebuilt NudgeOn images too. Once image publishing and installation checks on a fresh host are complete, you will be able to use the same setup wizard without building from source.',
     preview: 'Explore the actual setup screens', sample: 'Real product screens · Example account and data',
     steps: [
       ['Database password', 'Start with a recommended password.', 'Use the generated password or enter your own. Download a copy, then start installation. The required services are prepared automatically.', 'database'],
@@ -42,6 +48,7 @@ export function renderInstallation(lang) {
       <div class="install-command"><pre tabindex="0"><code data-install-command>git clone https://github.com/NudgeOn/nudgeon-platform.git
 cd nudgeon-platform
 ./nudgeon up</code></pre><button type="button" data-copy-install data-copied="${t.copied}" data-failed="${t.failed}">${t.copy}</button><span data-copy-install-status role="status"></span></div></div>
+    <aside class="install-method" aria-labelledby="install-method-title"><h3 id="install-method-title">${t.dockerTitle}</h3><p><strong>${t.dockerCurrent}</strong>${t.dockerCurrentBody}</p><p><strong>${t.dockerPlanned}</strong>${t.dockerPlannedBody}</p></aside>
     <div class="install-tour" data-install-tour aria-label="${t.preview}">
       <div class="install-steps">${t.steps.map(([name], i) => `<button type="button" data-install-step="${i}" aria-pressed="${i===0}" aria-controls="install-panel-${i}"><span>0${i+1}</span>${name}</button>`).join('')}</div>
       ${t.steps.map(([name,title,body,image], i) => `<div class="install-panel" id="install-panel-${i}" ${i ? 'hidden' : ''}><div class="install-caption"><span class="install-kicker">0${i+1} / ${name}</span><h3>${title}</h3><p>${body}</p></div><figure><img src="/assets/install-${image}${i>1?'-'+lang:''}.png" alt="${name}" width="1120" height="840" loading="lazy"><figcaption>${t.sample}</figcaption></figure></div>`).join('')}

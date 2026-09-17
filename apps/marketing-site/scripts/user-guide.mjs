@@ -42,7 +42,7 @@ const copy = {
         links: [['Segments', 'segments'], ['Customer and event concepts', 'concepts']],
       },
       {
-        id: 'message', nav: 'Build your message', title: 'Start small. Then build the journey.',
+        id: 'message', nav: 'Build your message', title: 'Test first, then send your message.',
         intro: 'A test push checks one customer’s connection. A journey decides when customers enter and which message or wait step comes next.',
         where: 'Start setup · Test send · Journeys',
         steps: [
@@ -117,7 +117,7 @@ const copy = {
         links: [['세그먼트', 'segments'], ['고객과 이벤트 개념', 'concepts']],
       },
       {
-        id: 'message', nav: '푸시와 저니', title: '작게 확인하고, 흐름을 만듭니다.',
+        id: 'message', nav: '푸시와 저니', title: '먼저 테스트하고, 메시지를 발송해 보세요.',
         intro: '테스트 푸시는 한 고객의 연결을 확인합니다. 저니는 고객이 언제 진입하고 어떤 메시지와 대기를 거칠지 정합니다.',
         where: '시작하기 · 테스트 발송 · 저니',
         steps: [

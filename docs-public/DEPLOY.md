@@ -58,6 +58,20 @@ NUDGEON_PORT=18080 ./nudgeon up
 
 전체 목표 계약과 Slice별 상태는 [P0 Docker Setup Wizard PRD](DOCKER-SETUP-WIZARD-PRD.md)에 정리되어 있습니다.
 
+### Docker 설치 방식: 현재와 이미지 배포 계획
+
+현재 `./nudgeon up`은 Docker Compose의 `up --build`로 NudgeOn 서비스를 소스에서 빌드합니다. PostgreSQL·ClickHouse·Redis·Nginx는 기존 배포 이미지를 내려받습니다. Docker로 실행되지만, NudgeOn의 배포된 이미지만 내려받는 설치 방식은 아직 아닙니다.
+
+이미지 배포 방식의 목표는 **버전이 지정된 이미지 다운로드 → 컨테이너 시작 → DB 비밀번호·관리자 계정·선택형 OTP 설정 → 로그인한 대시보드**입니다. 사용자 서버에서 NudgeOn 소스를 컴파일하는 과정이 없어지고, 기존 설치 위자드는 그대로 사용합니다. Docker Engine과 Compose는 계속 필요합니다.
+
+이미지 다운로드만으로 설치하려면 다음 작업이 남아 있습니다.
+
+1. **릴리스 이미지 구성 완성:** API·콘솔·worker와 함께 설치 위자드용 `setup-status` 이미지를 배포합니다. 마이그레이터는 worker 이미지에 포함된 바이너리를 사용하고, 콘솔은 gateway 경로인 `/api`를 사용하도록 빌드합니다.
+2. **설치 명령 전환:** 버전이 지정된 레지스트리 이미지를 받도록 Compose와 `./nudgeon up`을 연결하고, 서버에서 소스를 빌드하지 않는 설치 경로를 제공합니다.
+3. **새 환경 검증:** 배포된 이미지 접근과 다운로드, 서비스 준비, 위자드, 로그인·대시보드 진입을 새 환경에서 확인합니다. 검증 후 홈페이지에 실행 가능한 이미지 설치 명령을 안내합니다.
+
+2026-09-17 확인 기준으로 GitHub 릴리스와 `release.yml` 실행 이력은 각각 0건입니다. 현재 안내된 빠른 시작 명령은 위의 소스 빌드 방식을 사용합니다.
+
 ### 기존 수동 Compose — 개발·고급 경로
 
 기존 `deploy/compose.yaml`은 개발 또는 명시적인 고급 설정을 위해 남아 있습니다. 이 경로는 `.env`와 마스터키를 수동으로 준비하고 DB·API·console·worker metrics 포트를 호스트에 노출하므로 Safe Boot와 같은 설치 안전성을 제공하지 않습니다.
