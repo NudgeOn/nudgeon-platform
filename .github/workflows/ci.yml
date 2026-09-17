@@ -40,6 +40,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Capacity resource preflight contract
+        run: node --test tests/ops/capacity-preflight/preflight.test.mjs
       - name: PostgreSQL TLS · idle disconnect recovery
         run: node tests/ops/postgres-recovery/run.mjs
       - name: PostgreSQL recovery evidence

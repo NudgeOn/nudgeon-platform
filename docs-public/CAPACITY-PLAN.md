@@ -410,3 +410,18 @@ API p99 + 분석 지연 + 드롭/오류 + 대사 + 자원 여유`를 한 묶음�
   한 실행의 양호한 TPS만 선택해 합격 처리하거나 pool을 무조건 늘리지 않는다.
   대규모 Redis 관측용 원자적 인덱스/이관도 남는다.
   G0 전체·G1 이후 성능 단계가 통과된 것은 아니다. 자원 변경·장시간 실행·클라우드 비용·커밋/푸시는 별도 승인 범위다.
+
+## 2026-09-18 resource preflight
+
+`node tests/ops/capacity-preflight/preflight.mjs --phase G1 --output /tmp/new-result.json`
+은 현재 파일시스템과 Docker의 자원만 읽으며 시험을 시작하지 않는다.
+실측 입력·원격 환경 입력 및 결과 해석은
+[실행 안내](../tests/ops/capacity-preflight/README.md)를 따른다.
+반복 실행·추가 M1·warmup의 누적 저장량과 증거 파일, 복원/sort 공간을 포함한다.
+`RESOURCE_PREFLIGHT_READY`도 G0·운영 부하·24시간 통과를 뜻하지 않는다.
+
+[로컬 사전 점검 결과](capacity/preflight-local-2026-09-18.json)는
+`NO_GO_PREFLIGHT`다. 대상 관리형 환경과 실측 성장량이 없고 현재 로컬 디스크도
+20 GiB 안전 여유보다 작았다. 기존 API/콘솔/저장소는 유지했으며 실제 공급자
+발송이나 운영 환경 부하를 실행하지 않았다. 새 격리 대상이 준비되면 그 대상의
+자원·이미지·소스와 G0 결과로 다시 점검해야 한다.
