@@ -26,6 +26,7 @@ LABEL io.nudgeon.api.source-sha256=$BUILD_SOURCE_SHA256
 COPY --from=build /app /app
 COPY LICENSE NOTICE TRADEMARKS.md THIRD_PARTY_NOTICES.md /licenses/nudgeon/
 COPY docs-public/LICENSING.md /licenses/nudgeon/LICENSING.md
-EXPOSE 8080
+RUN mkdir -p /var/lib/nudgeon/assets && chown node:node /var/lib/nudgeon/assets
+EXPOSE 8080 8082
 USER node
 CMD ["node", "dist/main.js"]

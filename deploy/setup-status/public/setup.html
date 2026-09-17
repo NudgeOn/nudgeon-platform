@@ -39,6 +39,19 @@
             <button id="download-database-password" type="button" class="secondary" disabled>비밀번호 파일 다운로드</button>
           </div>
           <p id="database-password-note" class="next-note">다운로드 파일에는 비밀번호가 포함됩니다. 비밀번호 관리자나 안전한 곳에 보관하세요. 설치 후에는 이 화면에서 다시 확인할 수 없어요.</p>
+          <fieldset class="in-app-setup">
+            <legend>인앱 이벤트 팝업 · 선택</legend>
+            <label class="check-row"><input id="in-app-enabled" type="checkbox" /> HTML 이벤트 업로드와 앱 테스트 사용</label>
+            <div id="in-app-options" hidden>
+              <label for="content-origin">콘텐츠 주소</label>
+              <input id="content-origin" type="url" value="http://127.0.0.1:8082" placeholder="https://content.example.com" />
+              <label for="content-port">서버 연결 포트</label>
+              <input id="content-port" type="number" min="1024" max="65535" value="8082" />
+              <p class="next-note">로컬 설치는 기본값으로 테스트할 수 있어요. 외부 접속은 콘솔과 다른 HTTPS 호스트를 준비하고 이 서버의 127.0.0.1:연결 포트로 연결하세요.</p>
+              <label class="check-row"><input id="in-app-campaigns" type="checkbox" /> 검수한 캠페인을 앱에 게시하는 기능도 사용</label>
+              <p class="next-note">업로드 파일은 NudgeOn 데이터 볼륨에 저장됩니다. DB와 인앱 파일 볼륨을 함께 백업하세요. 캠페인은 콘솔에서 검수·게시해야 노출됩니다.</p>
+            </div>
+          </fieldset>
           <label id="database-token-label" for="database-token">설치 코드<input id="database-token" type="password" autocomplete="off" spellcheck="false" placeholder="터미널에 표시된 설치 코드" /></label>
           <button id="save-database-password" type="submit" class="primary" disabled>이 비밀번호로 설치 시작</button>
           <span id="database-result" role="status" aria-live="polite"></span>

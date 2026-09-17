@@ -121,13 +121,19 @@ services:
       NUDGEON_MASTER_KEY: ${NUDGEON_MASTER_KEY:?NUDGEON_MASTER_KEY 필수 (openssl rand -base64 32)}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       JOURNEY_GRAPH_V2_ENABLED: ${JOURNEY_GRAPH_V2_ENABLED:-false}
+      IN_APP_ENABLED: ${IN_APP_ENABLED:-false}
+      IN_APP_CAMPAIGNS_ENABLED: ${IN_APP_CAMPAIGNS_ENABLED:-false}
+      CONTENT_PUBLIC_ORIGIN: ${CONTENT_PUBLIC_ORIGIN:-}
+      IN_APP_ASSET_DIR: /var/lib/nudgeon/assets
       API_KEY_USAGE_COALESCE_ENABLED: ${API_KEY_USAGE_COALESCE_ENABLED:-false}
       # 워커와 같은 디렉터리를 읽는다 — 콘솔의 벤더 목록과 실제 발송 가능 여부가 갈리지 않게.
       NUDGEON_CONNECTOR_MANIFESTS: ${NUDGEON_CONNECTOR_MANIFESTS:-/etc/nudgeon/connectors}
     volumes:
       - ${NUDGEON_CONNECTOR_DIR:-./connectors}:/etc/nudgeon/connectors:ro
+      - in-app-assets:/var/lib/nudgeon/assets
     ports:
       - "8080:8080"
+      - "127.0.0.1:${CONTENT_PORT:-8082}:8082"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
@@ -198,3 +204,4 @@ volumes:
   pg-data:
   ch-data:
   redis-data:
+  in-app-assets:

@@ -78,6 +78,7 @@ export async function collectStatus(env = process.env) {
     checkHttp("worker", env.WORKER_READY_URL ?? "http://worker:9090/readyz"),
     checkHttp("console", env.CONSOLE_READY_URL ?? "http://console:3000/"),
   ]);
+  if (env.IN_APP_ENABLED === "true") components.push(await checkHttp("content", env.CONTENT_READY_URL ?? "http://api:8082/healthz"));
   const ready = components.every((component) => component.state === "ready");
   const blocked = components.some((component) => component.state === "blocked");
   return {

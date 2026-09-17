@@ -5,6 +5,7 @@ const componentNames = Object.freeze({
   api: "API",
   worker: "Worker",
   console: "Console",
+  content: "인앱 콘텐츠",
 });
 
 const knownComponents = new Set(Object.keys(componentNames));
@@ -34,6 +35,7 @@ const defaultWaitingHelp = Object.freeze({
   api: "NudgeOn의 핵심 기능인 API가 시작되는 중이에요.",
   worker: "백그라운드 작업을 처리하는 Worker가 시작되는 중이에요.",
   console: "설정을 관리할 Console 화면이 시작되는 중이에요.",
+  content: "인앱 HTML 미리보기 서버를 준비하고 있어요.",
 });
 
 const readyHelp = Object.freeze({
@@ -43,6 +45,7 @@ const readyHelp = Object.freeze({
   api: "NudgeOn의 핵심 기능이 요청을 받을 준비가 됐어요.",
   worker: "백그라운드 작업을 처리할 준비가 됐어요.",
   console: "설정을 관리할 화면이 준비됐어요.",
+  content: "인앱 콘텐츠 서버가 준비됐어요. 외부 콘텐츠 주소는 브라우저에서 미리보기로 확인하세요.",
 });
 
 function normalizedComponentName(value) {
@@ -143,7 +146,7 @@ export function recoveryActions(status = {}, { connectionFailed = false } = {}) 
   const firstProblem = diagnostic.components.find((component) => component.state === "blocked")
     ?? diagnostic.components.find((component) => component.state !== "ready");
   const logAction = firstProblem
-    ? `원인이 된 서비스의 최근 기록은 \`./nudgeon logs ${firstProblem.name}\`로 확인할 수 있어요.`
+    ? `원인이 된 서비스의 최근 기록은 \`./nudgeon logs ${firstProblem.name === "content" ? "api" : firstProblem.name}\`로 확인할 수 있어요.`
     : "전체 서비스의 최근 기록은 `./nudgeon logs`로 확인할 수 있어요.";
 
   if (diagnostic.state === "blocked") {
@@ -183,7 +186,7 @@ export function safeDiagnostic(status = {}) {
     }));
 
   const requestedState = normalizedState(status.state);
-  const allReady = components.length === knownComponents.size
+  const allReady = ["postgres","redis","clickhouse","api","worker","console"].every(name => seenComponents.has(name))
     && components.every((component) => component.state === "ready");
   const hasBlocked = components.some((component) => component.state === "blocked");
   const state = allReady

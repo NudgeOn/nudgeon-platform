@@ -1,0 +1,1893 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "NudgeOn in-app workbench",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/apps/{appId}/in-app/status": {
+      "get": {
+        "operationId": "inAppStatus",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "content_origin": {
+                      "type": "string"
+                    },
+                    "format_version": {
+                      "const": 1
+                    },
+                    "campaigns_enabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "campaigns_enabled"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/revisions": {
+      "get": {
+        "operationId": "inAppRevisions",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "revisions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Revision"
+                      }
+                    }
+                  },
+                  "required": [
+                    "revisions"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        }
+      },
+      "post": {
+        "operationId": "inAppUpload",
+        "description": "Synchronous bounded validation worker. Original files and compiled self-contained HTML are stored on NudgeOn. Every upload is immutable.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Revision"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Upload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/revisions/{id}": {
+      "get": {
+        "operationId": "inAppRevision",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/File"
+                      }
+                    },
+                    "manifest": {
+                      "$ref": "#/components/schemas/Manifest"
+                    },
+                    "artifact_sha256": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/revisions/{id}/preview": {
+      "post": {
+        "operationId": "inAppPreview",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "expires_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/devices": {
+      "get": {
+        "operationId": "inAppDevices",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "devices": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Device"
+                      }
+                    }
+                  },
+                  "required": [
+                    "devices"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/pairings": {
+      "post": {
+        "operationId": "inAppPairing",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "token": {
+                      "type": "string"
+                    },
+                    "confirmation_code": {
+                      "type": "string"
+                    },
+                    "expires_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/devices/{id}/confirm": {
+      "post": {
+        "operationId": "inAppDeviceConfirm",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/devices/{id}/revoke": {
+      "post": {
+        "operationId": "inAppDeviceRevoke",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/runs": {
+      "get": {
+        "operationId": "inAppRuns",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "runs": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Run"
+                      }
+                    }
+                  },
+                  "required": [
+                    "runs"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        }
+      },
+      "post": {
+        "operationId": "inAppRun",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/runs/{id}/events": {
+      "get": {
+        "operationId": "inAppRunEvents",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "event_id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "detail": {
+                            "type": "string"
+                          },
+                          "created_at": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/in-app/runs/{id}/cancel": {
+      "post": {
+        "operationId": "inAppRunCancel",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/in-app/test/pair": {
+      "post": {
+        "operationId": "inAppSdkPair",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "confirmation_code": {
+                      "type": "string"
+                    },
+                    "expires_at": {
+                      "type": "string"
+                    },
+                    "credential": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "platform": {
+                    "enum": [
+                      "ios",
+                      "android"
+                    ]
+                  },
+                  "sdk_version": {
+                    "type": "string",
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "token",
+                  "label",
+                  "platform",
+                  "sdk_version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/in-app/test/commands": {
+      "get": {
+        "operationId": "inAppSdkCommands",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-NudgeOn-Test-Token",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 43,
+              "maxLength": 43
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "enum": [
+                        "claimed",
+                        "active"
+                      ]
+                    },
+                    "expires_at": {
+                      "type": "string"
+                    },
+                    "run": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "revision_id",
+                            "state",
+                            "expires_at"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "revision_id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "state": {
+                              "enum": [
+                                "queued",
+                                "preparing",
+                                "presented"
+                              ]
+                            },
+                            "expires_at": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        }
+      }
+    },
+    "/v1/in-app/test/runs/{id}/claim": {
+      "post": {
+        "operationId": "inAppSdkClaim",
+        "description": "Atomic one-time claim. Response loss is not replayed; create a new test run after expiry/cancel. Same run is never presented twice.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-NudgeOn-Test-Token",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 43,
+              "maxLength": 43
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "revision_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "expires_at": {
+                      "type": "string"
+                    },
+                    "html": {
+                      "type": "string"
+                    },
+                    "manifest": {
+                      "$ref": "#/components/schemas/Manifest"
+                    },
+                    "artifact_sha256": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/in-app/test/runs/{id}/events": {
+      "post": {
+        "operationId": "inAppSdkEvent",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-NudgeOn-Test-Token",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 43,
+              "maxLength": 43
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/in-app/test/end": {
+      "post": {
+        "operationId": "inAppSdkEnd",
+        "description": "In-app workbench v1. Test-only; no production campaign delivery.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-NudgeOn-Test-Token",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 43,
+              "maxLength": 43
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source, action or input"
+          },
+          "401": {
+            "description": "Invalid session/key/test credential"
+          },
+          "403": {
+            "description": "Permission or origin denied"
+          },
+          "404": {
+            "description": "Object unavailable in this tenant/app"
+          },
+          "409": {
+            "description": "Run closed, device busy, or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 15 MiB"
+          },
+          "429": {
+            "description": "Request rate exceeded"
+          },
+          "503": {
+            "description": "In-app feature disabled or asset unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "File": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "base64": {
+            "type": "string",
+            "contentEncoding": "base64",
+            "maxLength": 12000000
+          }
+        },
+        "required": [
+          "path",
+          "base64"
+        ],
+        "additionalProperties": false
+      },
+      "Action": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "const": "dismiss"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": [
+                  "deep_link",
+                  "open_url"
+                ]
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2048
+              }
+            },
+            "required": [
+              "type",
+              "url"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "const": "copy"
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 1000
+              }
+            },
+            "required": [
+              "type",
+              "text"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Manifest": {
+        "type": "object",
+        "properties": {
+          "format_version": {
+            "const": 1
+          },
+          "entrypoint": {
+            "const": "index.html"
+          },
+          "bridge_version": {
+            "const": 1
+          },
+          "display": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": [
+                  "modal",
+                  "fullscreen",
+                  "bottom",
+                  "transparent"
+                ]
+              },
+              "backdrop_opacity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 0.7
+              }
+            },
+            "required": [
+              "type",
+              "backdrop_opacity"
+            ],
+            "additionalProperties": false
+          },
+          "actions": {
+            "type": "object",
+            "maxProperties": 20,
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Action"
+            }
+          }
+        },
+        "required": [
+          "format_version",
+          "entrypoint",
+          "bridge_version",
+          "display",
+          "actions"
+        ],
+        "additionalProperties": false
+      },
+      "Upload": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "files": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "$ref": "#/components/schemas/File"
+            }
+          },
+          "archive_base64": {
+            "type": "string",
+            "contentEncoding": "base64",
+            "maxLength": 14000000
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/Manifest"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "required": [
+              "files"
+            ],
+            "not": {
+              "required": [
+                "archive_base64"
+              ]
+            }
+          },
+          {
+            "required": [
+              "archive_base64"
+            ],
+            "not": {
+              "required": [
+                "files"
+              ]
+            }
+          }
+        ]
+      },
+      "Revision": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "artifact_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/Manifest"
+          },
+          "source_bytes": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "artifact_sha256",
+          "manifest"
+        ],
+        "additionalProperties": false
+      },
+      "RunInput": {
+        "type": "object",
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "device_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "request_key": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "retry_of": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "revision_id",
+          "device_id",
+          "request_key"
+        ],
+        "additionalProperties": false
+      },
+      "Run": {
+        "type": "object",
+        "required": [
+          "id",
+          "revision_id",
+          "device_id",
+          "state"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "device_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "preparing",
+              "presented",
+              "completed",
+              "failed",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retry_of": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Device": {
+        "type": "object",
+        "required": [
+          "id",
+          "state",
+          "confirmation_code",
+          "expires_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platform": {
+            "enum": [
+              "ios",
+              "android",
+              null
+            ]
+          },
+          "sdk_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "enum": [
+              "waiting",
+              "claimed",
+              "active",
+              "revoked"
+            ]
+          },
+          "confirmation_code": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_seen_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "EventInput": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "enum": [
+              "bridge_ready",
+              "content_ready",
+              "presented",
+              "impression",
+              "action",
+              "dismiss",
+              "failed",
+              "log"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "event_id",
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "OK": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "nudgeon_session"
+      },
+      "apiKey": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

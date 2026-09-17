@@ -15,6 +15,7 @@ REDIS_CONTAINER=${REDIS_CONTAINER:-nudgeon-redis-1}
 PG_USER=${PG_USER:-nudgeon}; PG_DB=${PG_DB:-nudgeon}
 CH_USER=${CH_USER:-nudgeon}; CH_PASSWORD=${CH_PASSWORD:-nudgeon}; CH_DB=${CH_DB:-nudgeon}
 mkdir -p "$OUT/clickhouse"
+chmod 700 "$OUT"
 started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # 1. PostgreSQL — 현재 상태(테넌트·유저·디바이스·저니·outbox·세션). 커스텀 포맷은 병렬·선택 복원이 된다.
@@ -37,11 +38,22 @@ docker exec "$REDIS_CONTAINER" redis-cli --rdb /data/nudgeon-backup.rdb >/dev/nu
 docker cp "$REDIS_CONTAINER:/data/nudgeon-backup.rdb" "$OUT/redis.rdb"
 docker exec "$REDIS_CONTAINER" rm -f /data/nudgeon-backup.rdb
 
+# 4. Immutable HTML bundles are separate from PostgreSQL; include the asset volume.
+API_CONTAINER=${API_CONTAINER:-nudgeon-api-1}
+ASSETS_VOLUME=${IN_APP_ASSETS_VOLUME:-$(docker inspect "$API_CONTAINER" --format '{{range .Mounts}}{{if eq .Destination "/var/lib/nudgeon/assets"}}{{.Name}}{{end}}{{end}}' 2>/dev/null || true)}
+assets_included=false
+if [ -n "$ASSETS_VOLUME" ]; then
+  docker volume inspect "$ASSETS_VOLUME" >/dev/null
+  docker run --rm -v "$ASSETS_VOLUME:/assets:ro" alpine tar -C /assets -czf - . > "$OUT/in-app-assets.tar.gz"
+  assets_included=true
+fi
+
 cat > "$OUT/manifest.json" <<JSON
 {"started_at":"$started","finished_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)",
  "postgres":{"container":"$PG_CONTAINER","db":"$PG_DB","bytes":$(stat -f%z "$OUT/postgres.dump" 2>/dev/null || stat -c%s "$OUT/postgres.dump")},
  "clickhouse":{"container":"$CH_CONTAINER","db":"$CH_DB","tables":$(wc -l < "$OUT/clickhouse/tables.txt" | tr -d ' ')},
  "redis":{"container":"$REDIS_CONTAINER","bytes":$(stat -f%z "$OUT/redis.rdb" 2>/dev/null || stat -c%s "$OUT/redis.rdb")},
+ "in_app_assets":{"included":$assets_included},
  "note":"NUDGEON_MASTER_KEY is NOT included; keep it with this backup."}
 JSON
 echo "backup → $OUT"; cat "$OUT/manifest.json"

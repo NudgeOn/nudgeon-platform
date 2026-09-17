@@ -56,3 +56,20 @@ test('reload after submission never creates a different recommendation or expose
   assert.equal(h.node('#generate-database-password').disabled, true);
   assert.equal(h.node('#download-database-password').disabled, true);
 });
+
+test('optional in-app settings are submitted with the password and frozen while saving', async () => {
+  let body;
+  const h = await harness(async (_,options) => {
+    if (!options?.method) return response({required:true,submitted:false});
+    body = JSON.parse(options.body); return response({submitted:true});
+  });
+  h.node('#in-app-enabled').checked = true;
+  h.node('#in-app-enabled').listeners.input();
+  assert.equal(h.node('#in-app-options').hidden,false);
+  h.node('#content-origin').value = 'https://content.example.com';
+  h.node('#content-port').value = '8082';
+  h.node('#in-app-campaigns').checked = true;
+  await h.submit();
+  assert.deepEqual(body.in_app,{enabled:true,campaigns:true,origin:'https://content.example.com',port:8082});
+  assert.equal(h.node('#in-app-enabled').disabled,true);
+});

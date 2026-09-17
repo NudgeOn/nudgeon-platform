@@ -70,3 +70,17 @@ test('HTTP rejects invalid bodies, enforces limits and never returns a password'
   assert.deepEqual(await response.json(), { required: true, submitted: true });
   assert.equal((await fetch(url, { method: 'DELETE' })).status, 405);
 });
+
+test('in-app settings reject shared hosts and unsafe URL syntax; persist idempotently for installer', async t => {
+  const { setup, request, body } = await fixture(t);
+  const config = { enabled: true, campaigns: true, origin: 'https://content.example.com', port: 8082 };
+  for (const origin of ['https://localhost:8082','http://content.example.com','https://user:pass@content.example.com','https://content.example.com/path','https://content.example.com/?x=1']) {
+    assert.equal((await setup.submit(request,{...body,in_app:{...config,origin}})).status,400);
+  }
+  assert.equal((await setup.submit(request,{...body,in_app:{...config,port:8080}})).status,400);
+  assert.equal((await setup.submit(request,{...body,in_app:config})).status,200);
+  assert.equal((await setup.submit(request,{...body,in_app:config})).status,200);
+  assert.equal((await setup.submit(request,{...body,in_app:{...config,campaigns:false}})).status,409);
+  assert.equal(await setup.readInAppForInstaller(),'IN_APP_ENABLED=true\nIN_APP_CAMPAIGNS_ENABLED=true\nCONTENT_PUBLIC_ORIGIN=https://content.example.com\nCONTENT_PORT=8082\n');
+  assert(!JSON.stringify(await setup.status()).includes('content.example.com'));
+});

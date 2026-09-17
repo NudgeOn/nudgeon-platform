@@ -37,6 +37,10 @@
 | [아키텍처 결정 기록](ARCHITECTURE-DECISIONS.md) | 왜 PostgreSQL·ClickHouse·Redis Streams인가 |
 | [처리량·장시간 안정성 설계](CAPACITY-PLAN.md) | P0/P1 성능 프로그램의 설계안과 단계별 결과 |
 | [Docker Setup Wizard PRD](DOCKER-SETUP-WIZARD-PRD.md) | 설치 위저드의 전체 목표(Slice A~F)와 구현 경계 |
+| [인앱 캠페인 PRD](IN-APP-CAMPAIGNS-PRD.md) | 투명 WebView 팝업·이벤트 제작·노출 조건·SDK의 전체 계획 (테스트 경로 구현 중) |
+| [인앱 작업실 개발 버전](IN-APP-WORKBENCH.md) | 웹 소스 업로드·미리보기·SDK 테스트 연결과 현재 구현 범위 |
+| [인앱 캠페인 게시·SDK 연결](IN-APP-CAMPAIGNS.md) | 기간·트리거·설치 기기별 제한·운영 결과 |
+| [인앱 캠페인 개발 설계](IN-APP-CAMPAIGNS-DESIGN.md) | SDK·NudgeOn 웹 자산 저장·소스 업로드·페이지 미리보기·실기기 테스트의 개발 계약 (전체 설계, 테스트 경로 구현 중) |
 | [라이선싱 가이드](LICENSING.md) | Apache-2.0 범위, 상표, 제3자 고지 |
 | [런타임 아키텍처 그림](architecture/runtime-architecture.svg) | 푸시 주경로와 신뢰 경계 ([인터랙티브](architecture/runtime-architecture.html)) |
 

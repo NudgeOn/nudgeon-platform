@@ -16,6 +16,7 @@ const names = {
   api: "API",
   worker: "Worker",
   console: "Console",
+  content: "인앱 콘텐츠",
 };
 
 const labels = {

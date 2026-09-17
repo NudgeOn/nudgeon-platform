@@ -11,6 +11,7 @@ export type Permission =
   | "journeys:read"
   | "journeys:write"
   | "journeys:activate"
+  | "in_app:publish"
   | "credentials:read"
   | "credentials:write"
   | "apikeys:read"
@@ -46,6 +47,7 @@ const EDITOR: Permission[] = [
 /** Admin = 전부 (빌링·테넌트 삭제 제외). */
 const ADMIN: Permission[] = [
   ...EDITOR,
+  "in_app:publish",
   "credentials:read",
   "credentials:write",
   "apikeys:read",

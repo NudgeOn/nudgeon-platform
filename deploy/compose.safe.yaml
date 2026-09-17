@@ -100,7 +100,14 @@ services:
       NUDGEON_PUBLIC_BIND_ADDRESS: ${NUDGEON_BIND_ADDRESS:-127.0.0.1}
       MODE: single_tenant
       CORS_ORIGIN: ${NUDGEON_PUBLIC_ORIGIN:-http://localhost:8080}
+      IN_APP_ENABLED: ${IN_APP_ENABLED:-false}
+      IN_APP_CAMPAIGNS_ENABLED: ${IN_APP_CAMPAIGNS_ENABLED:-false}
+      CONTENT_PUBLIC_ORIGIN: ${CONTENT_PUBLIC_ORIGIN:-}
+      CONTENT_PORT: 8082
+      IN_APP_ASSET_DIR: /var/lib/nudgeon/assets
       JOURNEY_GRAPH_V2_ENABLED: ${JOURNEY_GRAPH_V2_ENABLED:-false}
+    volumes:
+      - in-app-assets:/var/lib/nudgeon/assets
     secrets:
       - database_url
       - redis_url
@@ -166,6 +173,8 @@ services:
       API_READY_URL: http://api:8080/readyz
       WORKER_READY_URL: http://worker:9090/readyz
       CONSOLE_READY_URL: http://console:3000/
+      IN_APP_ENABLED: ${IN_APP_ENABLED:-false}
+      CONTENT_READY_URL: http://api:8082/healthz
       NUDGEON_DATABASE_SETUP_REQUIRED: ${NUDGEON_DATABASE_SETUP_REQUIRED:-false}
       NUDGEON_PUBLIC_ORIGIN: ${NUDGEON_PUBLIC_ORIGIN:-http://localhost:8080}
       NUDGEON_SETUP_TOKEN_FILE: /run/secrets/setup_token
@@ -218,3 +227,4 @@ volumes:
   pg-data:
   ch-data:
   redis-data:
+  in-app-assets:

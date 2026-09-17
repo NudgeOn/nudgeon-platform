@@ -13,6 +13,14 @@ PG_CONTAINER=${PG_CONTAINER:?}; CH_CONTAINER=${CH_CONTAINER:?}; REDIS_CONTAINER=
 PG_USER=${PG_USER:-nudgeon}; PG_DB=${PG_DB:-nudgeon}
 CH_USER=${CH_USER:-nudgeon}; CH_PASSWORD=${CH_PASSWORD:-nudgeon}; CH_DB=${CH_DB:-nudgeon}
 
+# Verify the asset destination before changing any database. Stop API/worker first.
+if [ -f "$IN/in-app-assets.tar.gz" ]; then
+  ASSETS_VOLUME=${IN_APP_ASSETS_VOLUME:-$(docker inspect "${API_CONTAINER:-nudgeon-api-1}" --format '{{range .Mounts}}{{if eq .Destination "/var/lib/nudgeon/assets"}}{{.Name}}{{end}}{{end}}' 2>/dev/null || true)}
+  [ -n "$ASSETS_VOLUME" ] || { echo "IN_APP_ASSETS_VOLUME 또는 API_CONTAINER를 지정하세요" >&2; exit 1; }
+  docker volume inspect "$ASSETS_VOLUME" >/dev/null
+  docker run --rm -v "$ASSETS_VOLUME:/assets:ro" alpine sh -c '[ -z "$(ls -A /assets)" ]' || { echo "인앱 파일 복원 대상 볼륨이 비어 있지 않습니다" >&2; exit 1; }
+fi
+
 # 1. PostgreSQL — 마이그레이터가 만든 빈 스키마를 버리고 덤프의 스키마+데이터로 바꾼다.
 #    (덤프에는 schema_migrations도 들어 있어 이후 마이그레이터가 같은 체크섬을 건너뛴다.)
 docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1 -q -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
@@ -45,3 +53,8 @@ docker stop "$loader" >/dev/null
 docker start "$REDIS_CONTAINER" >/dev/null
 for _ in $(seq 1 60); do docker exec "$REDIS_CONTAINER" redis-cli PING 2>/dev/null | grep -q PONG && break; sleep 1; done
 echo "restore ← $IN: redis keys loaded=$loaded now=$(docker exec "$REDIS_CONTAINER" redis-cli DBSIZE)"
+
+# 4. Restore source bundles alongside the database records that reference them.
+if [ -f "$IN/in-app-assets.tar.gz" ]; then
+  docker run --rm -i -v "$ASSETS_VOLUME:/assets" alpine tar -C /assets -xzf - < "$IN/in-app-assets.tar.gz"
+fi
