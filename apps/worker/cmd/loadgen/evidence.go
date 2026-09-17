@@ -167,8 +167,17 @@ func (r loadResult) report(cfg loadConfig, runErr error) map[string]any {
 	}
 	return map[string]any{
 		"schema_version": 1, "run_id": r.runID, "outcome": outcome, "violations": violations,
-		"scope":    "single-event track HTTP acceptance only; no database or analytics reconciliation",
+		"scope":    "track HTTP acceptance only; single tenant; no database or analytics reconciliation",
 		"expected": r.expected, "failed_total": r.failedTotal(), "rate_rps": cfg.rate,
+		"workload": cfg.workloadName(), "batch_size": cfg.batchSize(),
+		"events": map[string]int64{
+			"scheduled":          r.counters.scheduled * int64(cfg.batchSize()),
+			"started":            r.counters.started * int64(cfg.batchSize()),
+			"accepted":           r.counters.accepted * int64(cfg.batchSize()),
+			"accepted_in_window": r.counters.acceptedInWindow * int64(cfg.batchSize()),
+			"dropped":            r.counters.dropped * int64(cfg.batchSize()),
+			"failed_total":       r.failedTotal() * int64(cfg.batchSize()),
+		},
 		"active_duration_ns": int64(r.activeDuration), "wall_duration_ns": int64(r.wallDuration), "drain_duration_ns": int64(r.drainDuration),
 		"counters": r.counters.report(), "http_status_counts": r.httpStatusCounts,
 		"latency":      map[string]any{"queue": r.queueLatency.report(), "service": r.serviceLatency.report(), "end_to_end": r.endToEndLatency.report()},
