@@ -30,7 +30,7 @@ iOS는 HTTP 평문 접근에 ATS 예외가 필요하다. 샘플앱 Info.plist에
 
 ## 2. 콘솔에서 앱·키·크리덴셜 등록
 
-1. `http://<host>:3000/signup` → 테넌트·Owner·기본 앱 생성. 응답/설정 화면에서 **`app_id`와 SDK Key(`pk_…`)** 를 적어 둔다.
+1. 권장 설치는 [Safe Boot 위자드](DEPLOY.md)의 DB 설정 → 관리자 계정 생성 → 로그인 → 선택형 OTP 순서다. 대시보드에서 온보딩을 열고 **`app_id`와 SDK Key(`pk_…`)** 를 준비한다. Safe Boot 단일 테넌트에서는 `/signup`을 사용하지 않는다. 공개 가입은 `MODE=multi_tenant`에서만 제공한다.
 2. `/onboarding` 위저드에서 FCM 서비스 계정 JSON과 APNs p8·Key ID·Team ID·Bundle ID를 등록한다. API로 직접 하려면:
 
 ```bash
@@ -49,22 +49,25 @@ curl -X PUT http://<host>:8080/v1/apps/<app_id>/credentials \
 ## 3. 샘플앱 설정·설치
 
 - **iOS**: `Examples/NudgeOnDemo`의 설정(스킴 환경 변수 또는 `Config.xcconfig`)에 `NUDGEON_SDK_KEY=pk_…`, `NUDGEON_API_HOST=http://<host>:8080`. 서명 팀·Bundle ID를 APNs 키에 등록한 값과 맞추고 **Push Notifications capability**와 NSE 타깃의 App Group을 확인한 뒤 실기기에 설치.
-- **Android**: `sample-app/app/google-services.json` 배치, `local.properties`(gitignore)에 `nudgeon.sdkKey=pk_…`, `nudgeon.apiHost=http://<host>:8080`. `./gradlew :sample-app:installDebug`.
+- **Android**: `sample-app/google-services.json` 배치, `local.properties`(gitignore)에 `nudgeon.sdkKey=pk_…`, `nudgeon.apiHost=http://<host>:8080`. `./gradlew :sample-app:installDebug`.
 
-앱을 열고 **알림 권한 허용** → 화면에 device_id와 푸시 토큰이 표시되면 SDK가 서버에 토큰을 등록한 것이다. 콘솔 `/users` 에서 해당 사용자를 찾아 `token_status=active`, `os_permission=granted`인지 확인한다.
+앱을 열고 **알림 권한 허용**을 진행한다. 로컬 device_id·푸시 토큰 표시만으로 서버 등록 성공을 판단하지 않는다. 콘솔 `/users` 에서 해당 사용자를 찾아 `token_status=active`, `os_permission=granted`인지 확인한다.
 
 샘플앱에서 `identify("<external_id>")`를 호출해 두면(버튼 제공) 다음 단계의 테스트 발송 대상이 된다.
 
 ## 4. 테스트 발송
 
+콘솔 온보딩에서 고객 ID로 기기를 조회한 뒤 발송 가능한 한 대를 선택한다. API로 조회하려면 `GET /v1/apps/<app_id>/test-push-targets?external_id=<URL encoded ID>`의 `eligible: true` 기기를 사용한다. `device_id`를 생략하면 해당 고객의 여러 기기를 대상으로 할 수 있으므로 단일 기기 시험에서는 명시한다.
+
 ```bash
 curl -X POST http://<host>:8080/v1/apps/<app_id>/test-push \
   -H 'Content-Type: application/json' -b 'nudgeon_session=<cookie>' \
-  -d '{"external_id":"<샘플앱에서 identify한 값>","title":"NudgeOn 실기기 1호","body":"이 알림을 탭하세요"}'
-# → 202 {"queued":1,"test_run_id":"…"}
+  -H 'Idempotency-Key: <이번 요청의 UUID>' \
+  -d '{"external_id":"<샘플앱에서 identify한 값>","device_id":"<선택한 서버 device UUID>","title":"NudgeOn 실기기 1호","body":"이 알림을 탭하세요"}'
+# → 202 {"state":"accepted","queued":1,"test_run_id":"…","messages":[…],…}
 ```
 
-`queued: 0`이거나 400이면 대상 디바이스 조건(토큰 active + 권한 granted)이 안 맞는 것이다. 3단계로 돌아간다.
+`queued`는 영속 접수 건수이며 Redis 발행·공급자 전달 완료를 뜻하지 않는다. 대상 없음/조건 불충족은 400이다. 응답 유실 시 같은 본문과 같은 `Idempotency-Key`로 접수 결과를 다시 확인한다. 같은 키로 본문을 바꾸면 409이며 새 발송이 필요할 때만 새 UUID를 만든다. 최근 이력은 `GET /v1/apps/<app_id>/test-push-runs`에서 확인한다.
 
 ## 5. 수신 → 열기 → 대사
 
@@ -80,9 +83,14 @@ curl -X POST http://<host>:8080/v1/apps/<app_id>/test-push \
 
 ```sql
 -- ClickHouse (docker exec -it nudgeon-clickhouse clickhouse-client)
-SELECT message_id, channel, status, sent_at FROM nudgeon.message_log ORDER BY sent_at DESC LIMIT 5;
+SELECT message_id, channel, status, sent_at FROM nudgeon.message_log
+WHERE tenant_id = toUUID('<tenant_id>') AND app_id = toUUID('<app_id>')
+ORDER BY sent_at DESC LIMIT 5;
 SELECT event_name, JSONExtractString(properties, 'message_id') AS mid, occurred_at
-  FROM nudgeon.events WHERE event_name IN ('$push_delivered', '$push_opened') ORDER BY occurred_at DESC LIMIT 5;
+  FROM nudgeon.events
+WHERE tenant_id = toUUID('<tenant_id>') AND app_id = toUUID('<app_id>')
+  AND event_name IN ('$push_delivered', '$push_opened')
+ORDER BY occurred_at DESC LIMIT 5;
 ```
 
 ## 6. 성공 기준과 기록
