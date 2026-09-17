@@ -42,7 +42,7 @@ try{
  await command('openssl',['x509','-req','-in',path.join(evidence,'server.csr'),'-CA',path.join(evidence,'ca.crt'),'-CAkey',path.join(evidence,'ca.key'),'-CAcreateserial','-days','1','-extfile',path.join(evidence,'server.ext'),'-out',path.join(evidence,'server.crt')]);
  await fs.writeFile(path.join(evidence,'redis.conf'),'port 0\ntls-port 6379\ntls-cert-file /fixture/server.crt\ntls-key-file /fixture/server.key\ntls-ca-cert-file /fixture/ca.crt\ntls-auth-clients no\nrequirepass synthetic-redis-fixture\nsave ""\nappendonly no\n',{mode:0o600});
  created=true;
- await command('docker',['run','-d','--name',name,'--memory','64m','--cpus','0.5','--publish','127.0.0.1::6379','--mount',`type=bind,source=${evidence},target=/fixture,readonly`,'--user','0','redis:7','redis-server','/fixture/redis.conf']);
+ await command('docker',['run','-d','--name',name,'--memory','64m','--cpus','0.5','--publish','127.0.0.1::6379','--mount',`type=bind,source=${evidence},target=/fixture,readonly`,'--entrypoint','sh','redis:7','-c','mkdir /tmp/redis-fixture && cp /fixture/server.key /fixture/server.crt /fixture/ca.crt /tmp/redis-fixture/ && sed \'s#/fixture/#/tmp/redis-fixture/#g\' /fixture/redis.conf > /tmp/redis-fixture/redis.conf && chmod 700 /tmp/redis-fixture && chmod 600 /tmp/redis-fixture/server.key /tmp/redis-fixture/redis.conf && chown -R redis:redis /tmp/redis-fixture && exec docker-entrypoint.sh redis-server /tmp/redis-fixture/redis.conf']);
  const mapping=await command('docker',['port',name,'6379/tcp']);assert.match(mapping,/^127\.0\.0\.1:\d+$/);
  const port=mapping.split(':')[1];
  const deadline=Date.now()+15000;

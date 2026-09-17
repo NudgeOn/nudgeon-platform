@@ -25,6 +25,9 @@ connection refusal cannot satisfy them. Raw driver logs and DSNs are discarded.
 The result records source SHA-256, revision, Redis image ID, assertions and
 before/after container names. It verifies no unrelated container was stopped,
 removes its own container/anonymous volume and deletes private keys/config.
+Before dropping to the Redis user, the fixture copies certificates/config from
+the private read-only host mount into a Redis-owned private directory. This keeps
+Linux host permissions strict without preventing the container from starting.
 
 This is a local connection regression, not ElastiCache certification, Sentinel/
 Cluster failover, managed Redis IAM auth, durability, queue reconciliation or
