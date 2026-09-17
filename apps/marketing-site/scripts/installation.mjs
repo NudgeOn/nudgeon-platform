@@ -1,6 +1,6 @@
 const copy = {
   ko: {
-    eyebrow: 'SELF-HOSTED. GUIDED SETUP.', title: '내 서버에 설치하는 일도,\n화면을 따라가면 끝.',
+    eyebrow: 'SELF-HOSTED. GUIDED SETUP.', title: '설치도 아주 쉽게…',
     intro: 'DB 설정부터 관리자 로그인까지, 위자드가 순서대로 안내합니다. 복잡한 설정 파일 대신 익숙한 입력 화면으로 시작하세요.',
     prepare: '시작 전 준비', prerequisites: 'Docker Engine · Compose v2 · Git · OpenSSL · cURL',
     command: '저장소를 내려받고 ./nudgeon up을 실행하세요.', copy: '설치 명령 복사', copied: '복사했어요', failed: '명령어를 직접 선택해 복사해 주세요.',
