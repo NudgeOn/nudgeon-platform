@@ -113,16 +113,17 @@ type requestResult struct {
 }
 
 type loadResult struct {
-	runID            string
-	expected         int64
-	activeDuration   time.Duration
-	wallDuration     time.Duration
-	drainDuration    time.Duration
-	counters         counterSnapshot
-	queueLatency     latencyStats
-	serviceLatency   latencyStats
-	endToEndLatency  latencyStats
-	httpStatusCounts map[int]int64
+	runID               string
+	expected            int64
+	activeDuration      time.Duration
+	wallDuration        time.Duration
+	drainDuration       time.Duration
+	counters            counterSnapshot
+	queueLatency        latencyStats
+	serviceLatency      latencyStats
+	endToEndLatency     latencyStats
+	httpStatusCounts    map[int]int64
+	networkErrorClasses map[string]int64
 }
 
 func main() {
@@ -275,6 +276,7 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 	serviceLatencies := &latencyRecorder{}
 	endToEndLatencies := &latencyRecorder{}
 	statusCounts := &statusRecorder{}
+	networkClasses := &errorClassRecorder{}
 	// Record the exact single-tenant workload; returning-user pre-seeding is verified separately.
 	loadStartedAt := time.Now()
 	evidence, err := newEvidence(cfg.outputDir, map[string]any{
@@ -361,6 +363,7 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 				case outcome.err != nil:
 					kind = eventNetworkError
 					counters.networkErrors.Add(1)
+					networkClasses.add(classifyNetworkError(outcome.err))
 					if isTimeout(outcome.err) {
 						counters.timeouts.Add(1)
 					}
@@ -407,16 +410,17 @@ func runLoad(ctx context.Context, cfg loadConfig, client *http.Client) (loadResu
 	wallDuration := time.Since(loadStartedAt)
 	drainDuration := nonNegative(wallDuration - cfg.duration)
 	result := loadResult{
-		runID:            cfg.runID,
-		expected:         expected,
-		activeDuration:   cfg.duration,
-		wallDuration:     wallDuration,
-		drainDuration:    drainDuration,
-		counters:         counters.snapshot(),
-		queueLatency:     queueLatencies.stats(),
-		serviceLatency:   serviceLatencies.stats(),
-		endToEndLatency:  endToEndLatencies.stats(),
-		httpStatusCounts: statusCounts.snapshot(),
+		runID:               cfg.runID,
+		expected:            expected,
+		activeDuration:      cfg.duration,
+		wallDuration:        wallDuration,
+		drainDuration:       drainDuration,
+		counters:            counters.snapshot(),
+		queueLatency:        queueLatencies.stats(),
+		serviceLatency:      serviceLatencies.stats(),
+		endToEndLatency:     endToEndLatencies.stats(),
+		httpStatusCounts:    statusCounts.snapshot(),
+		networkErrorClasses: networkClasses.snapshot(),
 	}
 	if runErr == nil {
 		runErr = ctx.Err()
