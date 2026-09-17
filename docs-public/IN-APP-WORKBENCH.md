@@ -98,7 +98,7 @@ await inApp.end()
 
 ## Android 적용
 
-별도 저장소 `nudgeon-android-sdk`의 신규 **nudgeon-inapp** 모듈입니다. Maven Central의 `io.nudgeon:nudgeon-inapp:0.2.0`으로 연결합니다. SDK 저장소 샘플 앱의 **In-app event test** 버튼으로 연결 화면을 열 수 있습니다. Android 8/API 26 이상이며 WebView의 `WEB_MESSAGE_LISTENER` 지원이 필요합니다.
+별도 저장소 `nudgeon-android-sdk`의 신규 **nudgeon-inapp** 모듈입니다. Maven Central의 `io.nudgeon:nudgeon-inapp:0.2.2`으로 연결합니다. SDK 저장소 샘플 앱의 **In-app event test** 버튼으로 연결 화면을 열 수 있습니다. Android 8/API 26 이상이며 WebView의 `WEB_MESSAGE_LISTENER` 지원이 필요합니다.
 
 ```kotlin
 val inApp = InAppTestClient(
@@ -132,7 +132,7 @@ inApp.destroy()        // 호스트 소유자가 SDK 인스턴스를 폐기할 �
 | 실행 명령 | 1회 원자 claim, 3초 polling, 고정 5분 상한. 응답 유실 시 취소/만료 후 새 run 생성 |
 | 테스트 기록 | 실패 목록·재실행·취소·중복 방지. 실기기 화면 스트리밍은 없음 |
 | 일반 사용자 캠페인 | 설치 기기 대상 게시·기간·트리거·빈도·오늘 그만 보기 구현. [운영 사용 안내](IN-APP-CAMPAIGNS.md). 사용자 세그먼트·저니는 후속 |
-| SDK 배포·파일럿 | SDK 0.2.0. Godspell 연결·시뮬레이터 검증과 별도로 실기기 검증 필요 |
-| 설치 위자드 | Compose 볼륨/콘텐츠 overlay 제공. 위자드 자동 설정·백업 UI는 후속 |
+| SDK·파일럿 | SDK 0.2.2 대상. Godspell 실기기의 정상 중단·KST 숨김·폴드 레이아웃 [검증 기록](IN-APP-DEVICE-QA-2026-09-17.md). 운영 서버·스토어 빌드는 별도 |
+| 설치 위자드 | 인앱 기능·콘텐츠 주소·포트 설정과 Compose 볼륨/overlay 제공. DNS/TLS 발급은 수동, CLI 자산 백업 절차는 [캠페인 안내](IN-APP-CAMPAIGNS.md) 참고 |
 
 브라우저와 모의 SDK 요청 검증은 실제 iOS/Android 기기 검증을 대체하지 않습니다. 검증 결과는 구현 완료 보고에서 구분합니다.
