@@ -1,7 +1,7 @@
 # 첫 실기기 푸시 런북 — 크리덴셜 등록 → 발송 → 수신 → 열기 → 리포트 대사
 
 목표: **실제 단말에서 NudgeOn 푸시 1건을 받고 탭해서, 도달/오픈 리포트에 같은 `message_id`로 잡히는 것**을 확인한다.
-이것이 베타 선언의 하드 게이트(G0)이며, 성공하면 `docs/dev` Go/No-Go 원장의 IT-3·IT-8·M-1을 Go로 올린다.
+2026-09-18 기준 SDK 0.2.2 시험 절차다. 실제 완료 판정은 [출시 체크리스트](RELEASE-CHECKLIST.md)의 B-2·B-7과 증거를 함께 확인한다.
 
 전제: 샘플앱(iOS `nudgeon-ios-sdk/Examples/NudgeOnDemo`, Android `nudgeon-android-sdk/sample-app`)이 빌드된다. 소요 시간은 크리덴셜이 준비돼 있으면 약 1시간.
 
@@ -98,7 +98,7 @@ ORDER BY occurred_at DESC LIMIT 5;
 - [ ] iOS·Android 각각 수신 1건, 탭 1건, 세 곳 `message_id` 일치
 - [ ] 크리덴셜 `verified`, 워커 로그에 4xx 없음
 - [ ] 앱 종료 상태(cold)에서도 iOS `$push_delivered`가 들어옴 (NSE 경로)
-- [ ] 결과를 `docs/dev/DEV-MAIN-개발기획서.md` 7장 IT-3·IT-8·M-1에 판정자·일자와 함께 기입, `REMAINING-WORK`의 3-A를 닫음
+- [ ] 판정자·일자·SDK/서버 버전·message_id·증거 위치를 기록하고 [출시 체크리스트](RELEASE-CHECKLIST.md)의 해당 항목만 갱신한다. 외부 온보딩은 [참가자 기록지](EXTERNAL-ONBOARDING-TEST.md)를 사용한다.
 
 ## 7. 자주 막히는 곳
 
