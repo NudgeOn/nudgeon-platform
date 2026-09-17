@@ -29,6 +29,7 @@ import { IngestionService } from "./ingestion/ingestion.service";
 import { TrackController } from "./ingestion/track.controller";
 import { CredentialsController } from "./credentials/credentials.controller";
 import { TestPushController } from "./messaging/test-push.controller";
+import { TestPushService } from "./messaging/test-push.service";
 import { MessageLogController } from "./messaging/message-log.controller";
 import { UsersController } from "./users/users.controller";
 import { AnalyticsController } from "./analytics/analytics.controller";
@@ -74,6 +75,7 @@ import { PermissionGuard } from "./authz/permission.guard";
     DataController,
   ],
   providers: [
+    TestPushService,
     ApiKeyGuard,
     SessionGuard,
     PermissionGuard,

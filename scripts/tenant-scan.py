@@ -17,7 +17,7 @@ import sys
 SCOPED = {
     "members", "sessions", "apps", "api_keys", "credentials", "users", "devices",
     "attribute_registry", "segments", "journeys", "journey_versions",
-    "journey_states", "journey_outbox", "user_merges", "audit_logs",
+    "test_push_runs", "journey_states", "journey_outbox", "user_merges", "audit_logs",
     "member_backup_codes",
     # 신규 테이블(receipt/cursor·저니 노드 실행) — 재검증 R-20
     "event_receipts", "event_customer_cursors", "journey_node_executions",

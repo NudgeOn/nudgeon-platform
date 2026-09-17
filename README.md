@@ -191,11 +191,20 @@ The SDKs live in sibling repositories: [iOS](https://github.com/NudgeOn/nudgeon-
 ## Quick start (development)
 
 ```bash
+# Run from the repository root; preserve an existing .env.
+test -f .env || cp .env.example .env
+set -a
+. ./.env
+set +a
 # Data services only (run the apps locally)
-docker compose -f deploy/compose.yaml --profile full up -d
-export NUDGEON_MASTER_KEY=$(openssl rand -base64 32)
+docker compose -f deploy/compose.yaml --profile full up -d --wait
 go run ./apps/worker/cmd/migrate db           # apply schema (idempotent)
 pnpm install && pnpm build
+```
+
+Run each command below in a separate terminal. First load the environment in each terminal with `set -a; . ./.env; set +a` from the repository root. The API and worker must share the same master key. The key in `.env.example` is for local development; use `./nudgeon up` for actual installations.
+
+```bash
 pnpm --filter @nudgeon/api dev                # Management + Ingestion API :8080
 go run ./apps/worker/cmd/worker --role=all    # worker (all roles)
 pnpm --filter @nudgeon/console dev            # console :3000

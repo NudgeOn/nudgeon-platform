@@ -23,7 +23,8 @@
     "installPending": "Installation isn't finished yet.",
     "installLink": "Create the first Owner on the setup screen",
     "noAccount": "No account yet?",
-    "signup": "Sign up"
+    "signup": "Sign up",
+    "setupSubtitle": "Sign in with the administrator email and password you just created. Next, choose optional OTP protection and open your dashboard."
   },
   "signup": {
     "title": "Get started with NudgeOn",
@@ -107,14 +108,42 @@
       "failed": "Send failed — check the user's token (active), OS permission (granted), and credential status",
       "externalId": "Test customer ID",
       "sending": "Requesting send…",
-      "queueNote": "Queued does not mean received. Check the send record and open the notification on your device.",
+      "queueNote": "Your request is saved. A worker will publish it to the queue before sending. This does not confirm device receipt.",
       "viewLogs": "View this test run",
       "permissionDenied": "You do not have permission to send a test push. Ask an administrator for send permission.",
       "loginRequired": "Your session expired. Sign in again.",
       "requestFailed": "The send request could not be confirmed. Check message logs before retrying to avoid duplicate sends.",
       "runId": "Test run ID",
       "viewAllLogs": "View message logs",
-      "login": "Sign in again"
+      "login": "Sign in again",
+      "searching": "Loading…",
+      "findDevices": "Find devices",
+      "chooseDevice": "Choose one device for this test",
+      "noDevices": "No registered devices. Identify this customer ID in the SDK, then register a push token.",
+      "lastSeen": "Last active: {time}",
+      "lastSeenUnknown": "No recent activity recorded",
+      "eligible": "Ready to test",
+      "tokenIssue": "Valid push token required",
+      "permissionIssue": "Notification permission required",
+      "channelIssue": "Verified push channel required",
+      "review": "Review test",
+      "reviewTitle": "Send a test notification to this device?",
+      "reviewNote": "This sends a real notification to one selected device. Check the device and customer ID before sending.",
+      "confirmSend": "Send to this device",
+      "cancel": "Cancel",
+      "accepted": "Test request saved",
+      "retryNote": "The request may have been saved even if its response was lost. Checking the same request returns its original record without creating a duplicate test. Check recent history first. A new test is a separate send and may arrive twice.",
+      "retrySame": "Check the same request",
+      "newTest": "Prepare a new test",
+      "history": "Latest 20 tests",
+      "refresh": "Refresh",
+      "historyNote": "Request acceptance and queue publication are separate. Check provider acceptance in logs and actual receipt on your device. History survives page reloads.",
+      "historyError": "Could not load recent tests. Refresh to try again.",
+      "historyEmpty": "No saved tests yet.",
+      "acceptedCount": "Accepted for {count} devices",
+      "publishedCount": "Published to queue: {count}/{total} · Check receipt on the device",
+      "viewFailures": "Failed messages",
+      "removedCount": "{count} send jobs removed · queue state is no longer available"
     },
     "credentials": {
       "emailOptional": "Email channel (optional) — register SMTP, AWS SES, Resend (SMTP/API) or NHN Cloud to use email nodes in journeys.",
@@ -140,7 +169,9 @@
         "rn": "Real devices can't reach localhost — use your PC's LAN IP on the same Wi-Fi (e.g. http://192.168.0.10:PORT) or an HTTPS tunnel URL. Android emulator: http://10.0.2.2:PORT",
         "flutter": "Real devices can't reach localhost — use your PC's LAN IP on the same Wi-Fi (e.g. http://192.168.0.10:PORT) or an HTTPS tunnel URL. Android emulator: http://10.0.2.2:PORT"
       }
-    }
+    },
+    "skipForNow": "Skip for now",
+    "skipNote": "Explore the dashboard first. Saved settings are kept. Return anytime using “Open onboarding wizard” on the dashboard."
   },
   "logs": {
     "backToDashboard": "← Dashboard",
@@ -294,7 +325,8 @@
       "confirm": "Verify & enable",
       "activated": "2FA is now enabled.",
       "backupHint": "Store these backup codes somewhere safe. Each code works once.",
-      "done": "Done"
+      "done": "Done",
+      "loadFailed": "Could not load security settings. Please try again."
     },
     "org": {
       "title": "Organization security",
@@ -1511,5 +1543,16 @@
     "copy": "Copy",
     "copied": "Copied",
     "copyFailed": "Copy failed"
+  },
+  "welcome": {
+    "step": "FINAL STEP · ACCOUNT SECURITY",
+    "title": "You’re signed in. Add OTP protection?",
+    "body": "Protect your account with a one-time code from an authenticator app. This is optional, and you can enable it later in App settings.",
+    "skip": "Skip for now and open dashboard",
+    "dashboard": "Open main dashboard",
+    "loading": "Checking your account…",
+    "error": "Could not verify your account. Please try again.",
+    "retry": "Try again",
+    "next": "Continue connecting your app from the dashboard, or explore first."
   }
 }

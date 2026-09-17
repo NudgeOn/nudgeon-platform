@@ -67,7 +67,7 @@ export function render(lang) {
   <script type="application/ld+json">${JSON.stringify(structuredData).replace(/</g, '\\u003c')}</script>
   <link rel="alternate" hreflang="en" href="${siteUrl}/"><link rel="alternate" hreflang="ko" href="${siteUrl}/ko/"><link rel="alternate" hreflang="x-default" href="${siteUrl}/">
   <link rel="icon" type="image/svg+xml" href="/assets/nudgeon-mark.svg">
-  <link rel="stylesheet" href="/landing.css"><link rel="stylesheet" href="/landing-responsive.css"><script type="module" src="/journey-demo.js"></script>
+  <link rel="stylesheet" href="/landing.css"><link rel="stylesheet" href="/landing-responsive.css"><link rel="stylesheet" href="/installation.css"><script type="module" src="/journey-demo.js"></script><script type="module" src="/install-tour.js"></script>
 </head>
 <body>
   <a class="skip" href="#main">${t.skip}</a>

@@ -23,6 +23,7 @@ The server binds to `127.0.0.1`. It builds at startup; run `npm run build` and r
 - `scripts/landing.mjs`: semantic homepage markup.
 - `public/landing.css`, `public/landing-responsive.css`: homepage styles.
 - `public/journey-demo.js`: journey selection, message edits and flow playback.
+- `scripts/installation.mjs`, `public/installation.css`, `public/install-tour.js`: bilingual setup walkthrough, command copy, and five actual product screens with synthetic example accounts. Database/owner screens are Korean; login, optional OTP, and dashboard captures are localized.
 - `scripts/user-guide.mjs`, `public/guide.css`, `public/style.css`: preserved operator guides.
 - `scripts/check.mjs`: locale parity, links, assets, page structure and demo contract checks.
 - `design/`: visual references, excluded from deployment.

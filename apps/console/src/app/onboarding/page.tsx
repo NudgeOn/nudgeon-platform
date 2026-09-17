@@ -1,15 +1,16 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ApiError } from "@nudgeon/api-client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TestPushStep } from "./test-push-step";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { CredentialsStep } from "./credentials-step";
 import { PLATFORMS, PLATFORM_LABELS, resolveApiUrl, snippet, type Platform } from "./snippets";
 
@@ -55,14 +56,14 @@ function Wizard({ appId, appName }: { appId: string; appName: string }) {
     // 첫 이벤트 수신 대기 — 도착 순간 체크 전환 (5s 폴링, 웹소켓 비도입 원칙)
     refetchInterval: (q) => ((q.state.data?.events_total ?? 0) > 0 ? false : 5000),
   });
-  const [pushSent, setPushSent] = useState(false);
 
-  const step2Done = creds.data?.credentials.some((c) => c.status === "verified") ?? false;
+  const step2Done = creds.data?.credentials.some((c) => c.status === "verified" && (c.kind === "push_fcm" || c.kind === "push_apns")) ?? false;
   const step3Done = (ingest.data?.events_total ?? 0) > 0;
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <main className="mx-auto max-w-3xl p-4 sm:p-8">
       <header className="mb-8">
+        <div className="mb-4 flex justify-end"><LocaleSwitcher /></div>
         <p className="text-sm text-muted-foreground">
           <Link href="/" className="underline">
             {t("backToDashboard")}
@@ -72,6 +73,10 @@ function Wizard({ appId, appName }: { appId: string; appName: string }) {
         <p className="text-sm text-muted-foreground">
           {t("subtitle")}
         </p>
+        <div className="mt-5 flex flex-col items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p id="onboarding-skip-note" className="text-sm text-muted-foreground">{t("skipNote")}</p>
+          <SkipOnboarding describedBy="onboarding-skip-note" />
+        </div>
       </header>
 
       <div className="flex flex-col gap-6">
@@ -87,12 +92,21 @@ function Wizard({ appId, appName }: { appId: string; appName: string }) {
           <SnippetStep appId={appId} received={step3Done} lastEventAt={ingest.data?.last_event_at ?? null} />
         </Step>
 
-        <Step n={4} title={t("step4")} done={pushSent}>
-          <TestPushStep appId={appId} onQueued={() => setPushSent(true)} />
+        <Step n={4} title={t("step4")} done={false}>
+          <TestPushStep appId={appId} />
         </Step>
       </div>
+      <footer className="mt-6 flex justify-end"><SkipOnboarding describedBy="onboarding-skip-note" /></footer>
     </main>
   );
+}
+
+function SkipOnboarding({ describedBy }: { describedBy: string }) {
+  const t = useTranslations("onboarding");
+  return <Link href="/" aria-describedby={describedBy}
+    className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    {t("skipForNow")}
+  </Link>;
 }
 
 function Step({
@@ -213,65 +227,5 @@ function SnippetStep({
         </p>
       )}
     </div>
-  );
-}
-
-/** 4단계 — 내 디바이스로 테스트 발송 (M-1 경로) */
-function TestPushStep({ appId, onQueued }: { appId: string; onQueued: () => void }) {
-  const t = useTranslations("onboarding.testPush");
-  const [externalId, setExternalId] = useState("");
-  const send = useMutation({
-    mutationFn: (customerId: string) =>
-      api.apps.testPush(appId, {
-        external_id: customerId,
-        title: t("pushTitle"),
-        body: t("pushBody"),
-      }),
-    onSuccess: onQueued,
-  });
-
-  return (
-    <form
-      className="flex flex-col gap-3 text-sm"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (externalId.trim() && !send.isPending) send.mutate(externalId.trim());
-      }}
-    >
-      <p className="text-muted-foreground">
-        {t.rich("instruction", { code: (c) => <code>{c}</code> })}
-      </p>
-      <Label htmlFor="test-customer-id">{t("externalId")}</Label>
-      <div className="flex flex-wrap gap-2">
-        <Input
-          id="test-customer-id"
-          placeholder="external_id"
-          maxLength={256}
-          disabled={send.isPending}
-          value={externalId}
-          onChange={(e) => setExternalId(e.target.value)}
-          className="max-w-xs"
-        />
-        <Button type="submit" disabled={!externalId.trim() || send.isPending}>
-          {send.isPending ? t("sending") : t("send")}
-        </Button>
-      </div>
-      {send.isSuccess && (
-        <div className="rounded-md border border-border bg-muted p-4" role="status">
-          <p className="font-medium">{t("queued", { count: send.data.queued })}</p>
-          <p className="mt-2 text-muted-foreground">{t("queueNote")}</p>
-          <p className="mt-2 break-all text-xs text-muted-foreground">{t("runId")}: {send.data.test_run_id}</p>
-          <Link className="mt-3 inline-block font-medium text-primary underline" href={`/logs?test_run_id=${encodeURIComponent(send.data.test_run_id)}`}>{t("viewLogs")} →</Link>
-        </div>
-      )}
-      {send.isError && (
-        <div role="alert"><p className="text-destructive">
-          {send.error instanceof ApiError && send.error.status === 400 ? t("failed")
-            : send.error instanceof ApiError && send.error.status === 403 ? t("permissionDenied")
-            : send.error instanceof ApiError && send.error.status === 401 ? t("loginRequired") : t("requestFailed")}
-        </p><Link className="mt-2 inline-block text-primary underline" href={send.error instanceof ApiError && send.error.status === 401 ? "/login" : "/logs"}>
-          {send.error instanceof ApiError && send.error.status === 401 ? t("login") : t("viewAllLogs")}</Link></div>
-      )}
-    </form>
   );
 }

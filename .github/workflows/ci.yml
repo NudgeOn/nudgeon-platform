@@ -16,6 +16,21 @@ jobs:
   ts:
     name: TypeScript (lint · typecheck · test · build)
     runs-on: ubuntu-latest
+    env:
+      NUDGEON_TEST_PUSH_DATABASE_URL: postgres://nudgeon:nudgeon@localhost:5432/nudgeon_test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nudgeon
+          POSTGRES_PASSWORD: nudgeon
+          POSTGRES_DB: nudgeon_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nudgeon"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -109,7 +124,7 @@ jobs:
       - name: Safe Boot CLI · 상태 서버 검증
         run: |
           sh -n ./nudgeon
-          node --test deploy/setup-status/server.test.mjs
+          node --test deploy/setup-status/*.test.mjs
       - name: Safe Boot CI 상태 생성
         run: |
           install -d -m 700 .nudgeon/secrets

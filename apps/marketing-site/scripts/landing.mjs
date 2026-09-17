@@ -1,3 +1,4 @@
+import { renderInstallation } from "./installation.mjs";
 import { experience } from "../src/experience.mjs";
 const esc = (value) =>
   String(value).replace(
@@ -30,10 +31,10 @@ export function renderLanding(lang) {
   const brand = `<a class="brand" href="${lang === "ko" ? "/ko/" : "/"}"><img src="/assets/nudgeon-mark.svg" alt="" width="30" height="30"><span>NudgeOn</span></a>`;
   return `<header class="site-header"><div class="shell header-inner">${brand}
     <nav class="main-nav" aria-label="${lang === "ko" ? "메인 메뉴" : "Main navigation"}"><a href="#product">${t.product}</a><a href="#journeys">${t.journeys}</a><a href="${guide}">${t.guide}</a><a href="${docs}">${t.developers}</a></nav>
-    <div class="header-actions">${language(lang)}<a class="button compact dark" href="#deployment">${t.start}</a></div></div></header>
+    <div class="header-actions">${language(lang)}<a class="button compact dark" href="#installation">${t.start}</a></div></div></header>
   <main id="main">
     <section class="hero shell" aria-labelledby="hero-title">
-      <div><h1 id="hero-title">${esc(t.headline[0])}<br><span>${esc(t.headline[1])}</span></h1><div class="hero-actions"><a class="button primary" href="#journeys">${t.explore}${icon("arrow")}</a><a class="button secondary" href="#deployment">${t.install}</a></div></div>
+      <div><h1 id="hero-title">${esc(t.headline[0])}<br><span>${esc(t.headline[1])}</span></h1><div class="hero-actions"><a class="button primary" href="#journeys">${t.explore}${icon("arrow")}</a><a class="button secondary" href="#installation">${t.install}</a></div></div>
       <div class="hero-description"><p>${t.intro}</p><a class="text-link" href="${repo}"><img src="/assets/github-mark.svg" alt="" width="22" height="22">${t.source}${icon("arrow")}</a></div>
     </section>
     <section class="journeys shell" id="journeys" aria-label="${t.interactive}" data-demo data-scenarios="${esc(JSON.stringify(t.scenarios))}" data-steps="${esc(JSON.stringify(t.steps))}" data-complete="${esc(t.complete)}" data-result="${esc(t.result)}" data-replaying="${esc(t.replaying)}">
@@ -57,6 +58,7 @@ export function renderLanding(lang) {
       <div class="feature-columns">${t.features.map(([title, body], i) => `<article><span class="feature-number">0${i + 1}</span><h3>${title}</h3><p>${body}</p>${i === 0 ? `<div class="event-list" aria-label="${t.sample}">${["sign_up", "playlist_updated", "purchase_completed"].map((e, j) => `<div><span class="event-dot"></span><code>${e}</code><time>09:4${j + 1}</time></div>`).join("")}</div>` : i === 1 ? `<div class="mini-flow" aria-label="${t.sample}">${["event", "wait", "message"].map((n, j) => `<div>${icon(n)}<span>${t.steps[j]}</span></div>${j < 2 ? icon("arrow", "mini-arrow") : ""}`).join("")}</div>` : `<div class="event-list log-list" aria-label="${t.sample}">${t.logNames.map((n, j) => `<div><span>${n}</span><span class="log-status status-${j}">${t.status[j]}</span></div>`).join("")}</div>`}</article>`).join("")}</div><p class="sample-note">${t.sample}</p>
       <div class="moments"><h3>${t.moments}</h3><div>${t.momentLinks.map((name, i) => `<a href="#journeys" data-select-scenario="${i}">${name}${icon("arrow")}</a>`).join("")}</div></div>
     </section>
+    ${renderInstallation(lang)}
     <section class="deployment shell" id="deployment" aria-labelledby="deployment-title"><div class="deployment-grid"><div><h2 id="deployment-title">${t.deployTitle.map(esc).join("<br>")}</h2><p>${t.deployIntro}</p><div class="deployment-actions"><a class="button primary" href="${docs}#self-hosting">${t.setup}${icon("arrow")}</a><a class="text-link" href="${repo}">${t.viewSource}${icon("arrow")}</a></div></div><div class="terminal"><div class="terminal-header"><span class="terminal-dots"><i></i><i></i><i></i></span><span>Self-hosted NudgeOn</span></div><code><span>$</span> ./nudgeon up</code><p>PostgreSQL · ClickHouse · Redis</p><p>${t.terminal}</p><span class="terminal-license">Apache-2.0</span></div></div>
       <div class="release-strip"><strong>${t.beta}</strong><p>${t.betaBody}</p><a class="text-link" href="${repo}/blob/main/docs-public/RELEASE-CHECKLIST.md">${t.checklist}${icon("arrow")}</a></div>
     </section>

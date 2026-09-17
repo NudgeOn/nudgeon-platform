@@ -2,133 +2,193 @@
   {
     "file": "01-login.png",
     "name": "login",
-    "desc": "로그인",
-    "url": "/login"
+    "desc": "첫 관리자 로그인",
+    "url": "/login?setup=complete",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "02-signup.png",
     "name": "signup",
-    "desc": "가입 — 테넌트·Owner·기본 앱 생성",
-    "url": "/signup"
+    "desc": "다중 테넌트 모드 가입 화면",
+    "url": "/signup",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "03-dashboard.png",
     "name": "dashboard",
-    "desc": "대시보드 — 발송·도달·DAU·삭제율",
-    "url": "/"
+    "desc": "대시보드 — 발송·실패·DAU/MAU·앱 삭제율",
+    "url": "/",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "04-segments.png",
     "name": "segments",
     "desc": "세그먼트 목록",
-    "url": "/segments"
+    "url": "/segments",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "05-segment-detail.png",
     "name": "segment-detail",
-    "desc": "세그먼트 상세 — 조건 빌더·미리보기",
-    "url": "/segments/b3dbb2ec-bf54-4f04-aa9c-770439b2bcff"
+    "desc": "세그먼트 조건과 예상 대상 수",
+    "url": "/segments/11111111-1111-4111-8111-000000000002",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "06-segment-new.png",
     "name": "segment-new",
-    "desc": "세그먼트 생성",
-    "url": "/segments/new"
+    "desc": "새 세그먼트",
+    "url": "/segments/new",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "07-journeys.png",
     "name": "journeys",
-    "desc": "저니 목록",
-    "url": "/journeys"
+    "desc": "저니 목록과 시작 템플릿",
+    "url": "/journeys",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "08-journey-canvas.png",
     "name": "journey-canvas",
-    "desc": "저니 캔버스 — 지연·이메일(Resend)·이벤트 대기·푸시",
-    "url": "/journeys/d055552e-4049-4892-a85b-b966f7fb8554"
+    "desc": "저니 편집기 — 10분 대기 후 환영 푸시",
+    "url": "/journeys/11111111-1111-4111-8111-000000000003",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "09-journey-report.png",
     "name": "journey-report",
-    "desc": "저니 리포트 — 발송·도달·오픈·클릭(Resend 웹훅 반영)",
-    "url": "/journeys/d055552e-4049-4892-a85b-b966f7fb8554/report"
+    "desc": "버전별 저니 리포트 — 예시 집계",
+    "url": "/journeys/11111111-1111-4111-8111-000000000003/report",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "10-users.png",
     "name": "users",
-    "desc": "유저 검색",
-    "url": "/users"
+    "desc": "고객 식별자 검색",
+    "url": "/users",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "11-data.png",
     "name": "data",
-    "desc": "데이터 — 속성 사전·수집 오류",
-    "url": "/data"
+    "desc": "수집된 속성 사전",
+    "url": "/data",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "12-logs.png",
     "name": "logs",
-    "desc": "발송 로그",
-    "url": "/logs"
+    "desc": "메시지 상태·실패 상세",
+    "url": "/logs",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "13-email-templates.png",
     "name": "email-templates",
-    "desc": "이메일 템플릿 + 발송기 카드(기본: 범용 SMTP)",
-    "url": "/email-templates"
+    "desc": "이메일 템플릿과 SMTP 발송기",
+    "url": "/email-templates",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "14-provider-ses.png",
     "name": "provider-ses",
-    "desc": "발송기 — AWS SES (SMTP)",
-    "url": "/email-templates"
+    "desc": "이메일 발송기: ses",
+    "url": "/email-templates",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "15-provider-resend-smtp.png",
     "name": "provider-resend-smtp",
-    "desc": "발송기 — Resend (SMTP): 바로가기 패널·키 발급·도메인 인증 링크",
-    "url": "/email-templates"
+    "desc": "이메일 발송기: resend_smtp",
+    "url": "/email-templates",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "16-provider-resend-api.png",
     "name": "provider-resend-api",
-    "desc": "발송기 — Resend (API): 바로가기 패널·웹훅 서명 비밀·웹훅 URL 안내",
-    "url": "/email-templates"
+    "desc": "이메일 발송기: resend",
+    "url": "/email-templates",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "17-provider-nhn.png",
     "name": "provider-nhn",
-    "desc": "발송기 — NHN Cloud (API)",
-    "url": "/email-templates"
+    "desc": "이메일 발송기: nhn",
+    "url": "/email-templates",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "18-provider-resend-closeup.png",
     "name": "provider-resend-closeup",
-    "desc": "Resend(API) 발송기 카드 클로즈업 — 딥링크 4종·웹훅 가이드",
-    "url": "/email-templates"
+    "desc": "이메일 발송기: resend",
+    "url": "/email-templates",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "19-onboarding.png",
     "name": "onboarding",
-    "desc": "온보딩 위저드 — 앱·키·크리덴셜·SDK 스니펫·테스트 발송",
-    "url": "/onboarding"
+    "desc": "앱 연결 4단계·건너뛰기·테스트 이력",
+    "url": "/onboarding",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "20-team.png",
     "name": "team",
-    "desc": "팀 — 멤버·역할·초대",
-    "url": "/team"
+    "desc": "팀 멤버와 역할",
+    "url": "/team",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "21-audit.png",
     "name": "audit",
     "desc": "감사 로그",
-    "url": "/audit"
+    "url": "/audit",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   },
   {
     "file": "22-settings.png",
     "name": "settings",
-    "desc": "설정 — 조용시간·빈도 상한·2FA·키",
-    "url": "/settings"
+    "desc": "OTP·조직 보안·타임존·발송 규칙",
+    "url": "/settings",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
+  },
+  {
+    "file": "23-welcome.png",
+    "name": "welcome",
+    "desc": "첫 로그인 뒤 선택형 OTP",
+    "url": "/welcome",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
+  },
+  {
+    "file": "24-alimtalk.png",
+    "name": "alimtalk",
+    "desc": "알림톡 — 커넥터 미등록 상태",
+    "url": "/channels/alimtalk",
+    "captured_at": "2026-09-17",
+    "data": "mock fixtures — no messages sent"
   }
 ]

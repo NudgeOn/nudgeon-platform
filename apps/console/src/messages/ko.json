@@ -23,7 +23,8 @@
     "installPending": "아직 설치가 끝나지 않았어요.",
     "installLink": "설치 화면에서 첫 Owner 만들기",
     "noAccount": "계정이 없나요?",
-    "signup": "가입하기"
+    "signup": "가입하기",
+    "setupSubtitle": "방금 만든 관리자 이메일과 비밀번호로 로그인하세요. 다음 단계에서 OTP를 선택하고 대시보드로 이동합니다."
   },
   "signup": {
     "title": "NudgeOn 시작하기",
@@ -107,14 +108,42 @@
       "failed": "발송 실패 — 대상 유저의 토큰(active)·OS 권한(granted)·크리덴셜 등록 상태를 확인하세요",
       "externalId": "테스트 고객 ID",
       "sending": "발송 요청 중…",
-      "queueNote": "큐 접수는 실제 수신 완료가 아닙니다. 발송 기록을 확인하고 기기에서 알림을 열어 보세요.",
+      "queueNote": "요청은 안전하게 저장됐습니다. 워커가 큐로 전달한 뒤 발송하며, 아직 실제 수신을 의미하지 않습니다.",
       "viewLogs": "이번 테스트 발송 기록 보기",
       "permissionDenied": "테스트 발송 권한이 없습니다. 관리자에게 발송 권한을 요청해 주세요.",
       "loginRequired": "세션이 만료되었습니다. 다시 로그인해 주세요.",
       "requestFailed": "발송 요청을 확인하지 못했습니다. 중복 발송을 피하려면 재시도 전에 메시지 로그를 확인해 주세요.",
       "runId": "테스트 실행 ID",
       "viewAllLogs": "메시지 로그 확인",
-      "login": "다시 로그인"
+      "login": "다시 로그인",
+      "searching": "조회 중…",
+      "findDevices": "기기 찾기",
+      "chooseDevice": "테스트를 받을 기기 한 대를 선택하세요",
+      "noDevices": "등록된 기기가 없습니다. SDK에서 이 고객 ID로 identify한 뒤 푸시 토큰을 등록해 주세요.",
+      "lastSeen": "최근 활동: {time}",
+      "lastSeenUnknown": "최근 활동 기록 없음",
+      "eligible": "테스트 가능",
+      "tokenIssue": "유효한 푸시 토큰 필요",
+      "permissionIssue": "알림 권한 허용 필요",
+      "channelIssue": "푸시 채널 인증 필요",
+      "review": "발송 전 확인",
+      "reviewTitle": "이 기기에 테스트 알림을 보낼까요?",
+      "reviewNote": "선택한 기기 한 대에 실제 알림을 발송합니다. 기기와 고객 ID를 확인해 주세요.",
+      "confirmSend": "이 기기에 발송",
+      "cancel": "취소",
+      "accepted": "테스트 요청을 저장했습니다",
+      "retryNote": "응답을 받지 못했어도 요청이 저장됐을 수 있습니다. 같은 요청을 다시 확인하면 기존 기록을 돌려받으며 중복 테스트를 만들지 않습니다. 먼저 아래 최근 기록을 확인하세요. 새 테스트는 별도 발송이므로 중복 도착할 수 있습니다.",
+      "retrySame": "같은 요청 다시 확인",
+      "newTest": "새 테스트 준비",
+      "history": "최근 테스트 20건",
+      "refresh": "새로고침",
+      "historyNote": "요청 접수와 큐 발행을 구분합니다. 제공자 접수 결과는 로그에서, 실제 알림 수신은 기기에서 확인하세요. 새로고침 후에도 기록은 유지됩니다.",
+      "historyError": "최근 기록을 불러오지 못했습니다. 새로고침으로 다시 확인해 주세요.",
+      "historyEmpty": "저장된 테스트가 없습니다.",
+      "acceptedCount": "{count}대 요청 접수",
+      "publishedCount": "큐 발행 {count}/{total} · 실제 수신 여부는 기기에서 확인",
+      "viewFailures": "실패 기록",
+      "removedCount": "삭제된 발송 작업 {count}건 · 현재 큐 상태를 확인할 수 없습니다"
     },
     "credentials": {
       "emailOptional": "이메일 채널(선택) — SMTP·AWS SES·Resend(SMTP/API)·NHN Cloud 중 하나를 등록하면 저니 이메일 노드를 쓸 수 있습니다.",
@@ -140,7 +169,9 @@
         "rn": "실기기는 localhost에 닿지 못합니다 — 같은 Wi-Fi의 PC IP(예: http://192.168.0.10:PORT)나 HTTPS 터널 주소를 쓰세요. Android 에뮬레이터는 http://10.0.2.2:PORT",
         "flutter": "실기기는 localhost에 닿지 못합니다 — 같은 Wi-Fi의 PC IP(예: http://192.168.0.10:PORT)나 HTTPS 터널 주소를 쓰세요. Android 에뮬레이터는 http://10.0.2.2:PORT"
       }
-    }
+    },
+    "skipForNow": "지금은 건너뛰기",
+    "skipNote": "대시보드를 먼저 둘러보세요. 저장한 설정은 유지되며, 대시보드의 ‘온보딩 위저드 열기’에서 이어서 설정할 수 있어요."
   },
   "logs": {
     "backToDashboard": "← 대시보드",
@@ -294,7 +325,8 @@
       "confirm": "확인·활성화",
       "activated": "2FA가 활성화되었습니다.",
       "backupHint": "백업 코드를 안전한 곳에 보관하세요. 각 코드는 1회만 사용됩니다.",
-      "done": "완료"
+      "done": "완료",
+      "loadFailed": "보안 설정을 불러오지 못했어요. 잠시 후 다시 시도해 주세요."
     },
     "org": {
       "title": "조직 보안",
@@ -1511,5 +1543,16 @@
     "copy": "복사",
     "copied": "복사됨",
     "copyFailed": "복사 실패"
+  },
+  "welcome": {
+    "step": "마지막 단계 · 계정 보안",
+    "title": "로그인됐어요. OTP도 설정할까요?",
+    "body": "인증 앱의 일회용 코드로 계정을 한 번 더 보호할 수 있어요. 선택 사항이며 나중에 앱 설정에서도 켤 수 있습니다.",
+    "skip": "지금은 건너뛰고 대시보드로",
+    "dashboard": "메인 대시보드 열기",
+    "loading": "계정을 확인하고 있어요…",
+    "error": "계정을 확인하지 못했어요. 다시 시도해 주세요.",
+    "retry": "다시 확인",
+    "next": "대시보드에서 앱 연결을 이어가거나 바로 둘러볼 수 있어요."
   }
 }

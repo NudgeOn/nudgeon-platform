@@ -5,6 +5,7 @@ import {
   safeDiagnostic,
 } from "/setup-diagnostics.mjs";
 import { initWizard } from "/setup-wizard.mjs";
+import { initDatabaseSetup, databaseSetupPending } from "/setup-database.mjs";
 
 let wizardStarted = false;
 
@@ -94,6 +95,7 @@ function renderActions(actions) {
 }
 
 function renderHelp(status, { connectionFailed = false } = {}) {
+  if (databaseSetupPending()) { elements.troubleshooting.hidden = true; return; }
   const ready = status?.state === "ready" && !connectionFailed;
   elements.troubleshooting.hidden = ready;
   if (ready) return;
@@ -131,12 +133,16 @@ function render(status) {
     : Math.round((readyCount / safeStatus.components.length) * 100);
   elements.progressBar.style.width = `${percent}%`;
   elements.progressLabel.textContent = `${safeStatus.components.length}개 중 ${readyCount}개 준비됨`;
-  elements.nextStep.hidden = safeStatus.state !== "ready";
+  elements.nextStep.hidden = safeStatus.state !== "ready" || databaseSetupPending();
   renderHelp(safeStatus);
 
-  if (safeStatus.state === "ready") {
-    elements.summary.textContent = "모든 서비스가 준비됐어요. 아래에서 설치 소유권을 확인하고 첫 Owner를 만드세요.";
-    if (!wizardStarted) { wizardStarted = true; initWizard().catch((e) => console.error("wizard", e)); }
+  if (databaseSetupPending()) {
+    elements.summary.textContent = "먼저 아래에서 DB 비밀번호를 설정해 주세요. 저장 후 서비스가 자동으로 시작됩니다.";
+  } else if (safeStatus.state === "ready") {
+    elements.summary.textContent = elements.nextStep.dataset.secured === "true"
+      ? "관리자 계정이 준비됐어요. 만든 이메일과 비밀번호로 로그인해 대시보드를 열어보세요."
+      : "모든 서비스가 준비됐어요. 아래에서 설치 코드를 확인하고 관리자 로그인 계정을 만드세요.";
+    if (!wizardStarted) { wizardStarted = true; initWizard().catch(() => { wizardStarted = false; }); }
   } else if (safeStatus.state === "blocked") {
     elements.summary.textContent = "준비 확인에서 멈춘 서비스가 있어요. 아래 쉬운 방법부터 따라 해보세요.";
   } else {
@@ -224,4 +230,5 @@ document.querySelector("#copy-diagnostics").addEventListener("click", async () =
   }
 });
 
+initDatabaseSetup();
 refresh();
