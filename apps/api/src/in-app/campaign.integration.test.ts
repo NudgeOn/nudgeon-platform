@@ -294,6 +294,21 @@ describe.skipIf(!url)("live in-app campaigns", () => {
         )
       ).rows[0].n,
     ).toBe(2);
+    const suppression = (await pg.query(
+      "SELECT until_at FROM in_app_suppressions WHERE tenant_id=$1 AND app_id=$2 AND installation_id=$3 AND campaign_id=$4",
+      [tenant, app, i.id, c.id],
+    )).rows[0];
+    const nextMidnight = new Date(); nextMidnight.setUTCHours(24, 0, 0, 0);
+    expect(suppression.until_at.toISOString()).toBe(nextMidnight.toISOString());
+    // The opt-out belongs to this installation and campaign, not every device.
+    const { context: other } = await installation();
+    expect((await live.decide(other, { ...b, ...input(), trigger: b.trigger })).delivery).not.toBeNull();
+    // Expire only the suppression; frequency/cooldown still pass through real decision logic.
+    await pg.query(
+      "UPDATE in_app_suppressions SET until_at=now()-interval '1 second' WHERE tenant_id=$1 AND app_id=$2 AND installation_id=$3 AND campaign_id=$4",
+      [tenant, app, i.id, c.id],
+    );
+    expect((await live.decide(i, { ...input(), trigger: b.trigger })).delivery).not.toBeNull();
   });
   it("pause invalidates an outstanding reservation, rejects stale edits and revokes credentials", async () => {
     const c = await create({ trigger: { type: "event", name: "checkout" } });

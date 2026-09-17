@@ -54,7 +54,9 @@ export function InAppPreview({
           detail = action
             ? `${id} → ${JSON.stringify(action)} (preview only)`
             : "ACTION_NOT_ALLOWED";
-        } else if (m.method === "dismiss") detail = "dismiss (preview only)";
+        } else if (m.method === "hideToday")
+          detail = "hide_today → 오늘 하루 안 보기 (미리보기: 실제 숨김은 적용되지 않음)";
+        else if (m.method === "dismiss") detail = "dismiss (preview only)";
         else if (m.method === "log")
           detail = String(m.payload?.code ?? "JS_ERROR").slice(0, 100);
         else {
