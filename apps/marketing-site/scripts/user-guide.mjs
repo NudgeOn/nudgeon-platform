@@ -1,3 +1,4 @@
+import { launchAdGuide } from "../src/launch-ad-guide.mjs";
 const siteUrl = 'https://nudgeon.io';
 const docsUrl = 'https://developer.nudgeon.io';
 const repoUrl = 'https://github.com/NudgeOn/nudgeon-platform';
@@ -8,11 +9,11 @@ const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', 
 const copy = {
   en: {
     title: 'NudgeOn user guide | From your first customer to your first push',
-    description: 'A practical guide for NudgeOn operators: prepare your app, understand customers, build audiences, set up push journeys, and check results.',
+    description: 'A practical guide for NudgeOn operators: prepare your app, understand customers, build audiences, set up push journeys and full-screen startup ads, and check results.',
     home: 'NudgeOn home', product: 'Product', deployment: 'Deployment', guide: 'User guide', developer: 'Developer center', language: 'Language', navigation: 'Main navigation', skip: 'Skip to the guide',
     heading: 'A clear path to\nyour first message.',
     intro: 'Start with one test customer. Check the audience, shape the message, and follow the result before opening the journey to more people.',
-    scope: 'For operators working with a team that has installed NudgeOn and connected its app. The current public release is Alpha.',
+    scope: 'For operators working with a team that has installed NudgeOn and connected its app. NudgeOn is a partner beta candidate; native iOS and Android SDK 0.2.4 are published.',
     toc: 'In this guide', start: 'Start with your app', sectionLabel: 'Step', where: 'In the console', checkpoint: 'Before you continue', technical: 'Developer reference',
     sections: [
       {
@@ -54,6 +55,7 @@ const copy = {
         note: 'To edit an active journey, use Pause and edit. Waiting deadlines continue while paused; customers already in a journey keep the version they entered. Review the effect on those customers before resuming.',
         links: [['Create a push', 'push-create'], ['Journeys', 'journeys']],
       },
+      launchAdGuide.en,
       {
         id: 'results', nav: 'Read the results', title: 'Follow the message all the way through.',
         intro: 'Sending, device delivery, and opening are separate events. Use the report and the individual message log together to understand what happened.',
@@ -83,11 +85,11 @@ const copy = {
   },
   ko: {
     title: 'NudgeOn 사용자 가이드 | 첫 고객부터 첫 푸시까지',
-    description: '앱 준비, 고객과 세그먼트 확인, 푸시·저니 설정, 결과 확인까지. NudgeOn 운영자를 위한 사용 순서를 안내합니다.',
+    description: '앱 준비, 고객과 세그먼트 확인, 푸시·저니와 시작 전면 광고 설정, 결과 확인까지. NudgeOn 운영자를 위한 사용 순서를 안내합니다.',
     home: 'NudgeOn 홈', product: '제품', deployment: '도입 방식', guide: '유저가이드', developer: '개발자센터', language: '언어 선택', navigation: '메인 메뉴', skip: '가이드 본문으로 이동',
     heading: '첫 메시지까지,\n순서대로 시작하세요.',
     intro: '테스트 고객 한 명으로 시작하세요. 대상을 확인하고 메시지를 만든 뒤, 실제 결과를 살펴보며 저니의 범위를 넓혀가세요.',
-    scope: 'NudgeOn을 설치하고 앱을 연결한 팀의 운영자를 위한 가이드입니다. 현재 공개 버전은 Alpha입니다.',
+    scope: 'NudgeOn을 설치하고 앱을 연결한 팀의 운영자를 위한 가이드입니다. 현재 파트너 베타 후보이며 iOS·Android SDK 0.2.4가 공개되어 있습니다.',
     toc: '가이드 순서', start: '앱 준비부터 보기', sectionLabel: '단계', where: '콘솔에서 찾기', checkpoint: '다음 단계로 가기 전', technical: '개발자 참고 문서',
     sections: [
       {
@@ -129,6 +131,7 @@ const copy = {
         note: '활성 저니를 수정할 때는 일시정지하고 편집을 사용합니다. 일시정지 중에도 대기 제한시간은 흐르며, 이미 진입한 고객은 진입 당시 버전을 유지합니다. 재개 전에 기존 고객에게 미치는 영향을 확인하세요.',
         links: [['푸시 만들기', 'push-create'], ['저니', 'journeys']],
       },
+      launchAdGuide.ko,
       {
         id: 'results', nav: '결과와 문제 해결', title: '메시지의 마지막 단계까지 봅니다.',
         intro: '발송, 기기 도달, 알림 열기는 서로 다른 단계입니다. 리포트와 개별 메시지 로그를 함께 확인하면 결과를 더 정확히 읽을 수 있습니다.',
@@ -188,7 +191,7 @@ export function renderGuide(lang) {
   <main id="main">
     <section class="guide-hero section-shell"><h1>${t.heading.split('\n').map(escape).join('<br>')}</h1><p class="guide-intro">${t.intro}</p><a class="guide-start" href="#prepare">${t.start}<span aria-hidden="true">↘</span></a><p class="guide-scope">${t.scope}</p></section>
     <div class="guide-layout section-shell"><aside class="guide-toc"><nav aria-label="${t.toc}"><p>${t.toc}</p><ol>${t.sections.map((s, i) => `<li><a href="#${s.id}"><span aria-hidden="true">0${i + 1}</span>${s.nav}</a></li>`).join('')}</ol></nav></aside>
-      <div class="guide-articles">${t.sections.map((s, i) => `<section class="guide-section" id="${s.id}" aria-labelledby="title-${s.id}"><header class="guide-section-header"><span class="guide-number" aria-label="${t.sectionLabel} ${i + 1}">0${i + 1}</span><h2 id="title-${s.id}">${s.title}</h2><p class="guide-section-intro">${s.intro}</p></header><p class="guide-location"><strong>${t.where}</strong><span>${s.where}</span></p><ol class="guide-procedure">${s.steps.map(([title, body]) => `<li><h3>${escape(title)}</h3><p>${escape(body)}</p></li>`).join('')}</ol>${s.id === 'message' ? screenshot + flow : ''}<div class="guide-checkpoint"><h3>${t.checkpoint}</h3><p>${s.check}</p></div><p class="guide-note">${s.note}</p><nav class="guide-references" aria-label="${s.nav} · ${t.technical}">${s.links.map(([label, hash]) => `<a href="${docsUrl}/#${hash}">${label}<span aria-hidden="true">↗</span></a>`).join('')}</nav>${s.id === 'results' ? `<div class="guide-troubleshooting"><h3>${t.troubleshootTitle}</h3>${t.troubleshooting.map(([question, answer]) => `<details><summary>${escape(question)}</summary><p>${escape(answer)}</p></details>`).join('')}</div>` : ''}</section>`).join('')}
+      <div class="guide-articles">${t.sections.map((s, i) => `<section class="guide-section" id="${s.id}" aria-labelledby="title-${s.id}"><header class="guide-section-header"><span class="guide-number" aria-label="${t.sectionLabel} ${i + 1}">0${i + 1}</span><h2 id="title-${s.id}">${s.title}</h2><p class="guide-section-intro">${s.intro}</p></header><p class="guide-location"><strong>${t.where}</strong><span>${s.where}</span></p><ol class="guide-procedure">${s.steps.map(([title, body]) => `<li><h3>${escape(title)}</h3><p>${escape(body)}</p></li>`).join('')}</ol>${s.id === 'message' ? screenshot + flow : ''}${s.flow ? `<figure class="guide-flow"><figcaption>APP LAUNCH ADS · iOS &amp; ANDROID</figcaption><ol>${s.flow.map(item => `<li>${escape(item)}</li>`).join('')}</ol></figure>` : ''}<div class="guide-checkpoint"><h3>${t.checkpoint}</h3><p>${s.check}</p></div><p class="guide-note">${s.note}</p><nav class="guide-references" aria-label="${s.nav} · ${t.technical}">${s.links.map(([label, hash]) => `<a href="${docsUrl}/#${hash}">${label}<span aria-hidden="true">↗</span></a>`).join('')}</nav>${s.id === 'results' ? `<div class="guide-troubleshooting"><h3>${t.troubleshootTitle}</h3>${t.troubleshooting.map(([question, answer]) => `<details><summary>${escape(question)}</summary><p>${escape(answer)}</p></details>`).join('')}</div>` : ''}</section>`).join('')}
       <section class="guide-next"><h2>${t.nextTitle}</h2><p>${t.nextBody}</p><a href="${docsUrl}/">${t.nextLink}<span aria-hidden="true">↗</span></a></section><nav class="guide-sources" aria-label="${t.sources}"><span>${t.sources}</span><a href="${repoUrl}/blob/main/docs-public/CONSOLE-GUIDE.md">${t.sourceConsole}</a><a href="${repoUrl}/blob/main/docs-public/JOURNEY-GRAPH.md">${t.sourceJourney}</a><a href="#top">${t.top} ↑</a></nav>
       </div></div>
   </main>

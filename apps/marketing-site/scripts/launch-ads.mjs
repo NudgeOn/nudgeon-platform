@@ -38,7 +38,7 @@ export function renderLaunchAds(lang) {
     <div class="launch-copy"><p class="install-eyebrow">APP LAUNCH ADS · iOS &amp; ANDROID</p>
       <h2 id="launch-ads-title">${t.title.replace('\n', '<br>')}</h2><p class="launch-intro">${t.intro}</p>
       <ol class="launch-points">${t.points.map(([title, body], i) => `<li><span>0${i + 1}</span><div><h3>${title}</h3><p>${body}</p></div></li>`).join('')}</ol>
-      <a class="text-link" href="https://github.com/NudgeOn/nudgeon-platform/blob/main/docs-public/APP-LAUNCH-ADS.md">${t.docs} <span aria-hidden="true">↗</span></a>
+      <a class="text-link" href="https://developer.nudgeon.io/#launch-ads">${t.docs} <span aria-hidden="true">↗</span></a>
       <p class="launch-integration">${t.integration}</p>
     </div>
     <div class="launch-showcase"><ol class="launch-flow">${t.steps.map((step, i) => `<li data-launch-step="${i}" ${i === 1 ? 'aria-current="step"' : ''}><span>0${i + 1}</span>${step}</li>`).join('')}</ol>

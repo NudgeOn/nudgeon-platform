@@ -2,7 +2,7 @@
 
 기존 `enable()`은 앱 활성화(`foreground`) 캠페인을 유지한다. 시작 광고를 쓰는
 앱은 준비된 화면에서 **대신** `enableAfterLaunch`를 호출한다. OS의 정적 launch
-screen 자체에 웹뷰를 넣지 않는다. 호스트는 메인 UI 위에 시작 화면을 유지하며 광고 준비 결과를 기다린다. 준비는 최대 3초, 광고가 없거나 실패하면 메인으로 바로 진입한다. 성공하면 전면 광고가 4초 표시된 뒤 자동으로 사라져 메인이 보인다.
+screen 자체에 웹뷰를 넣지 않는다. 호스트는 메인 UI 위에 시작 화면을 유지하며 광고 준비 결과를 기다린다. 호스트 예제의 준비 기한은 3초이며, 광고가 없거나 실패하면 메인으로 바로 진입한다. 성공하면 전면 광고가 4초 표시된 뒤 자동으로 사라져 메인이 보인다.
 
 ## 동작 계약
 
@@ -62,7 +62,18 @@ campaigns.enableAfterLaunch(timeoutSeconds: 3, displaySeconds: 4) { result in
 }
 ```
 
-Android도 같은 이름의 `timeoutSeconds`, `displaySeconds` 인자를 제공한다.
+```kotlin
+campaigns.enableAfterLaunch(timeoutSeconds = 3.0, displaySeconds = 4.0) { result ->
+    revealMainBehindAd() // 호스트가 구현한 시작 화면 덮개 제거 함수
+}
+```
+
+두 예제의 `campaigns`는 초기화 후 앱 소유자가 보관하는 운영 `InAppCampaignClient`다. `revealMainBehindAd`는 SDK API가 아니다. `shown`/`SHOWN`은 표시 **시작**이며 종료 알림이 아니다. 콜백에서 광고 뒤의 덮개를 제거하고 호스트 fallback을 취소한다. fallback이 먼저 실행되면 `contextChanged()`로 준비를 취소한 뒤 덮개를 제거한다.
+
+작업실의 `InAppTestClient`는 콘텐츠 검수용이며 시작 타이머를 적용하지 않는다. 대상 OS별 테스트를 네이티브 닫기로 마치고 같은 버전을 검수·게시한 뒤, 통제된 테스트 앱 프로세스를 재시작해 실제 4초 자동 종료를 검증한다.
+
+[유저가이드](https://nudgeon.io/ko/guide/#launch-ads) · [개발자센터](https://developer.nudgeon.io/#launch-ads)
+
 시작 화면 덮개는 첫 프레임 전에 추가하고 자체 3초 fallback을 둔다. 동의·딥링크 제외,
 백그라운드·Activity 재생성 때 해제해 앱 진입이 영구 차단되지 않도록 한다.
 카드형 HTML을 그대로 사용하면 문서 안의 카드 스타일은 남으므로 전면 광고용 소스를 별도로 게시한다.
