@@ -52,7 +52,7 @@ export const experience = {
     terminal: "Install → connect → send your first push",
     beta: "Partner beta candidate",
     betaBody:
-      "iOS and Android SDK 0.2.2 are published. React Native and Flutter release preparation is complete; public publication and wider beta validation are still pending.",
+      "iOS and Android SDK 0.2.4 are published. React Native and Flutter release preparation is complete; public publication and wider beta validation are still pending.",
     checklist: "See the release checklist",
     finalTitle: "Make your next message matter.",
     finalCta: "Build your first journey",
@@ -162,7 +162,7 @@ export const experience = {
     terminal: "설치 → 앱 연결 → 첫 푸시 발송",
     beta: "파트너 베타 후보",
     betaBody:
-      "iOS·Android SDK 0.2.2가 공개돼 있습니다. React Native·Flutter는 배포 준비를 마쳤으며, 공개 게시와 더 넓은 베타 검증이 남아 있습니다.",
+      "iOS·Android SDK 0.2.4가 공개돼 있습니다. React Native·Flutter는 배포 준비를 마쳤으며, 공개 게시와 더 넓은 베타 검증이 남아 있습니다.",
     checklist: "출시 체크리스트 보기",
     finalTitle: "다음 메시지를, 기다려지는 메시지로.",
     finalCta: "첫 저니 시작하기",

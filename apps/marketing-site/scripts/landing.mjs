@@ -1,3 +1,4 @@
+import { renderLaunchAds } from "./launch-ads.mjs";
 import { renderInstallation } from "./installation.mjs";
 import { experience } from "../src/experience.mjs";
 const esc = (value) =>
@@ -58,6 +59,7 @@ export function renderLanding(lang) {
       <div class="feature-columns">${t.features.map(([title, body], i) => `<article><span class="feature-number">0${i + 1}</span><h3>${title}</h3><p>${body}</p>${i === 0 ? `<div class="event-list" aria-label="${t.sample}">${["sign_up", "playlist_updated", "purchase_completed"].map((e, j) => `<div><span class="event-dot"></span><code>${e}</code><time>09:4${j + 1}</time></div>`).join("")}</div>` : i === 1 ? `<div class="mini-flow" aria-label="${t.sample}">${["event", "wait", "message"].map((n, j) => `<div>${icon(n)}<span>${t.steps[j]}</span></div>${j < 2 ? icon("arrow", "mini-arrow") : ""}`).join("")}</div>` : `<div class="event-list log-list" aria-label="${t.sample}">${t.logNames.map((n, j) => `<div><span>${n}</span><span class="log-status status-${j}">${t.status[j]}</span></div>`).join("")}</div>`}</article>`).join("")}</div><p class="sample-note">${t.sample}</p>
       <div class="moments"><h3>${t.moments}</h3><div>${t.momentLinks.map((name, i) => `<a href="#journeys" data-select-scenario="${i}">${name}${icon("arrow")}</a>`).join("")}</div></div>
     </section>
+    ${renderLaunchAds(lang)}
     ${renderInstallation(lang)}
     <section class="deployment shell" id="deployment" aria-labelledby="deployment-title"><div class="deployment-grid"><div><h2 id="deployment-title">${t.deployTitle.map(esc).join("<br>")}</h2><p>${t.deployIntro}</p><div class="deployment-actions"><a class="button primary" href="${docs}#self-hosting">${t.setup}${icon("arrow")}</a><a class="text-link" href="${repo}">${t.viewSource}${icon("arrow")}</a></div></div><div class="terminal"><div class="terminal-header"><span class="terminal-dots"><i></i><i></i><i></i></span><span>Self-hosted NudgeOn</span></div><code><span>$</span> ./nudgeon up</code><p>PostgreSQL · ClickHouse · Redis</p><p>${t.terminal}</p><span class="terminal-license">Apache-2.0</span></div></div>
       <div class="release-strip"><strong>${t.beta}</strong><p>${t.betaBody}</p><a class="text-link" href="${repo}/blob/main/docs-public/RELEASE-CHECKLIST.md">${t.checklist}${icon("arrow")}</a></div>

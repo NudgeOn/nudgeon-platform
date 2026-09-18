@@ -1634,7 +1634,8 @@
       "expired": "Expired"
     },
     "manifestHelp": "Edit nudgeon.json through Display & actions. Saving writes those settings into this file.",
-    "campaigns": "Manage campaigns"
+    "campaigns": "Manage campaigns",
+    "launchExample": "Full-screen startup ad example"
   },
   "inAppCampaigns": {
     "title": "In-app campaigns",
