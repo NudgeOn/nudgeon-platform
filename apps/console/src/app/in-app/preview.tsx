@@ -108,7 +108,9 @@ export function InAppPreview({
       />
       <iframe
         style={
-          manifest.display.type === "bottom"
+          manifest.display.type === "fullscreen"
+            ? { top: 0, bottom: 0, height: "100%", background: "#000" }
+            : manifest.display.type === "bottom"
             ? { top: "auto", bottom: 16, height: "65%" }
             : manifest.display.type === "modal"
               ? { top: "12%", height: "80%" }

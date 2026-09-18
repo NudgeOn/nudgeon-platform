@@ -1634,7 +1634,8 @@
       "expired": "만료됨"
     },
     "manifestHelp": "nudgeon.json은 표시와 동작 설정에서 편집합니다. 저장할 때 설정이 이 파일에 반영됩니다.",
-    "campaigns": "캠페인 관리"
+    "campaigns": "캠페인 관리",
+    "launchExample": "시작 전면 광고 예제"
   },
   "inAppCampaigns": {
     "title": "인앱 캠페인",

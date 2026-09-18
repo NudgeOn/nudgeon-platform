@@ -77,3 +77,16 @@ export async function packageFiles(files: InAppFile[]): Promise<string> {
   if (bytes.length > 10 * 1024 * 1024) throw new Error("ZIP exceeds 10 MiB");
   return bytesToBase64(bytes);
 }
+
+/** Startup ads are opaque documents; the SDK owns the 3–5 second display timer. */
+export const launchManifest: InAppManifest = {
+  ...defaultManifest,
+  display: { type: "fullscreen", backdrop_opacity: 0 },
+  actions: {},
+};
+export function launchExampleFiles(): InAppFile[] {
+  return [
+    { path: "index.html", base64: encode(`<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="styles.css"></head><body><main><header>WORSHIPLOG <span>SPONSORED</span></header><section><p class="eyebrow">A MOMENT OF INSPIRATION</p><h1>오늘의 찬양,<br>새로운 영감.</h1><p class="description">마음을 채우는 찬양을<br>지금 만나보세요.</p><div class="art" aria-hidden="true">✦</div></section><footer><strong>당신의 예배를 함께 기록합니다.</strong><small>잠시 후 메인 화면으로 이동합니다</small></footer></main></body></html>`) },
+    { path: "styles.css", base64: encode(`*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#142e25;color:#f1f7dc;font-family:system-ui,sans-serif}main{height:100vh;height:100dvh;min-height:320px;display:flex;flex-direction:column;overflow:hidden;padding:max(28px,env(safe-area-inset-top)) 30px max(28px,env(safe-area-inset-bottom));background:radial-gradient(ellipse at 90% 55%,#477a53 0,transparent 55%),#142e25}header{display:flex;justify-content:space-between;gap:20px;font-size:12px;font-weight:800;letter-spacing:2px}header span{font-size:9px;opacity:.65}section{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center}.eyebrow{font-size:10px;letter-spacing:2px;color:#b3d289}h1{font-size:clamp(36px,11vw,68px);line-height:1.15;letter-spacing:-2px;margin:16px 0 24px}.description{font-size:16px;line-height:1.7;opacity:.85;margin:0}.art{align-self:flex-end;font-size:clamp(100px,43vw,240px);line-height:1;color:#d5ea94;margin-top:20px}footer{display:flex;flex-direction:column;gap:12px}footer strong{font-size:13px;font-weight:500}footer small{font-size:11px;opacity:.65}@media(max-height:540px){main{padding:24px}.art{position:absolute;right:20px;top:28%;font-size:130px;opacity:.35}h1{font-size:34px;margin:10px 0}.description{font-size:13px}footer{gap:5px}}`) },
+  ];
+}

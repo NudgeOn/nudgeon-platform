@@ -21,6 +21,8 @@ import {
   encode,
   defaultManifest,
   exampleFiles,
+  launchExampleFiles,
+  launchManifest,
   packageFiles,
 } from "./source";
 import { InAppPreview } from "./preview";
@@ -261,6 +263,13 @@ export default function InAppPage() {
           }}
         >
           {t("example")}
+        </Button>
+        <Button variant="outline" disabled={!enabled || !canWrite || busy}
+          onClick={() => {
+            setFiles(launchExampleFiles()); setName(t("launchExample")); setSelected("index.html");
+            setManifest(launchManifest); setActions("{}"); setRevision(null); edited();
+          }}>
+          {t("launchExample")}
         </Button>
         <label className="ia-upload">
           {t("upload")}
