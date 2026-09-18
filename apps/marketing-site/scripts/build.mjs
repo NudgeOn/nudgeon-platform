@@ -37,7 +37,7 @@ export function render(lang) {
         image: socialImage, sameAs: [repoUrl],
         author: { '@id': `${siteUrl}/#organization` },
         softwareHelp: { '@type': 'CreativeWork', name: 'NudgeOn Developer Center', url: `${docsUrl}/` },
-        featureList: ['Event collection', 'Audience segmentation', 'Customer journeys', 'FCM and APNs push', 'Self-hosted deployment']
+        featureList: ['Event collection', 'Audience segmentation', 'Customer journeys', 'FCM and APNs push', 'Self-hosted deployment', 'Timed full-screen startup ads']
       },
       {
         '@type': 'WebPage', '@id': `${pageUrl}#webpage`, url: pageUrl,
@@ -67,7 +67,7 @@ export function render(lang) {
   <script type="application/ld+json">${JSON.stringify(structuredData).replace(/</g, '\\u003c')}</script>
   <link rel="alternate" hreflang="en" href="${siteUrl}/"><link rel="alternate" hreflang="ko" href="${siteUrl}/ko/"><link rel="alternate" hreflang="x-default" href="${siteUrl}/">
   <link rel="icon" type="image/svg+xml" href="/assets/nudgeon-mark.svg">
-  <link rel="stylesheet" href="/landing.css"><link rel="stylesheet" href="/landing-responsive.css"><link rel="stylesheet" href="/installation.css"><script type="module" src="/journey-demo.js"></script><script type="module" src="/install-tour.js"></script>
+  <link rel="stylesheet" href="/landing.css"><link rel="stylesheet" href="/landing-responsive.css"><link rel="stylesheet" href="/installation.css"><link rel="stylesheet" href="/launch-ads.css"><script type="module" src="/launch-ads.js"></script><script type="module" src="/journey-demo.js"></script><script type="module" src="/install-tour.js"></script>
 </head>
 <body>
   <a class="skip" href="#main">${t.skip}</a>
@@ -100,8 +100,8 @@ See the release checklist for verified results and remaining beta gates.
 ## Source
 
 - [Platform](${repoUrl}): NestJS APIs, Next.js console, Go workers, PostgreSQL, ClickHouse, Redis Streams
-- [iOS SDK](https://github.com/NudgeOn/nudgeon-ios-sdk): Swift Package, \`from: "0.1.2"\`
-- [Android SDK](https://github.com/NudgeOn/nudgeon-android-sdk): Maven Central, \`io.nudgeon:nudgeon-sdk:0.1.2\`
+- [iOS SDK](https://github.com/NudgeOn/nudgeon-ios-sdk): Swift Package, \`from: "0.2.4"\`
+- [Android SDK](https://github.com/NudgeOn/nudgeon-android-sdk): Maven Central, \`io.nudgeon:nudgeon-sdk:0.2.4\`
 - [Release checklist](${repoUrl}/blob/main/docs-public/RELEASE-CHECKLIST.md): what is and is not verified
 
 ## Contact
