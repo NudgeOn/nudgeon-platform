@@ -186,6 +186,29 @@ describe.skipIf(!url)("live in-app campaigns", () => {
     const both = await create({ platforms: ["ios", "android"] });
     await expect(publish(both)).rejects.toMatchObject({ status: 400 });
   });
+  it("separates launch from foreground and preserves request idempotency and launch timeout cancellation", async () => {
+    const c = await create({ trigger: { type: "launch" }, priority: 100, time_zone: "Asia/Seoul", max_per_day: 1 });
+    await publish(c);
+    const { context: i } = await installation();
+    const body = { ...input(), trigger: { type: "launch" } };
+    // Old SDKs cannot select a KST campaign even when a launch signal is forged.
+    expect((await live.decide(i, body)).delivery).toBeNull();
+    const d = (await live.decide(i, body, true)).delivery!;
+    expect(d.campaign_id).toBe(c.id);
+    expect((await live.decide(i, body, true)).delivery?.id).toBe(d.id);
+    await expect(live.decide(i, { ...body, trigger: { type: "foreground" } }, true)).rejects.toMatchObject({ status: 409 });
+    await event(i, d.id, "cancelled", "launch_timeout");
+    await expect(live.authorize(i, d.id)).rejects.toMatchObject({ status: 409 });
+    const fresh = await installation();
+    const foreground = (await live.decide(fresh.context, input(), true)).delivery!;
+    expect(foreground.campaign_id).not.toBe(c.id);
+    const freshLaunch = await installation();
+    const shown = (await live.decide(freshLaunch.context, { ...input(), trigger: { type: "launch" } }, true)).delivery!;
+    await live.authorize(freshLaunch.context, shown.id);
+    await event(freshLaunch.context, shown.id, "presented");
+    await event(freshLaunch.context, shown.id, "dismiss", "close_button");
+    expect((await live.decide(freshLaunch.context, { ...input(), trigger: { type: "launch" } }, true)).delivery).toBeNull();
+  });
   it("separates credentials by tenant/app and does not reuse test pairing", async () => {
     const { credential } = await installation();
     await expect(

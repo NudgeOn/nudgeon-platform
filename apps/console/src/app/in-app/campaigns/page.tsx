@@ -62,8 +62,8 @@ export default function CampaignPage() {
       "ios",
       "android",
     ]),
-    [trigger, setTrigger] = useState<"foreground" | "screen" | "event">(
-      "foreground",
+    [trigger, setTrigger] = useState<"launch" | "foreground" | "screen" | "event">(
+      "launch",
     ),
     [triggerName, setTriggerName] = useState("");
   const [start, setStart] = useState(""),
@@ -148,7 +148,7 @@ export default function CampaignPage() {
       revision !== selected.revision_id ||
       JSON.stringify(platforms) !== JSON.stringify(selected.config.platforms) ||
       trigger !== selected.config.trigger.type ||
-      (trigger !== "foreground" &&
+      ((trigger === "screen" || trigger === "event") &&
         triggerName !==
           ("name" in selected.config.trigger
             ? selected.config.trigger.name
@@ -268,7 +268,7 @@ export default function CampaignPage() {
                   config: {
                     platforms,
                     trigger:
-                      trigger === "foreground"
+                      (trigger === "foreground" || trigger === "launch")
                         ? { type: trigger }
                         : { type: trigger, name: triggerName },
                     starts_at: new Date(start).toISOString(),
@@ -346,12 +346,14 @@ export default function CampaignPage() {
                   value={trigger}
                   onChange={(e) => setTrigger(e.target.value as typeof trigger)}
                 >
+                  <option value="launch">{t("launch")}</option>
                   <option value="foreground">{t("foreground")}</option>
                   <option value="screen">{t("screen")}</option>
                   <option value="event">{t("event")}</option>
                 </select>
               </label>
-              {trigger !== "foreground" && (
+              {trigger === "launch" && <p className="ic-muted">{t("launchHint")}</p>}
+              {(trigger === "screen" || trigger === "event") && (
                 <label>
                   {t("triggerName")}
                   <input

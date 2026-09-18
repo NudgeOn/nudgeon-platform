@@ -1,6 +1,7 @@
 import { z } from "zod";
 export const triggerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("foreground") }).strict(),
+  z.object({ type: z.literal("launch") }).strict(),
   z
     .object({
       type: z.literal("screen"),
@@ -18,7 +19,7 @@ export const timeZoneSchema = z.string().max(64).refine((value) => {
   if (value !== "UTC" && !/^[A-Za-z_]+(?:\/[A-Za-z0-9_+\-]+)+$/.test(value)) return false;
   try { new Intl.DateTimeFormat("en", { timeZone: value }); return true; } catch { return false; }
 }, "Use an IANA time zone such as Asia/Seoul");
-export const cancellationReasons = ["background", "context_changed", "screen_changed", "session_ended", "disabled", "host_destroyed", "host_blocked", "campaign_paused", "campaign_updated", "campaign_expired", "delivery_inactive", "display_timeout"] as const;
+export const cancellationReasons = ["background", "context_changed", "screen_changed", "session_ended", "disabled", "host_destroyed", "host_blocked", "campaign_paused", "campaign_updated", "campaign_expired", "delivery_inactive", "display_timeout", "launch_timeout"] as const;
 export const campaignConfigSchema = z
   .object({
     platforms: z

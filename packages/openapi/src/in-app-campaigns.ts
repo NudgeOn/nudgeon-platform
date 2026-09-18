@@ -1,5 +1,5 @@
 export type InAppTrigger =
-  | { type: "foreground" }
+  | { type: "foreground" | "launch" }
   | { type: "screen" | "event"; name: string };
 export interface InAppCampaignConfig {
   platforms: ("ios" | "android")[];

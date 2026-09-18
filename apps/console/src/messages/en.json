@@ -1659,7 +1659,9 @@
     "reviewed": "Approved platforms for this revision",
     "none": "None",
     "trigger": "When should it appear?",
-    "foreground": "When the app opens",
+    "foreground": "App activation / return",
+    "launch": "After app launch",
+    "launchHint": "Checked once after the launch screen. Skipped if no ad is eligible or preparation takes too long. Separate from app return; requires launch integration with SDK 0.2.3 or later.",
     "screen": "On a specific screen",
     "event": "On a specific event",
     "triggerName": "Exact screen or event name",
@@ -1715,6 +1717,7 @@
       "campaign_expired": "Campaign ended",
       "delivery_inactive": "Delivery inactive",
       "display_timeout": "Display time limit reached",
+      "launch_timeout": "Launch ad preparation timed out",
       "legacy_context_changed": "Legacy SDK: context changed (cause unavailable)"
     }
   }
