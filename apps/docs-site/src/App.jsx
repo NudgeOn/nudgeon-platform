@@ -872,7 +872,7 @@ function Topbar({ content, inert, theme, onLanguage, onMenu, onSearch, onTheme }
         <kbd>⌘ K</kbd>
       </button>
       <nav className="utility-nav" aria-label={content.ui.quickLinks}>
-        <a href="https://github.com/marvinkim-photo/nudgeon" target="_blank" rel="noreferrer">
+        <a href="https://github.com/NudgeOn" target="_blank" rel="noreferrer">
           <IconBrandGithub size={20} stroke={1.8} />
           <span>GitHub</span>
         </a>
@@ -1145,7 +1145,7 @@ function ResourceSections({ content }) {
           );
         })}
       </div>
-      <a className="source-note" id="source" href="https://github.com/marvinkim-photo/nudgeon" target="_blank" rel="noreferrer">
+      <a className="source-note" id="source" href="https://github.com/NudgeOn" target="_blank" rel="noreferrer">
         <IconBrandGithub size={22} stroke={1.8} />
         <div>
           <strong>{content.ui.sourceTitle}</strong>
