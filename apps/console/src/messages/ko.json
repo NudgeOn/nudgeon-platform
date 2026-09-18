@@ -1659,7 +1659,9 @@
     "reviewed": "이 버전의 검수 통과",
     "none": "없음",
     "trigger": "언제 보여줄까요?",
-    "foreground": "앱을 열 때",
+    "foreground": "앱 활성화 · 복귀 시",
+    "launch": "앱 실행 직후",
+    "launchHint": "시작 화면이 끝난 뒤 한 번 확인합니다. 광고가 없거나 준비가 늦으면 건너뜁니다. 앱 복귀 조건과 별개이며, 앱 시작 광고를 연결한 SDK 0.2.3 이상이 필요합니다.",
     "screen": "특정 화면에 들어올 때",
     "event": "이벤트가 발생했을 때",
     "triggerName": "화면 또는 이벤트 이름 (정확히 일치)",
@@ -1715,6 +1717,7 @@
       "campaign_expired": "캠페인 기간 종료",
       "delivery_inactive": "실행 종료",
       "display_timeout": "최대 표시 시간 종료",
+      "launch_timeout": "앱 시작 광고 준비 시간 초과",
       "legacy_context_changed": "이전 SDK: 상황 변경 (세부 원인 미확인)"
     }
   }

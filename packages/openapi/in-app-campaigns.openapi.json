@@ -936,6 +936,7 @@
                         "campaign_updated",
                         "campaign_expired",
                         "display_timeout",
+                        "launch_timeout",
                         "delivery_inactive",
                         null
                       ]
@@ -1107,7 +1108,7 @@
             "type": "object",
             "properties": {
               "type": {
-                "const": "foreground"
+                "enum": ["foreground", "launch"]
               }
             },
             "required": [
@@ -1350,7 +1351,7 @@
             "type": "string",
             "maxLength": 200,
             "default": "",
-            "description": "Cancellation reasons: background, context_changed, screen_changed, session_ended, disabled, host_destroyed, host_blocked, campaign_paused, campaign_updated, campaign_expired, delivery_inactive, display_timeout."
+            "description": "Cancellation reasons: background, context_changed, screen_changed, session_ended, disabled, host_destroyed, host_blocked, campaign_paused, campaign_updated, campaign_expired, delivery_inactive, display_timeout, launch_timeout."
           },
           "occurred_at": {
             "type": "string",
