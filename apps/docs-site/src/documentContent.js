@@ -1,3 +1,4 @@
+import { launchAdContent } from "./launchAdContent.js";
 import { guideContentByLanguage } from "./guideContent.js";
 
 const koDocuments = [
@@ -48,7 +49,7 @@ NudgeOn.initialize(config: NudgeOnConfig(
 ))
 NudgeOn.identify(externalId: "customer-123")
 NudgeOn.track("Product Viewed", properties: ["product_id": "sku-42"])`,
-    note: "SPM·Maven Central·npm·pub.dev 공개 패키지와 신규 설치 검증은 아직 완료되지 않았습니다. 현재 확인된 경로는 소스 체크아웃과 로컬 샘플입니다.",
+    note: "iOS SPM·Android Maven Central 0.2.4가 공개되어 있으며 공개 패키지를 사용하는 Godspell 빌드를 확인했습니다. React Native·Flutter 공개 게시는 별도 준비 단계입니다. 시작 전면 광고는 네이티브 인앱 모듈과 호스트 연결이 필요합니다.",
     source: "iOS · Android · React Native · Flutter SDK README",
   },
   {
@@ -373,7 +374,7 @@ NudgeOn.initialize(config: NudgeOnConfig(
 ))
 NudgeOn.identify(externalId: "customer-123")
 NudgeOn.track("Product Viewed", properties: ["product_id": "sku-42"])`,
-    note: "Public packages and clean-install verification for SPM, Maven Central, npm, and pub.dev are incomplete. Source checkouts and local samples are the currently verified path.",
+    note: "iOS SPM and Android Maven Central 0.2.4 are published and verified in Godspell builds using public packages. React Native and Flutter publication remains separate. Startup ads require the native in-app module and host integration.",
     source: "iOS · Android · React Native · Flutter SDK READMEs",
   },
   {
@@ -655,6 +656,7 @@ const documentOrder = [
   "sdk-quickstart",
   "platform-guides",
   "push-permissions",
+  "launch-ads",
   "push-create",
   "journeys",
   "segments",
@@ -678,6 +680,6 @@ function orderDocuments(supplemental, existing) {
 }
 
 export const documentContentByLanguage = {
-  ko: orderDocuments(koDocuments, guideContentByLanguage.ko),
-  en: orderDocuments(enDocuments, guideContentByLanguage.en),
+  ko: orderDocuments([...koDocuments, launchAdContent.ko], guideContentByLanguage.ko),
+  en: orderDocuments([...enDocuments, launchAdContent.en], guideContentByLanguage.en),
 };

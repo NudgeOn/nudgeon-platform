@@ -166,6 +166,7 @@ const navigationGroups = [
       { label: "SDK 시작하기", href: "#sdk-quickstart" },
       { label: "플랫폼 가이드", href: "#platform-guides" },
       { label: "푸시 권한 가이드", href: "#push-permissions" },
+      { label: "앱 시작 전면 광고", href: "#launch-ads" },
     ],
   },
   {
@@ -435,6 +436,7 @@ const englishNavigationGroups = [
       { label: "SDK quickstart", href: "#sdk-quickstart" },
       { label: "Platform guides", href: "#platform-guides" },
       { label: "Push permissions", href: "#push-permissions" },
+      { label: "App launch ads", href: "#launch-ads" },
     ],
   },
   {
@@ -1087,18 +1089,18 @@ function GuideArticles({ content, announce }) {
                 ))}
               </ol>
             </div>
-            <CodeBlock
-              content={content}
-              label={guide.codeLabel}
-              value={guide.code}
-              copied={copiedGuide === guide.id}
-              onCopy={() => copyGuideCode(guide)}
-            />
+            {(guide.examples ?? [{ label: guide.codeLabel, code: guide.code }]).map((example, index) => {
+              const copyId = `${guide.id}-${index}`;
+              return <CodeBlock key={copyId} content={content} label={example.label}
+                value={example.code} copied={copiedGuide === copyId}
+                onCopy={() => copyGuideCode({ id: copyId, code: example.code })} />;
+            })}
             <div className="warning-note guide-note">
               <IconAlertTriangle size={19} stroke={1.9} aria-hidden="true" />
               <p>{guide.note}</p>
             </div>
             <p className="guide-source"><strong>{content.ui.implementationSource}</strong> · {guide.source}</p>
+            {guide.links && <nav className="guide-source" aria-label={guide.title}>{guide.links.map(link => <p key={link.href}><a href={link.href}>{link.label} ↗</a></p>)}</nav>}
           </article>
         ))}
       </div>
@@ -1226,8 +1228,16 @@ export function App() {
     function syncHash() {
       setActiveHref(window.location.hash || "#checklist");
     }
+    // The initial fragment may be resolved before React mounts the article.
+    const initialTarget = document.getElementById(window.location.hash.slice(1));
+    const frame = initialTarget ? window.requestAnimationFrame(() => {
+      initialTarget.scrollIntoView({ behavior: "instant", block: "start" });
+    }) : null;
     window.addEventListener("hashchange", syncHash);
-    return () => window.removeEventListener("hashchange", syncHash);
+    return () => {
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      window.removeEventListener("hashchange", syncHash);
+    };
   }, []);
 
   useEffect(() => {
