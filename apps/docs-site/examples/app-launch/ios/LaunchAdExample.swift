@@ -12,6 +12,10 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     private let main = MainViewController()
     private var campaigns: InAppCampaignClient?
+    private var review: InAppTestClient?
+    private var reviewTask: Task<Void, Never>?
+    private var reviewGeneration = 0
+    private var reviewing = false
     private var cover: UIView?
     private var fallback: DispatchWorkItem?
     private var attempted = false
@@ -26,6 +30,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         main.loadViewIfNeeded()
         main.consent.isOn = UserDefaults.standard.bool(forKey: consentKey)
         main.consent.addTarget(self, action: #selector(consentChanged), for: .valueChanged)
+        main.connectReview.addTarget(self, action: #selector(connectReview), for: .touchUpInside)
+        main.endReview.addTarget(self, action: #selector(endReview), for: .touchUpInside)
         // This sample is a single-window, startup-only app. Consume a skipped opportunity too.
         eligible = main.consent.isOn && options?[.url] == nil && options?[.userActivityDictionary] == nil
         guard eligible, let url = URL(string: apiURL), !apiURL.contains("YOUR_"),
@@ -75,23 +81,102 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationWillResignActive(_ application: UIApplication) {
         // Consume the opportunity during backgrounding/permission UI; never insert it later.
         skipLaunch("Main · inactive; relaunch for another startup attempt")
+        endReview()
     }
 
     func application(_ app: UIApplication, open url: URL,
                      options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
         skipLaunch("Main · external route takes priority")
+        endReview()
         return false // The sample has no deep-link destination. Route in your app here.
     }
 
     func application(_ application: UIApplication, continue userActivity: NSUserActivity,
                      restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
         skipLaunch("Main · external route takes priority")
+        endReview()
         return false
     }
 
     @objc private func consentChanged() {
         UserDefaults.standard.set(main.consent.isOn, forKey: consentKey)
         skipLaunch("Main · consent saved; terminate and relaunch to test")
+        endReview()
+    }
+
+    @objc private func connectReview() {
+        let token = (main.pairingCode.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty else {
+            main.reviewStatus.text = "Paste the workbench pairing code first."
+            return
+        }
+        guard let url = URL(string: apiURL), !apiURL.contains("YOUR_"),
+              !sdkKey.contains("YOUR_"), !sdkKey.isEmpty else {
+            main.reviewStatus.text = "Configure API_URL and the public SDK key in this example first."
+            return
+        }
+        // Explicit test opt-in is separate from campaign consent. Never run both clients together.
+        skipLaunch("Main · content review mode; relaunch later for the published launch ad")
+        main.view.endEditing(true)
+        do {
+            if review == nil {
+                review = try InAppTestClient(
+                    configuration: .init(apiURL: url, sdkKey: sdkKey),
+                    host: { [weak self] in self?.main },
+                    isAllowed: { [weak self] in self?.reviewing == true },
+                    onAction: { [weak self] _ in self?.main.reviewStatus.text = "Test action received; check its result in the console." },
+                    onDiagnostic: { [weak self] message in
+                        guard let self, self.reviewing, !message.hasPrefix("CONFIRM_DEVICE:") else { return }
+                        self.main.reviewStatus.text = "Test event: \(message)\nWait for the console record before ending the session."
+                    }
+                )
+            }
+            guard let review else { return }
+            reviewing = true
+            reviewGeneration += 1
+            let generation = reviewGeneration
+            main.connectReview.isEnabled = false
+            main.endReview.isEnabled = true
+            main.reviewStatus.text = "Connecting…"
+            reviewTask = Task { [weak self] in
+                do {
+                    let pairing = try await review.pair(token: token, deviceName: "iOS launch example")
+                    guard let self, !Task.isCancelled, self.reviewGeneration == generation else { return }
+                    self.main.pairingCode.text = "" // Keep pairing credentials out of persistent storage.
+                    self.main.confirmation.text = "Confirmation number: \(pairing.confirmation_code)"
+                    self.main.reviewStatus.text = "Compare this number in the console, confirm the same device, then run the saved source."
+                } catch {
+                    guard let self, !Task.isCancelled, self.reviewGeneration == generation else { return }
+                    self.reviewing = false
+                    self.main.connectReview.isEnabled = true
+                    self.main.endReview.isEnabled = false
+                    self.main.reviewStatus.text = "Connection failed. Generate a new pairing code and retry."
+                }
+            }
+        } catch {
+            main.reviewStatus.text = "Invalid SDK configuration. Check the API address."
+        }
+    }
+
+    @objc private func endReview() {
+        guard reviewing || reviewTask != nil else { return }
+        reviewing = false
+        reviewGeneration += 1
+        let generation = reviewGeneration
+        reviewTask?.cancel()
+        reviewTask = nil
+        review?.contextChanged() // Invalidates a pairing request already in flight.
+        main.pairingCode.text = ""
+        main.confirmation.text = ""
+        main.reviewStatus.text = "Test session ended. This does not mark a content review as passed."
+        main.connectReview.isEnabled = false
+        main.endReview.isEnabled = false
+        let client = review
+        Task { [weak self] in
+            await client?.end()
+            guard let self, self.reviewGeneration == generation else { return }
+            self.main.connectReview.isEnabled = true
+        }
     }
 
     private func skipLaunch(_ reason: String) {
@@ -131,6 +216,11 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 final class MainViewController: UIViewController {
     let status = UILabel()
     let consent = UISwitch()
+    let pairingCode = UITextField()
+    let confirmation = UILabel()
+    let reviewStatus = UILabel()
+    let connectReview = UIButton(type: .system)
+    let endReview = UIButton(type: .system)
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
@@ -144,16 +234,48 @@ final class MainViewController: UIViewController {
         instructions.numberOfLines = 0
         instructions.text = "Allow startup ads in this test app. After changing consent, terminate the process and relaunch. Returning from Home does not retry."
         consent.accessibilityLabel = "Allow startup ads"
-        let stack = UIStackView(arrangedSubviews: [title, instructions, consent, status])
+        let reviewTitle = UILabel()
+        reviewTitle.text = "1. Content review · manual close"
+        reviewTitle.font = .preferredFont(forTextStyle: .headline)
+        let reviewHelp = UILabel()
+        reviewHelp.numberOfLines = 0
+        reviewHelp.text = "Paste a workbench code, connect, and compare the confirmation number. Finish the test using the ad's native Close button. Wait for the console to record completion before ending this session."
+        pairingCode.placeholder = "Workbench pairing code"
+        pairingCode.accessibilityIdentifier = "review-pairing-code"
+        pairingCode.borderStyle = .roundedRect
+        pairingCode.autocapitalizationType = .none
+        pairingCode.autocorrectionType = .no
+        confirmation.numberOfLines = 0
+        confirmation.font = .preferredFont(forTextStyle: .headline)
+        confirmation.accessibilityIdentifier = "review-confirmation"
+        reviewStatus.numberOfLines = 0
+        reviewStatus.text = "Not connected. Test mode starts only when you tap Connect."
+        connectReview.setTitle("Connect for content review", for: .normal)
+        endReview.setTitle("End test session", for: .normal)
+        endReview.isEnabled = false
+        let launchTitle = UILabel()
+        launchTitle.text = "2. Published launch ad · auto-dismiss"
+        launchTitle.font = .preferredFont(forTextStyle: .headline)
+        let stack = UIStackView(arrangedSubviews: [title, reviewTitle, reviewHelp, pairingCode,
+            connectReview, confirmation, reviewStatus, endReview, launchTitle, instructions, consent, status])
         stack.axis = .vertical
-        stack.alignment = .leading
+        stack.alignment = .fill
         stack.spacing = 24
         stack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(stack)
+        let scroll = UIScrollView()
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(scroll)
+        scroll.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 24),
-            stack.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -24),
-            stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 32)
+            scroll.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            scroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scroll.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -24),
+            stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 32),
+            stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -32),
+            stack.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -48)
         ])
     }
 }

@@ -4,7 +4,7 @@
 
 ## 한국어
 
-**SDK 0.2.4 · 시작 광고 전용 실행 앱.** 앱 진입점, SDK 생성·보관, 첫 프레임 전 덮개, 독립적인 3초 fallback, 동의·외부 진입 제외, 생명주기 정리가 모두 포함됩니다. 개발자센터의 전체 코드도 이 파일들을 직접 읽어 표시합니다.
+**SDK 0.2.4 · 콘텐츠 검수와 시작 광고를 실행하는 앱.** 앱 진입점, SDK 생성·보관, 첫 프레임 전 덮개, 독립적인 3초 fallback, 동의·외부 진입 제외, 생명주기 정리가 모두 포함됩니다. 개발자센터의 전체 코드도 이 파일들을 직접 읽어 표시합니다.
 
 - iOS 15 이상, Xcode + XcodeGen. SPM의 `NudgeOnInApp` **정확히 0.2.4**.
 - Android 8(API 26) 이상, JDK 17, Android SDK 34. Gradle wrapper 8.13 포함, Maven Central core/in-app **0.2.4**. `mavenLocal`이나 형제 SDK 체크아웃을 사용하지 않습니다.
@@ -43,7 +43,17 @@ adb -s YOUR_TEST_DEVICE shell am start -a android.intent.action.MAIN \
   -c android.intent.category.LAUNCHER -n io.nudgeon.launchexample/.MainActivity
 ```
 
-### 4. 사전 동의 후 새 프로세스에서 테스트
+### 4. 같은 앱에서 콘텐츠 검수
+
+1. 작업실에서 소스를 저장·검증하고 **기기 연결** 코드를 만듭니다.
+2. 예제의 **Workbench pairing code**에 코드를 붙여 넣고 **Connect for content review**를 누릅니다. 이 버튼이 테스트 모드의 명시적 동의이며, 시작 광고용 **Allow startup ads** 스위치와 별개입니다.
+3. 앱의 **Confirmation number**와 콘솔의 숫자를 대조한 뒤 **같은 기기 확인**을 누릅니다. 앱을 전경에 둔 채 **내 기기에서 실행**합니다.
+4. 광고의 **네이티브 Close 버튼**으로 종료합니다. 콘솔에서 마지막 실행이 완료되고 같은 소스 버전의 노출·닫기 기록이 도착했는지 확인합니다.
+5. 그 다음 예제의 **End test session**으로 연결을 종료합니다. 이 버튼은 검수 통과나 광고의 네이티브 닫기를 대신하지 않습니다. 기록이 도착하기 전에 연결을 끝내면 검수 증거가 누락될 수 있습니다.
+
+연결 코드가 비었거나 잘못되면 화면에 원인을 안내하고 다시 연결할 수 있습니다. 확인 숫자는 연결 중 계속 표시됩니다. 코드·테스트 자격은 저장하지 않으며 연결 종료·백그라운드 전환·프로세스 재시작 후에는 새 코드로 연결합니다. 연결 중 종료하면 늦은 응답도 적용하지 않습니다. 콘텐츠 검수 중에는 운영 광고 클라이언트를 중단합니다.
+
+### 5. 게시 후 새 프로세스에서 시작 광고 테스트
 
 처음 실행하면 메인이 보입니다. **Allow startup ads**를 켜고 프로세스를 종료한 뒤 다시 실행하세요. Android는 아래 명령을 사용합니다. iOS는 시뮬레이터 앱 종료 또는 Xcode Stop 후 다시 Run합니다. 홈으로 나갔다 돌아오기만 하면 새 시작 시도가 아닙니다.
 
@@ -68,29 +78,36 @@ adb -s YOUR_TEST_DEVICE shell am start -a android.intent.action.MAIN \
 
 | | 1. 콘텐츠 검수 | 2. 실제 시작 광고 |
 |---|---|---|
-| 실행 위치 | 작업실 + 기기 연결 화면이 있는 테스트 앱 | 위 예제 + 통제된 테스트 앱에 게시한 캠페인 |
+| 실행 위치 | 작업실 + 이 예제의 Connect for content review | 이 예제 + 통제된 테스트 앱에 게시한 캠페인 |
 | 클라이언트 | `InAppTestClient` | `InAppCampaignClient` |
 | 종료 | **네이티브 닫기**로 검수 종료 | 실제 표시부터 기본 4초 **자동 종료** |
 | 완료 | 같은 소스 버전의 대상 OS별 마지막 테스트와 검수 통과 | 런치→광고→메인, 표시·노출·자동 종료 운영 이벤트 확인 |
 
-이 예제에는 작업실 기기 연결 UI가 없습니다. 콘텐츠 검수에는 이미 `InAppTestClient`를 연결한 iOS 앱과 [Android SDK 기기 연결 예제](https://github.com/NudgeOn/nudgeon-android-sdk/blob/0.2.4/sample-app/src/main/kotlin/io/nudgeon/sample/InAppTestActivity.kt)를 사용하세요. iOS 연결 계약은 [인앱 작업실 문서](../../../../docs-public/IN-APP-WORKBENCH.md)를 참고하세요. [운영자 절차](https://nudgeon.io/ko/guide/#launch-ads).
+두 플랫폼 모두 예제 안에 작업실 연결 화면이 있습니다. 콘텐츠 검수 완료 후 같은 버전을 검수·게시하고, 테스트 연결을 종료한 뒤 시작 광고를 확인하세요. [운영자 절차](https://nudgeon.io/ko/guide/#launch-ads).
 
-예제는 **시작 광고만** 다루므로 앱이 비활성화되면 SDK를 중단합니다. 일반 화면·이벤트·복귀 캠페인, 실제 딥링크 라우팅, 권한 요청 및 결제 화면은 서비스 앱의 생명주기에 맞춰 추가하세요. 시작 기회를 건너뛴 뒤 나중에 광고를 삽입하지 마세요. URL 허용 목록은 기본적으로 비어 있으며 예제는 광고 액션을 외부로 열지 않습니다.
+운영 캠페인 예제는 **시작 광고만** 다루므로 앱이 비활성화되면 운영 클라이언트를 중단합니다. 일반 화면·이벤트·복귀 캠페인, 실제 딥링크 라우팅, 권한 요청 및 결제 화면은 서비스 앱의 생명주기에 맞춰 추가하세요. 시작 기회를 건너뛴 뒤 나중에 광고를 삽입하지 마세요. URL 허용 목록은 기본적으로 비어 있으며 예제는 광고 액션을 외부로 열지 않습니다.
 
 ## English
 
-These are complete **startup-only** apps pinned to public SDK **0.2.4**: app entry point, retained client, startup cover before the first frame, independent three-second fallback, prior-consent/routing exclusions and lifecycle cleanup. The developer page imports the exact source files shown here.
+These are complete **content-review and startup-ad** apps pinned to public SDK **0.2.4**: app entry point, retained client, startup cover before the first frame, independent three-second fallback, prior-consent/routing exclusions and lifecycle cleanup. The developer page imports the exact source files shown here.
 
 Requirements: iOS 15+, Xcode and XcodeGen; or Android 8/API 26+, JDK 17 and Android SDK 34. The Gradle 8.13 wrapper is included. No local SDK checkouts, push tokens or FCM/APNs credentials are required. Prepare a launch-capable server with migrations 0010–0012, both in-app feature flags, persistent assets and a separate HTTPS content host.
 
 1. Clone this repository using the command above. Edit `apiURL`/`sdkKey` in the Swift file or `API_URL`/`SDK_KEY` in Kotlin with a **controlled test app's** HTTPS API base URL and public SDK key. Do not use the content host or an admin key, or commit local credentials. Placeholders skip ads.
 2. Run the iOS or Android build commands above. For physical iOS devices, select your signing Team and a unique Bundle ID. iOS uses one UIWindow/AppDelegate; adapt ownership for Scene-based apps.
-3. On first run, turn on **Allow startup ads**. Terminate the process and relaunch. Use Android `am force-stop` followed by the launcher intent above; on iOS use Xcode Stop/Run or terminate the simulator app. Returning from Home does not create another startup attempt.
+3. For the published startup test, turn on **Allow startup ads**. Terminate the process and relaunch. Use Android `am force-stop` followed by the launcher intent above; on iOS use Xcode Stop/Run or terminate the simulator app. Returning from Home does not create another startup attempt.
 4. Publish a reviewed `launch` campaign to the controlled test app. Verify cover → opaque ad → main after four seconds, plus presented/impression/dismiss(`auto_dismiss`) records. Preparation defaults to three seconds; visible duration defaults to four and supports 3–5 seconds. Server frequency/suppression survives restart. Use `Asia/Seoul` for Korean calendar-day limits.
 5. Check opt-out/unconfigured startup (no request), no eligible campaign (main), slow/failing network (cover removed within three seconds), background/consent/route changes (cancel; no late insertion), and Android Activity recreation (no new launch opportunity).
 
 `shown`/`SHOWN` reports presentation **start**. Remove the cover and cancel its fallback in the callback; do not disable the SDK there or the ad will close immediately.
 
-**Content review is a separate first test:** use an app with an `InAppTestClient` pairing UI, run the same revision on each target OS, finish with **native close**, and approve that revision. These examples do not include pairing UI. Use an iOS app already integrated with InAppTestClient, or the Android pairing example linked above. See the workbench contract linked above for iOS integration. **The second test** uses these examples with a published campaign and checks automatic dismissal and production events. [Operator procedure](https://nudgeon.io/guide/#launch-ads).
+**Content review is the separate first test, inside these same examples:**
+
+1. Save/validate a source in the workbench and generate a pairing code. Paste it into **Workbench pairing code** and tap **Connect for content review**. This explicit test opt-in is independent of the **Allow startup ads** switch.
+2. Compare the persistent **Confirmation number** with the console, confirm the same device, then run the saved revision while the app remains foregrounded.
+3. Finish using the ad's **native Close button**. Wait until the console records the completed run and its impression/close events. Only then tap **End test session**. Ending a connection does not approve a review or replace native close; ending before events arrive can lose the review evidence.
+4. Approve the same revision for each target OS and publish to the controlled test app. End the test connection, then use the startup steps above to verify automatic dismissal and production events.
+
+Blank/invalid codes show a retryable error. Pairing codes and test credentials are never persisted. Ending the session or backgrounding cancels pending pairing so a delayed reply cannot reactivate it. Reconnect with a new code after backgrounding or restarting. The production campaign client is stopped when content review starts. [Operator procedure](https://nudgeon.io/guide/#launch-ads).
 
 The examples stop the client when inactive. Add ordinary screen/event/foreground campaigns, real routing, permission prompts and checkout exclusions according to your production host lifecycle. Never insert a skipped startup ad later. URL allowlists are empty and the examples do not open campaign actions externally.
