@@ -1097,6 +1097,16 @@ function GuideArticles({ content, announce }) {
                 ))}
               </ol>
             </div>
+            {guide.help && <section className="launch-help" aria-label={guide.help.title}>
+              <h3>{guide.help.title}</h3>
+              {guide.help.items.map(([title, body]) => <details key={title}>
+                <summary>{title}</summary><p>{body}</p>
+              </details>)}
+              <h3>{guide.help.reviewTitle}</h3><p>{guide.help.reviewBody}</p>
+              <h3>{guide.help.contentTitle}</h3>
+              <ul>{guide.help.contentItems.map(item => <li key={item}>{item}</li>)}</ul>
+              <a href="https://www.w3.org/WAI/WCAG22/Understanding/timing-adjustable.html">W3C · Timing Adjustable</a>
+            </section>}
             {(guide.examples ?? [{ label: guide.codeLabel, code: guide.code }]).map((example, index) => {
               const copyId = `${guide.id}-${index}`;
               const block = <CodeBlock content={content} label={example.label}

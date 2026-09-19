@@ -68,7 +68,7 @@ CONTENT_PORT=8082
 
 ## 바로 실행하는 iOS·Android 검수 예제
 
-[완성 예제와 빌드 안내](../apps/docs-site/examples/app-launch/README.md)를 사용하면 별도 연결 화면을 만들지 않고 검수할 수 있습니다. 두 플랫폼 모두 **Workbench pairing code → Connect for content review → 확인 숫자 대조** 순서로 진행합니다. 작업실에서 같은 기기를 확인한 뒤 실행하고, 광고의 네이티브 닫기로 종료하세요. 콘솔의 완료 기록을 확인한 다음 **End test session**을 누릅니다. 이 버튼 자체는 검수 완료나 통과가 아닙니다.
+[완성 예제와 빌드 안내](../apps/docs-site/examples/app-launch/README.md)를 사용하면 별도 연결 화면을 만들지 않고 검수할 수 있습니다. 두 플랫폼 모두 **Workbench pairing code → Connect for content review → 확인 숫자 대조** 순서로 진행합니다. 작업실에서 같은 기기를 확인한 뒤 실행하고, 광고의 네이티브 닫기로 종료하세요. 콘솔의 완료 기록을 확인한 다음 **End test session → Console record checked · end**를 누릅니다. **Keep waiting**은 연결을 유지하고, **Discard and end**는 검수를 포기하고 연결을 종료합니다. 로컬 이벤트 메시지는 서버 전송 완료 표시가 아닙니다. 이 버튼 자체는 검수 완료나 통과가 아닙니다.
 
 확인 숫자는 연결 중 표시되며 연결 종료·백그라운드 전환 시 지워집니다. 연결 코드는 저장하지 않습니다. 빈 코드·잘못된 코드·연결 중 취소 후 다시 연결할 수 있습니다. 게시된 시작 광고 테스트는 검수 연결을 종료하고 프로세스를 재시작한 뒤 따로 진행합니다.
 

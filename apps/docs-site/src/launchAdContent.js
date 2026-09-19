@@ -1,3 +1,4 @@
+import { launchAdHelp } from './launchAdHelp.js';
 import swift from '../examples/app-launch/ios/LaunchAdExample.swift?raw';
 import kotlin from '../examples/app-launch/android/app/src/main/kotlin/io/nudgeon/launchexample/MainActivity.kt?raw';
 import { launchAdTests } from './launchAdTests.js';
@@ -20,6 +21,7 @@ const links = {
 };
 export const launchAdContent = {
   ko: {
+    help: launchAdHelp.ko,
     id: 'launch-ads', tests: launchAdTests.ko, eyebrow: 'APP LAUNCH ADS · iOS & ANDROID',
     title: '런치 화면 다음, 전면 광고를 자동으로 보여주세요',
     intro: 'APP-AD는 해당 앱의 신규·기존 사용자 전체가 대상입니다. 로그인·세그먼트·테스트 기기 연결 없이 선택한 OS의 SDK 연결 기기에서 동의·기간·빈도 조건에 따라 표시합니다. OS 런치 화면 → 앱의 시작 화면 덮개 → 불투명 전면 광고 → 메인 화면. SDK 0.2.4는 실제 표시부터 기본 4초 뒤 광고를 자동 종료합니다. 표시 시간은 3~5초로 설정하며 시작 광고에는 네이티브 닫기·오늘 하루 안 보기 버튼이 없습니다.',
@@ -42,6 +44,7 @@ export const launchAdContent = {
     source: 'APP-LAUNCH-ADS · IN-APP-CAMPAIGNS · iOS/Android SDK 0.2.4', links: links.ko,
   },
   en: {
+    help: launchAdHelp.en,
     id: 'launch-ads', tests: launchAdTests.en, eyebrow: 'APP LAUNCH ADS · iOS & ANDROID',
     title: 'Show a timed full-screen ad after the launch screen',
     intro: 'APP-AD targets all new and existing users of this app. No login, segment membership or test pairing is required; SDK integration, consent, schedule and frequency still apply on selected platforms. OS launch screen → host startup cover → opaque full-screen ad → main screen. SDK 0.2.4 automatically dismisses the ad 4 seconds after presentation by default. Configure 3–5 seconds; startup ads have no native close or hide-today buttons.',
