@@ -2,7 +2,7 @@
 
 **현재 공개 상태 (2026-09-19 KST): 파트너 베타 후보 / Partner beta candidate.** 홈페이지·유저가이드·개발자센터는 이 상태를 사용합니다. 제품 베타 판정과 개별 패키지 배포를 구분합니다.
 
-- **공개됨:** iOS SPM 및 Android Maven Central core/in-app **0.2.5**. [iOS 릴리스](https://github.com/NudgeOn/nudgeon-ios-sdk/releases/tag/0.2.5) · [Android 릴리스](https://github.com/NudgeOn/nudgeon-android-sdk/releases/tag/0.2.5). 공개 패키지를 소비하는 완성 예제 빌드와 검수 기록의 재전송·수신 상태를 검증합니다. [0.2.5 전송 검증 범위](IN-APP-DELIVERY-QA-2026-09-19.md)를 참고하세요. 이전 0.2.4의 Godspell·시작 광고 검증과 구분합니다.
+- **공개됨:** iOS SPM 및 Android Maven Central core/in-app **0.2.6**. [iOS 릴리스](https://github.com/NudgeOn/nudgeon-ios-sdk/releases/tag/0.2.6) · [Android 릴리스](https://github.com/NudgeOn/nudgeon-android-sdk/releases/tag/0.2.6). 공개 패키지를 소비하는 완성 예제 빌드와 검수 기록의 재전송·수신 상태를 검증합니다. [0.2.5 전송 검증 범위](IN-APP-DELIVERY-QA-2026-09-19.md)를 참고하세요. 0.2.6은 검수 실행 정보·기기 관측 전송 시각을 추가하며 KST 표시와 콘솔 실행 ID 검색을 지원합니다. 이전 0.2.4의 Godspell·시작 광고 검증과 구분합니다.
 - **게시 대기:** RN·Flutter 0.1.3 준비·CI·머지 완료, npm/pub.dev/CocoaPods 로그인·게시 대기. RN·Flutter의 인앱 시작 광고 연결은 미제공입니다.
 - **남은 게이트:** 아래 B-2~B-7과 B-1의 브리지 SDK 게시. 네이티브 SDK 배포는 전체 제품의 베타 검증 완료나 서버 배포 증거가 아닙니다.
 
@@ -43,7 +43,7 @@
 
 | # | 항목 | 필요한 것 | 완료 조건 |
 |---|---|---|---|
-| B-1 | SDK 공개 배포 | iOS SPM·Android core/in-app **0.2.5 완료**. RN/Flutter **0.1.3 준비·CI·머지 완료**, npm/pub.dev/CocoaPods 로그인·게시 대기 | 공개 registry-only 신규 앱 설치·계약 검증 |
+| B-1 | SDK 공개 배포 | iOS SPM·Android core/in-app **0.2.6 완료**. RN/Flutter **0.1.3 준비·CI·머지 완료**, npm/pub.dev/CocoaPods 로그인·게시 대기 | 공개 registry-only 신규 앱 설치·계약 검증 |
 | B-2 | 실단말 재검증 | 이번 작업은 사용자 요청으로 단말 푸시 제외 | 최신 공개 SDK로 M-1 재현·중복 억제·3상태 수신/탭/리포트 확인 |
 | B-3 | 외부인 온보딩 (M-2) | 외부 개발자 3명, [참가자별 실행 기록지](EXTERNAL-ONBOARDING-TEST.md) | 문서만으로 30분 내 4단계 완주 |
 | B-4 | 관리형 DB (M-9) | 로컬 TLS/idle 복구/timeout 회귀 완료, 실제 관리형 대상 정보 필요 | TLS·인증·재연결·migration·백업/복원 E2E |

@@ -49,6 +49,9 @@ class MainActivity : Activity() {
     private lateinit var reviewStatus: TextView
     private lateinit var transfer: TextView
     private lateinit var transferDetails: TextView
+    private lateinit var reviewContext: TextView
+    private lateinit var copyRun: Button
+    private lateinit var lookupHint: TextView
     private lateinit var retryReview: Button
     private lateinit var discardReview: Button
     private lateinit var connectReview: Button
@@ -190,10 +193,27 @@ class MainActivity : Activity() {
         onTransferStatus={state -> showTransfer(state)}).also { review=it }
 
     private fun reviewText(ko: String, en: String) = if (resources.configuration.locales[0].language == "ko") ko else en
+    private fun reviewTime(value: Long?): String = value?.let {
+        java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss 'KST'", java.util.Locale.ROOT).apply {
+            timeZone = java.util.TimeZone.getTimeZone("Asia/Seoul")
+        }.format(java.util.Date(it))
+    } ?: reviewText("아직 확인되지 않음", "Not recorded")
+    private fun reviewExpiry(value: String?) = reviewTime(value?.let { runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull() })
+    private fun reviewContext(detail: io.nudgeon.inapp.InAppTestReviewDetails?): String {
+        if(detail == null) return reviewText("검수 상세 정보가 없습니다. 이전 SDK에서 저장한 기록에는 시각·버전 정보가 없을 수 있습니다.", "Review details unavailable. Older SDK records may lack timestamps and revision context.")
+        val unknown = reviewText("아직 확인되지 않음", "Not recorded")
+        return listOf(reviewText("최근 실행 ID: ", "Latest run ID: ") + (detail.runId ?: unknown),
+            reviewText("소스 버전: ", "Revision: ") + (detail.revisionId ?: unknown), "OS: Android",
+            reviewText("마지막 전송 시도: ", "Last delivery attempt: ") + reviewTime(detail.lastAttemptAt),
+            reviewText("마지막 수신 확인(기기 시각): ", "Last receipt observed (device clock): ") + reviewTime(detail.lastReceivedAt),
+            reviewText("연결 유효기간: ", "Session expiry: ") + reviewExpiry(detail.sessionExpiresAt),
+            reviewText("실행 유효기간: ", "Run expiry: ") + reviewExpiry(detail.runExpiresAt),
+            reviewText("유효기간은 서버가 판정합니다. 위 시각은 KST입니다.", "Expiry is enforced by the server. All times above are KST.")).joinToString("\n")
+    }
     private fun isPermanent(reason: String?) = reason in setOf("HTTP_400", "HTTP_401", "HTTP_403", "HTTP_404", "HTTP_409", "HTTP_410", "HTTP_422", "QUEUE_FULL")
     private fun showTransfer(state: InAppTestTransferStatus) {
         val permanent = isPermanent(state.reason)
-        val count = reviewText("대기 ${state.pendingCount}건 · 서버 수신 ${state.acknowledgedCount}건", "Pending ${state.pendingCount} · received ${state.acknowledgedCount}")
+        val count = reviewText("대기 ${state.pendingCount}건 · 연결 누적 수신 ${state.acknowledgedCount}건", "Pending ${state.pendingCount} · session received ${state.acknowledgedCount}")
         val message = when {
             permanent -> {
                 val cause = when(state.reason) {
@@ -217,6 +237,8 @@ class MainActivity : Activity() {
             }
         }
         transfer.text = "$message\n$count"
+        reviewContext.text = reviewContext(state.review)
+        copyRun.isEnabled = state.review?.runId != null
         transferDetails.text = state.reason?.let { reviewText("진단 코드: ","Diagnostic code: ") + it } ?: ""
         retryReview.isEnabled = !permanent && state.phase in setOf(InAppTestTransferStatus.Phase.PENDING,InAppTestTransferStatus.Phase.FAILED)
         discardReview.text = if(permanent) reviewText("새 검수 준비", "Prepare new review") else reviewText("보관 기록 폐기", "Discard pending records")
@@ -323,6 +345,20 @@ class MainActivity : Activity() {
         transferDetails = text("").apply { textSize = 13f }
         column.addView(transfer)
         column.addView(transferDetails)
+        reviewContext = text("").apply { textSize = 14f; setTextIsSelectable(true) }
+        column.addView(reviewContext)
+        lookupHint = text(reviewText("콘솔의 인앱 캠페인 → 검수에서 실행 ID로 찾을 수 있습니다. 자격증명은 복사하지 않습니다.", "Find this run in console → In-app campaigns → Review. Credentials are never copied."))
+        copyRun = Button(this).apply {
+            text = reviewText("실행 ID 복사", "Copy run ID"); isEnabled = false
+            setOnClickListener {
+                review?.transferStatus?.review?.runId?.let { id ->
+                    (getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                        .setPrimaryClip(android.content.ClipData.newPlainText("NudgeOn run ID", id))
+                    lookupHint.text = reviewText("실행 ID를 복사했습니다. 콘솔 → 인앱 캠페인 → 검수 → 실행 ID로 찾기에 붙여 넣으세요. 같은 소스 버전·OS인지 확인한 후 승인하세요.", "Run ID copied. In the console, open In-app campaigns → Review → Find by run ID. Check the matching revision and OS before approving.")
+                }
+            }
+        }
+        column.addView(copyRun); column.addView(lookupHint)
         retryReview = Button(this).apply {
             text=reviewText("다시 전송", "Retry transfer"); isEnabled=false
             setOnClickListener { if(!isPermanent(review?.transferStatus?.reason)) review?.retryPendingEvents() }

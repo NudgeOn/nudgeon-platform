@@ -11,6 +11,31 @@ private func reviewText(_ ko: String, _ en: String) -> String {
 }
 private let permanentReviewErrors: Set<String> = ["HTTP_400", "HTTP_401", "HTTP_403", "HTTP_404", "HTTP_409", "HTTP_410", "HTTP_422", "QUEUE_FULL"]
 
+// All review timestamps are explicitly KST. Local acknowledgement time is not a server timestamp.
+private func reviewTime(_ date: Date?) -> String {
+    guard let date else { return reviewText("아직 확인되지 않음", "Not recorded") }
+    let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(identifier: "Asia/Seoul"); formatter.dateFormat = "yyyy-MM-dd HH:mm:ss 'KST'"
+    return formatter.string(from: date)
+}
+private func reviewExpiry(_ value: String?) -> String {
+    guard let value else { return reviewTime(nil) }
+    let parser = ISO8601DateFormatter(); parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    let parsed = parser.date(from: value); parser.formatOptions = [.withInternetDateTime]
+    return reviewTime(parsed ?? parser.date(from: value))
+}
+private func reviewContext(_ detail: InAppTestReviewDetails?) -> String {
+    guard let detail else { return reviewText("검수 상세 정보가 없습니다. 이전 SDK에서 저장한 기록에는 시각·버전 정보가 없을 수 있습니다.", "Review details unavailable. Older SDK records may lack timestamps and revision context.") }
+    let unknown = reviewText("아직 확인되지 않음", "Not recorded")
+    return [reviewText("최근 실행 ID: ", "Latest run ID: ") + (detail.runID ?? unknown),
+        reviewText("소스 버전: ", "Revision: ") + (detail.revisionID ?? unknown), "OS: iOS",
+        reviewText("마지막 전송 시도: ", "Last delivery attempt: ") + reviewTime(detail.lastAttemptAt),
+        reviewText("마지막 수신 확인(기기 시각): ", "Last receipt observed (device clock): ") + reviewTime(detail.lastReceivedAt),
+        reviewText("연결 유효기간: ", "Session expiry: ") + reviewExpiry(detail.sessionExpiresAt),
+        reviewText("실행 유효기간: ", "Run expiry: ") + reviewExpiry(detail.runExpiresAt),
+        reviewText("유효기간은 서버가 판정합니다. 위 시각은 KST입니다.", "Expiry is enforced by the server. All times above are KST.")].joined(separator: "\n")
+}
+
 @main
 @MainActor
 final class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -37,6 +62,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         main.consent.addTarget(self, action: #selector(consentChanged), for: .valueChanged)
         main.connectReview.addTarget(self, action: #selector(connectReview), for: .touchUpInside)
         main.endReview.addTarget(self, action: #selector(endReview), for: .touchUpInside)
+        main.copyRun.addTarget(self, action: #selector(copyReviewRun), for: .touchUpInside)
         main.retryReview.addTarget(self, action: #selector(retryReview), for: .touchUpInside)
         main.discardReview.addTarget(self, action: #selector(discardReview), for: .touchUpInside)
         if !apiURL.contains("YOUR_"), !sdkKey.contains("YOUR_") {
@@ -172,7 +198,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     private func showTransfer(_ state: InAppTestTransferStatus) {
         let permanent = permanentReviewErrors.contains(state.reason ?? "")
-        let count = reviewText("대기 \(state.pendingCount)건 · 서버 수신 \(state.acknowledgedCount)건", "Pending \(state.pendingCount) · received \(state.acknowledgedCount)")
+        let count = reviewText("대기 \(state.pendingCount)건 · 연결 누적 수신 \(state.acknowledgedCount)건", "Pending \(state.pendingCount) · session received \(state.acknowledgedCount)")
         let message: String
         if permanent {
             let cause: String
@@ -200,11 +226,18 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
             }
         }
         main.transfer.text = message + "\n" + count
+        main.reviewContext.text = reviewContext(state.review)
+        main.copyRun.isEnabled = state.review?.runID != nil
         main.transferDetails.text = state.reason.map { reviewText("진단 코드: ", "Diagnostic code: ") + $0 }
         main.retryReview.isEnabled = !permanent && (state.phase == .failed || state.phase == .pending)
         main.discardReview.setTitle(permanent ? reviewText("새 검수 준비", "Prepare new review") : reviewText("보관 기록 폐기", "Discard pending records"), for: .normal)
         main.discardReview.isEnabled = permanent || (!reviewing && (state.phase == .failed || state.pendingCount > 0))
         if !reviewing { main.connectReview.isEnabled = state.canEndSafely }
+    }
+    @objc private func copyReviewRun() {
+        guard let id = review?.transferStatus.review?.runID else { return }
+        UIPasteboard.general.string = id // Non-secret ID can also be pasted into the desktop console.
+        main.lookupHint.text = reviewText("실행 ID를 복사했습니다. 콘솔 → 인앱 캠페인 → 검수 → 실행 ID로 찾기에 붙여 넣으세요. 같은 소스 버전·OS인지 확인한 후 승인하세요.", "Run ID copied. In the console, open In-app campaigns → Review → Find by run ID. Check the matching revision and OS before approving.")
     }
     @objc private func retryReview() {
         guard let review, !permanentReviewErrors.contains(review.transferStatus.reason ?? "") else { return }
@@ -293,6 +326,9 @@ final class MainViewController: UIViewController {
     let reviewStatus = UILabel()
     let transfer = UILabel()
     let transferDetails = UILabel()
+    let reviewContext = UILabel()
+    let copyRun = UIButton(type: .system)
+    let lookupHint = UILabel()
     let retryReview = UIButton(type: .system)
     let discardReview = UIButton(type: .system)
     let connectReview = UIButton(type: .system)
@@ -336,6 +372,14 @@ final class MainViewController: UIViewController {
         retryReview.accessibilityIdentifier = "review-retry"
         discardReview.accessibilityIdentifier = "review-discard"
         transferDetails.accessibilityIdentifier = "review-transfer-details"
+        reviewContext.numberOfLines = 0
+        reviewContext.font = .preferredFont(forTextStyle: .footnote)
+        reviewContext.accessibilityIdentifier = "review-context"
+        copyRun.setTitle(reviewText("실행 ID 복사", "Copy run ID"), for: .normal)
+        copyRun.accessibilityIdentifier = "review-copy-run"; copyRun.isEnabled = false
+        lookupHint.numberOfLines = 0; lookupHint.font = .preferredFont(forTextStyle: .footnote)
+        lookupHint.accessibilityIdentifier = "review-lookup-hint"
+        lookupHint.text = reviewText("콘솔의 인앱 캠페인 → 검수에서 실행 ID로 찾을 수 있습니다. 자격증명은 복사하지 않습니다.", "Find this run in console → In-app campaigns → Review. Credentials are never copied.")
         transferDetails.numberOfLines = 0
         transferDetails.font = .preferredFont(forTextStyle: .caption1)
         transferDetails.textColor = .secondaryLabel
@@ -346,7 +390,7 @@ final class MainViewController: UIViewController {
         launchTitle.text = "2. Published launch ad · auto-dismiss"
         launchTitle.font = .preferredFont(forTextStyle: .headline)
         let stack = UIStackView(arrangedSubviews: [title, reviewTitle, reviewHelp, pairingCode,
-            connectReview, confirmation, reviewStatus, transfer, transferDetails, endReview, retryReview, discardReview, launchTitle, instructions, consent, status])
+            connectReview, confirmation, reviewStatus, transfer, transferDetails, reviewContext, copyRun, lookupHint, endReview, retryReview, discardReview, launchTitle, instructions, consent, status])
         stack.axis = .vertical
         stack.alignment = .fill
         stack.spacing = 24

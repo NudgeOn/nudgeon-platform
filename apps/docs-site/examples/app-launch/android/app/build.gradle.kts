@@ -17,6 +17,6 @@ android {
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-    implementation("io.nudgeon:nudgeon-sdk:0.2.5")
-    implementation("io.nudgeon:nudgeon-inapp:0.2.5")
+    implementation("io.nudgeon:nudgeon-sdk:0.2.6")
+    implementation("io.nudgeon:nudgeon-inapp:0.2.6")
 }

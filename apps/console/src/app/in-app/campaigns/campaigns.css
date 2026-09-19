@@ -212,3 +212,10 @@
 .ic-audience h3 { margin: 0 0 12px; font-size: 12px; }
 .ic-audience strong { display: block; margin-bottom: 12px; font-size: 16px; }
 .ic-audience p { margin: 10px 0 0; font-size: 12px; line-height: 1.8; }
+
+.ic-run-lookup { margin: 20px 0; padding: 16px; border: 1px solid var(--border, #d5dce3); border-radius: 8px; }
+.ic-run-lookup .ic-actions { flex-wrap: wrap; }
+.ic-run-lookup input { min-width: 0; flex: 1 1 200px; }
+.ic-run-context { font-size: 13px; line-height: 1.6; }
+.ic-run-context dt { margin-top: 12px; font-weight: 600; }
+.ic-run-context dd { margin: 4px 0 0; overflow-wrap: anywhere; }

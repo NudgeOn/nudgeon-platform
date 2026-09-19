@@ -1724,6 +1724,17 @@
     "audience": "Who will see it?",
     "audienceAll": "All users · new + existing",
     "audienceAllHelp": "Every installation on the selected platforms in this app is eligible. No account login, customer profile, segment membership or test-device pairing is required. New installations after publication are included.",
-    "audienceConditions": "The app needs SDK integration and permission to display campaigns. Publication dates, frequency, suppression and host readiness determine actual display. Frequency is counted per installation, not per user account."
+    "audienceConditions": "The app needs SDK integration and permission to display campaigns. Publication dates, frequency, suppression and host readiness determine actual display. Frequency is counted per installation, not per user account.",
+    "lookupTitle": "Find by run ID",
+    "lookupPlaceholder": "Paste the run ID copied from the app",
+    "lookupFind": "Find",
+    "lookupInvalid": "Paste the full run ID, not a pairing code or SDK key.",
+    "lookupMissing": "Not found among this app’s latest 50 runs. Check the app and run ID. For older runs, perform a new review.",
+    "lookupIncomplete": "This run is incomplete or interrupted. Check server receipt and native Close, and perform a new review if needed.",
+    "lookupFound": "Run found. Match the revision and OS shown in the app, then complete the review checks below.",
+    "lookupScope": "Searches this app’s latest 50 runs. Selecting a run never approves or publishes it automatically.",
+    "lookupRun": "Run ID",
+    "lookupRevision": "Revision",
+    "lookupCreated": "Run created"
   }
 }

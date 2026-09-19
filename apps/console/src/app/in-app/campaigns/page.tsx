@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import "../workbench.css";
 import "./campaigns.css";
+import { ReviewRunLookup } from "./review-run-lookup";
 const localDate = (value: string) => {
   const d = new Date(value);
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
@@ -54,6 +55,7 @@ export default function CampaignPage() {
     queryKey: ["in-app-runs", app],
     queryFn: () => api.inApp.runs(app!),
     enabled,
+    refetchInterval: 3000,
   });
   const [selected, setSelected] = useState<InAppCampaign | null>(null),
     [name, setName] = useState(""),
@@ -506,6 +508,9 @@ export default function CampaignPage() {
           <section className="ic-card">
             <h2>{t("review")}</h2>
             <p className="ic-muted">{t("reviewHelp")}</p>
+            <ReviewRunLookup key={app} runs={runs.data?.runs ?? []} selected={run}
+              loading={runs.isFetching} failed={runs.isError} disabled={!enabled || !canPublish || busy}
+              onSelect={id => { setRun(id); setChecks([false, false, false]); }} />
             <label className="ic-label">
               {t("testRun")}
               <select

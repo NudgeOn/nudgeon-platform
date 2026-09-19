@@ -100,8 +100,8 @@ See the release checklist for verified results and remaining beta gates.
 ## Source
 
 - [Platform](${repoUrl}): NestJS APIs, Next.js console, Go workers, PostgreSQL, ClickHouse, Redis Streams
-- [iOS SDK](https://github.com/NudgeOn/nudgeon-ios-sdk): Swift Package, \`from: "0.2.5"\`
-- [Android SDK](https://github.com/NudgeOn/nudgeon-android-sdk): Maven Central, \`io.nudgeon:nudgeon-sdk:0.2.5\`
+- [iOS SDK](https://github.com/NudgeOn/nudgeon-ios-sdk): Swift Package, \`from: "0.2.6"\`
+- [Android SDK](https://github.com/NudgeOn/nudgeon-android-sdk): Maven Central, \`io.nudgeon:nudgeon-sdk:0.2.6\`
 - [Release checklist](${repoUrl}/blob/main/docs-public/RELEASE-CHECKLIST.md): what is and is not verified
 
 ## Contact
