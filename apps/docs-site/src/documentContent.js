@@ -49,7 +49,7 @@ NudgeOn.initialize(config: NudgeOnConfig(
 ))
 NudgeOn.identify(externalId: "customer-123")
 NudgeOn.track("Product Viewed", properties: ["product_id": "sku-42"])`,
-    note: "iOS SPM·Android Maven Central 0.2.4가 공개되어 있으며 공개 패키지를 사용하는 Godspell 빌드를 확인했습니다. React Native·Flutter 공개 게시는 별도 준비 단계입니다. 시작 전면 광고는 네이티브 인앱 모듈과 호스트 연결이 필요합니다.",
+    note: "iOS SPM·Android Maven Central 0.2.5가 공개되어 있으며 공개 패키지를 사용하는 완성 예제 빌드로 검증합니다. React Native·Flutter 공개 게시는 별도 준비 단계입니다. 시작 전면 광고는 네이티브 인앱 모듈과 호스트 연결이 필요합니다.",
     source: "iOS · Android · React Native · Flutter SDK README",
   },
   {
@@ -293,21 +293,21 @@ Cookie: nudgeon_session=<SESSION>`,
     eyebrow: "릴리즈·호환성",
     title: "파트너 베타 후보 · 배포 상태와 남은 검증",
     intro: "2026-09-19 기준. 제품의 베타 준비 상태와 개별 SDK의 공개 배포 상태를 구분합니다. 네이티브 SDK 배포 완료가 전체 제품의 베타 검증 완료를 뜻하지는 않습니다.",
-    endpoint: "파트너 베타 후보 · iOS/Android SDK 0.2.4 공개",
+    endpoint: "파트너 베타 후보 · iOS/Android SDK 0.2.5 공개",
     steps: [
-      { title: "공개 배포 완료", body: "iOS SPM과 Android Maven Central의 core·in-app 0.2.4를 사용할 수 있습니다. 시작 광고의 기본 4초 자동 종료를 포함하며 공개 패키지만 사용하는 앱 빌드를 확인했습니다." },
+      { title: "공개 배포 완료", body: "iOS SPM과 Android Maven Central의 core·in-app 0.2.5를 사용할 수 있습니다. 시작 광고의 기본 4초 자동 종료를 포함하며 공개 패키지만 사용하는 앱 빌드를 확인했습니다." },
       { title: "게시 대기", body: "React Native·Flutter 0.1.3은 준비·CI·머지를 마쳤으며 npm·pub.dev·CocoaPods 로그인과 게시가 남아 있습니다. RN·Flutter 인앱 시작 광고 연결은 아직 제공하지 않습니다." },
       { title: "베타 판정 전 검증", body: "관리형 DB 연결·복구, 목표 부하·24시간 연속 시험, 외부 개발자 온보딩, 네 SDK 계약과 파일럿 검증이 남아 있습니다. 최신 SDK 실단말 푸시 재검증은 별도 항목입니다." },
     ],
     codeLabel: "공개 SDK 태그 확인 · 서버 이미지 버전과 별도",
-    code: `git ls-remote --tags https://github.com/NudgeOn/nudgeon-ios-sdk.git refs/tags/0.2.4
-git ls-remote --tags https://github.com/NudgeOn/nudgeon-android-sdk.git refs/tags/0.2.4`,
+    code: `git ls-remote --tags https://github.com/NudgeOn/nudgeon-ios-sdk.git refs/tags/0.2.5
+git ls-remote --tags https://github.com/NudgeOn/nudgeon-android-sdk.git refs/tags/0.2.5`,
     note: "SDK 버전은 서버 이미지 버전이 아닙니다. 서버·콘솔·워커는 배포 대상의 태그와 이미지 digest를 별도로 확인하세요. 실제 Fold3 화면 캡처는 미확인이며 런타임 이벤트 확인과 구분합니다.",
-    source: "RELEASE-CHECKLIST · native SDK 0.2.4 releases",
+    source: "RELEASE-CHECKLIST · native SDK 0.2.5 releases",
     links: [
       { label: "출시 상태와 남은 게이트", href: "https://github.com/NudgeOn/nudgeon-platform/blob/main/docs-public/RELEASE-CHECKLIST.md" },
-      { label: "iOS 0.2.4 릴리스", href: "https://github.com/NudgeOn/nudgeon-ios-sdk/releases/tag/0.2.4" },
-      { label: "Android 0.2.4 릴리스", href: "https://github.com/NudgeOn/nudgeon-android-sdk/releases/tag/0.2.4" },
+      { label: "iOS 0.2.5 릴리스", href: "https://github.com/NudgeOn/nudgeon-ios-sdk/releases/tag/0.2.5" },
+      { label: "Android 0.2.5 릴리스", href: "https://github.com/NudgeOn/nudgeon-android-sdk/releases/tag/0.2.5" },
     ],
   },
   {
@@ -379,7 +379,7 @@ NudgeOn.initialize(config: NudgeOnConfig(
 ))
 NudgeOn.identify(externalId: "customer-123")
 NudgeOn.track("Product Viewed", properties: ["product_id": "sku-42"])`,
-    note: "iOS SPM and Android Maven Central 0.2.4 are published and verified in Godspell builds using public packages. React Native and Flutter publication remains separate. Startup ads require the native in-app module and host integration.",
+    note: "iOS SPM and Android Maven Central 0.2.5 are published and verified through complete examples consuming public packages. React Native and Flutter publication remains separate. Startup ads require the native in-app module and host integration.",
     source: "iOS · Android · React Native · Flutter SDK READMEs",
   },
   {
@@ -623,21 +623,21 @@ Cookie: nudgeon_session=<SESSION>`,
     eyebrow: "Releases & compatibility",
     title: "Partner beta candidate · published artifacts and remaining checks",
     intro: "As of September 19, 2026. Product beta readiness and individual SDK publication are separate statuses. Publishing the native SDKs does not close the product's beta gates.",
-    endpoint: "Partner beta candidate · iOS/Android SDK 0.2.4 published",
+    endpoint: "Partner beta candidate · iOS/Android SDK 0.2.5 published",
     steps: [
-      { title: "Published", body: "iOS SPM and Android Maven Central core/in-app 0.2.4 are available, including startup ads with a default four-second automatic dismissal. App builds consuming only public packages were verified." },
+      { title: "Published", body: "iOS SPM and Android Maven Central core/in-app 0.2.5 are available, including startup ads with a default four-second automatic dismissal. App builds consuming only public packages were verified." },
       { title: "Awaiting publication", body: "React Native and Flutter 0.1.3 preparation, CI and merge are complete; npm, pub.dev and CocoaPods authentication/publication are pending. RN/Flutter in-app startup integration is not available." },
       { title: "Remaining beta gates", body: "Managed-database connection/recovery, target load and 24-hour soak, external onboarding, all-four-SDK contracts and pilot validation remain open. Latest-SDK physical push revalidation is a separate gate." },
     ],
     codeLabel: "Inspect public SDK tags · separate from server image versions",
-    code: `git ls-remote --tags https://github.com/NudgeOn/nudgeon-ios-sdk.git refs/tags/0.2.4
-git ls-remote --tags https://github.com/NudgeOn/nudgeon-android-sdk.git refs/tags/0.2.4`,
+    code: `git ls-remote --tags https://github.com/NudgeOn/nudgeon-ios-sdk.git refs/tags/0.2.5
+git ls-remote --tags https://github.com/NudgeOn/nudgeon-android-sdk.git refs/tags/0.2.5`,
     note: "SDK versions are not server image versions. Verify the target API/console/worker tag and image digest separately. Physical Fold3 visual capture remains unverified; runtime events are separate evidence.",
-    source: "RELEASE-CHECKLIST · native SDK 0.2.4 releases",
+    source: "RELEASE-CHECKLIST · native SDK 0.2.5 releases",
     links: [
       { label: "Release status and remaining gates", href: "https://github.com/NudgeOn/nudgeon-platform/blob/main/docs-public/RELEASE-CHECKLIST.md" },
-      { label: "iOS 0.2.4 release", href: "https://github.com/NudgeOn/nudgeon-ios-sdk/releases/tag/0.2.4" },
-      { label: "Android 0.2.4 release", href: "https://github.com/NudgeOn/nudgeon-android-sdk/releases/tag/0.2.4" },
+      { label: "iOS 0.2.5 release", href: "https://github.com/NudgeOn/nudgeon-ios-sdk/releases/tag/0.2.5" },
+      { label: "Android 0.2.5 release", href: "https://github.com/NudgeOn/nudgeon-android-sdk/releases/tag/0.2.5" },
     ],
   },
   {

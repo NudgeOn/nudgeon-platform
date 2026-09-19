@@ -68,9 +68,9 @@ CONTENT_PORT=8082
 
 ## 바로 실행하는 iOS·Android 검수 예제
 
-[완성 예제와 빌드 안내](../apps/docs-site/examples/app-launch/README.md)를 사용하면 별도 연결 화면을 만들지 않고 검수할 수 있습니다. 두 플랫폼 모두 **Workbench pairing code → Connect for content review → 확인 숫자 대조** 순서로 진행합니다. 작업실에서 같은 기기를 확인한 뒤 실행하고, 광고의 네이티브 닫기로 종료하세요. 콘솔의 완료 기록을 확인한 다음 **End test session → Console record checked · end**를 누릅니다. **Keep waiting**은 연결을 유지하고, **Discard and end**는 검수를 포기하고 연결을 종료합니다. 로컬 이벤트 메시지는 서버 전송 완료 표시가 아닙니다. 이 버튼 자체는 검수 완료나 통과가 아닙니다.
+[완성 예제와 빌드 안내](../apps/docs-site/examples/app-launch/README.md)를 사용하면 별도 연결 화면을 만들지 않고 검수할 수 있습니다. 두 플랫폼 모두 **Workbench pairing code → Connect for content review → 확인 숫자 대조** 순서로 진행합니다. 작업실에서 같은 기기를 확인한 뒤 실행하고, 광고의 네이티브 닫기로 종료하세요. 네이티브 닫기 후 예제 앱에서 전송 대기 → 전송 중 → 서버 확인(대기 0)을 확인하고 End test session으로 종료하세요. 종료 시 남은 기록을 먼저 전송하며 실패하면 암호화 보관합니다. Retry transfer로 다시 보내거나 앱 재실행 후 전송을 복구할 수 있습니다. Discard pending records는 기록을 포기할 때만 선택하세요. 서버 확인은 기록 수신이며 검수 통과가 아닙니다. 콘솔의 동일 버전·OS 검수는 별도로 진행합니다. 테스트 자격(30분)·실행 유효기간(5분)이 지나 거절되면 새 검수가 필요합니다.
 
-확인 숫자는 연결 중 표시되며 연결 종료·백그라운드 전환 시 지워집니다. 연결 코드는 저장하지 않습니다. 빈 코드·잘못된 코드·연결 중 취소 후 다시 연결할 수 있습니다. 게시된 시작 광고 테스트는 검수 연결을 종료하고 프로세스를 재시작한 뒤 따로 진행합니다.
+확인 숫자는 연결 중 표시되며 연결 종료·백그라운드 전환 시 지워집니다. 연결 코드는 저장하지 않습니다. SDK 0.2.5는 전송에 필요한 단기 자격과 대기 기록을 iOS Keychain·Android Keystore 보호 저장소에 보관합니다. 재시작 시 전송만 복구하며 과거 광고·명령은 재실행하지 않습니다. API 주소·SDK 키별 테스트 클라이언트를 하나만 보관하고 앱 재실행 시에도 생성해야 복구됩니다. 빈 코드·잘못된 코드·연결 중 취소 후 다시 연결할 수 있습니다. 게시된 시작 광고 테스트는 검수 연결을 종료하고 프로세스를 재시작한 뒤 따로 진행합니다.
 
 ## iOS 적용
 
@@ -106,7 +106,7 @@ await inApp.end()
 
 ## Android 적용
 
-별도 저장소 `nudgeon-android-sdk`의 신규 **nudgeon-inapp** 모듈입니다. Maven Central의 `io.nudgeon:nudgeon-inapp:0.2.4`으로 연결합니다. SDK 저장소 샘플 앱의 **In-app event test** 버튼으로 연결 화면을 열 수 있습니다. Android 8/API 26 이상이며 WebView의 `WEB_MESSAGE_LISTENER` 지원이 필요합니다.
+별도 저장소 `nudgeon-android-sdk`의 신규 **nudgeon-inapp** 모듈입니다. Maven Central의 `io.nudgeon:nudgeon-inapp:0.2.5`으로 연결합니다. SDK 저장소 샘플 앱의 **In-app event test** 버튼으로 연결 화면을 열 수 있습니다. Android 8/API 26 이상이며 WebView의 `WEB_MESSAGE_LISTENER` 지원이 필요합니다.
 
 ```kotlin
 val inApp = InAppTestClient(

@@ -8,7 +8,7 @@ export const launchAdGuide = {
     intro: 'APP LAUNCH ADS · iOS & ANDROID. 신규·기존 사용자 전체가 대상입니다. 회원 로그인이나 테스트 기기 연결 없이, 선택한 OS의 SDK 연결 기기에서 동의·기간·빈도 조건에 따라 표시합니다. 런치 화면 다음에 이벤트·프로모션을 3~5초 보여주고 자동으로 메인으로 이동합니다. 기본 4초이며, 닫기 버튼을 누를 필요가 없습니다.',
     where: '인앱 이벤트 → 시작 전면 광고 예제 → 캠페인 관리',
     steps: [
-      ['개발 담당자와 시작 화면을 연결하세요', 'iOS·Android SDK 0.2.4의 인앱 모듈과 앱 시작 흐름 연결이 필요합니다. 서버의 인앱 기능도 켜져 있어야 합니다. 먼저 테스트 앱과 기기를 준비하세요. 최초 동의·딥링크·권한 요청처럼 다른 화면이 우선이면 시작 광고를 건너뛰도록 개발 담당자와 정합니다.'],
+      ['개발 담당자와 시작 화면을 연결하세요', 'iOS·Android SDK 0.2.5의 인앱 모듈과 앱 시작 흐름 연결이 필요합니다. 서버의 인앱 기능도 켜져 있어야 합니다. 먼저 테스트 앱과 기기를 준비하세요. 최초 동의·딥링크·권한 요청처럼 다른 화면이 우선이면 시작 광고를 건너뛰도록 개발 담당자와 정합니다.'],
       ['전면 광고 소스를 만드세요', '인앱 이벤트에서 시작 전면 광고 예제를 선택하거나 HTML/ZIP을 업로드하세요. HTML·CSS·JS와 이미지는 NudgeOn에서 관리합니다. 화면 전체를 채우는 문구와 디자인을 편집한 뒤 저장·검증을 누릅니다. 광고 표시 시간은 HTML 타이머가 아닌 SDK 설정입니다.'],
       ['연결한 기기에서 콘텐츠를 검수하세요', '미리보기로 모양을 확인하고, 기기 연결 코드를 앱의 테스트 연결 화면에 입력합니다. 확인 숫자를 대조한 뒤 같은 기기 확인 → 내 기기에서 실행 순서로 진행하세요. 대상 iOS·Android에서 각각 확인하고 마지막 테스트는 네이티브 닫기로 마칩니다. 작업실 테스트는 콘텐츠 검수이므로 이 단계에서 4초 자동 종료를 기대하지 않습니다.'],
       ['검수한 버전으로 캠페인을 게시하세요', '캠페인 관리에서 같은 소스 버전의 OS별 테스트와 검수 항목을 확인한 뒤 검수 통과를 누릅니다. 표시 조건은 앱 실행 직후로 선택합니다. 대상 OS, 시작·종료 시각, 빈도와 시간대를 설정하고 초안 저장 → 저장된 버전 게시 순서로 진행합니다. 한국 날짜 기준 하루 1회라면 시간대를 Asia/Seoul로 지정하세요. 검수·게시·중지는 Admin/Owner가 진행합니다.'],
@@ -26,7 +26,7 @@ export const launchAdGuide = {
     intro: 'APP LAUNCH ADS · iOS & ANDROID. Target all new and existing users. No login or test pairing is required; SDK integration, consent, schedule and frequency apply on selected platforms. Display an event or promotion after the launch screen for 3–5 seconds, then move automatically to the main screen. The default is 4 seconds. No close tap is needed.',
     where: 'In-app events → Full-screen startup ad example → Campaign management',
     steps: [
-      ['Connect the startup flow with your developer', 'Install the iOS or Android in-app SDK 0.2.4 and integrate the host startup flow. Enable the server in-app features and prepare a controlled test app and device. Agree on when to skip startup ads, including initial consent, deep links and permission prompts.'],
+      ['Connect the startup flow with your developer', 'Install the iOS or Android in-app SDK 0.2.5 and integrate the host startup flow. Enable the server in-app features and prepare a controlled test app and device. Agree on when to skip startup ads, including initial consent, deep links and permission prompts.'],
       ['Create your full-screen content', 'Select the full-screen startup ad example or upload HTML/ZIP in the in-app workbench. NudgeOn manages HTML, CSS, JavaScript and images. Edit the full-screen design and copy, then save and validate. Display duration is an SDK setting, not an HTML timer.'],
       ['Review content on connected devices', 'Check the preview, generate a pairing code and enter it in the app test connection screen. Compare confirmation numbers, approve the device, then run on your device. Check every target OS and finish the last test with the native close button. Workbench testing reviews content; do not expect four-second automatic dismissal at this stage.'],
       ['Publish the reviewed revision', 'In campaign management, review the same revision’s OS-specific tests and approve the review checklist. Choose the app-launch trigger. Set target platforms, start/end dates, frequency and time zone, then save the draft and publish the saved version. For one display per Korean calendar day, use Asia/Seoul. Admins/Owners approve, publish and stop campaigns.'],

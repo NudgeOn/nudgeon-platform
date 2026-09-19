@@ -22,6 +22,7 @@ import android.widget.Switch
 import android.widget.TextView
 import io.nudgeon.inapp.InAppCampaignClient
 import io.nudgeon.inapp.InAppTestClient
+import io.nudgeon.inapp.InAppTestTransferStatus
 
 // Use a controlled test app's API base URL and PUBLIC SDK key, never an admin key.
 // Keep credentials out of committed edits.
@@ -42,12 +43,13 @@ class MainActivity : Activity() {
     private val reviewScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var reviewJob: Job? = null
     private var reviewing = false
-    private var reviewConnected = false
-    private var endReviewPrompt: AlertDialog? = null
     private var reviewGeneration = 0
     private lateinit var pairingCode: EditText
     private lateinit var confirmation: TextView
     private lateinit var reviewStatus: TextView
+    private lateinit var transfer: TextView
+    private lateinit var retryReview: Button
+    private lateinit var discardReview: Button
     private lateinit var connectReview: Button
     private lateinit var endReview: Button
     private var cover: View? = null
@@ -59,6 +61,9 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         buildMain()
+        if (!API_URL.contains("YOUR_") && !SDK_KEY.contains("YOUR_")) {
+            try { prepareReviewClient() } catch (_: Exception) { transfer.text = "Failed · test storage unavailable"; connectReview.isEnabled = false }
+        }
         val firstOwner = !opportunityConsumed && savedInstanceState == null
         opportunityConsumed = true // Consent changes must not create a late launch.
         val launcherEntry = intent.action == Intent.ACTION_MAIN &&
@@ -139,6 +144,9 @@ class MainActivity : Activity() {
     }
 
     private fun connectContentReview() {
+        pairingCode.clearFocus()
+        (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
+            .hideSoftInputFromWindow(pairingCode.windowToken, 0)
         val token = pairingCode.text.toString().trim()
         if (token.isEmpty()) { reviewStatus.text = "Paste the workbench pairing code first."; return }
         if (API_URL.contains("YOUR_") || SDK_KEY.contains("YOUR_") || SDK_KEY.isBlank()) {
@@ -148,17 +156,8 @@ class MainActivity : Activity() {
         // Test opt-in is separate from campaign consent. Never enable both clients together.
         skipLaunch("Main · content review mode; relaunch later for the published launch ad")
         try {
-            val client = review ?: InAppTestClient(application,
-                InAppTestClient.Configuration(apiUrl = API_URL, sdkKey = SDK_KEY),
-                host = { this }, isAllowed = { reviewing && resumed && !isFinishing && !isDestroyed },
-                onAction = { reviewStatus.text = "Test action received; check its result in the console." },
-                onDiagnostic = { message ->
-                    if (reviewing && !message.startsWith("CONFIRM_DEVICE:")) {
-                        reviewStatus.text = "Local event: $message\nServer receipt is not confirmed here. Check the console completion record."
-                    }
-                }).also { review = it }
+            val client = prepareReviewClient()
             reviewing = true
-            reviewConnected = false
             val generation = ++reviewGeneration
             connectReview.isEnabled = false
             endReview.isEnabled = true
@@ -167,8 +166,7 @@ class MainActivity : Activity() {
                 try {
                     val pairing = client.pair(token, "Android launch example")
                     if (!isActive || generation != reviewGeneration) return@launch
-                    reviewConnected = true
-                    pairingCode.text.clear() // Never persist a test credential or pairing code.
+                    pairingCode.text.clear() // Do not persist the pairing code; the SDK protects delivery credentials.
                     confirmation.text = "Confirmation number: ${pairing.confirmationCode}"
                     reviewStatus.text = "Compare this number in the console, confirm the same device, then run the saved source."
                 } catch (e: CancellationException) { throw e }
@@ -183,33 +181,27 @@ class MainActivity : Activity() {
         } catch (_: Exception) { reviewStatus.text = "Invalid SDK configuration. Check the API address." }
     }
 
-    private fun requestEndContentReview() {
-        if (!reviewConnected) { endContentReview(); return } // Cancel pending pairing directly.
-        if (endReviewPrompt != null) return
-        val generation = reviewGeneration
-        endReviewPrompt = AlertDialog.Builder(this)
-            .setCustomTitle(TextView(this).apply {
-                text = "After native Close, check this run’s completed state and impression/close records in the console. Ending may discard unsent events."
-                textSize = 18f
-                val padding = (24 * resources.displayMetrics.density).toInt()
-                setPadding(padding, padding, padding, padding / 2)
-            })
-            .setItems(arrayOf("Keep waiting", "Console record checked · end", "Discard and end")) { _, choice ->
-                if (generation == reviewGeneration && choice != 0) {
-                    endContentReview()
-                    if (choice == 2) reviewStatus.text = "Review abandoned. Unsent records may be lost; run a new test before approval."
-                }
-            }.create().also { dialog ->
-                dialog.setOnDismissListener { if (endReviewPrompt === dialog) endReviewPrompt = null }
-                dialog.show()
+    private fun prepareReviewClient(): InAppTestClient = review ?: InAppTestClient(application,
+        InAppTestClient.Configuration(apiUrl=API_URL,sdkKey=SDK_KEY),
+        host={this},isAllowed={reviewing && resumed && !isFinishing && !isDestroyed},
+        onAction={reviewStatus.text="Test action received."},
+        onDiagnostic={if(!it.startsWith("CONFIRM_DEVICE:")) reviewStatus.text="Local event: $it"},
+        onTransferStatus={state ->
+            val name=when(state.phase) {
+                InAppTestTransferStatus.Phase.IDLE -> "No pending records"
+                InAppTestTransferStatus.Phase.PENDING -> "Waiting"
+                InAppTestTransferStatus.Phase.SENDING -> "Sending"
+                InAppTestTransferStatus.Phase.ACKNOWLEDGED -> "Server confirmed"
+                InAppTestTransferStatus.Phase.FAILED -> "Failed"
             }
-    }
+            transfer.text="$name · pending ${state.pendingCount} · received ${state.acknowledgedCount}" + (state.reason?.let { " · $it" } ?: "")
+            retryReview.isEnabled=state.phase in setOf(InAppTestTransferStatus.Phase.PENDING,InAppTestTransferStatus.Phase.FAILED)
+            discardReview.isEnabled=!reviewing && (state.phase==InAppTestTransferStatus.Phase.FAILED || state.pendingCount>0)
+            if(!reviewing) connectReview.isEnabled=state.canEndSafely
+        }).also { review=it }
 
     private fun endContentReview() {
         if (!reviewing && reviewJob == null) return
-        endReviewPrompt?.dismiss()
-        endReviewPrompt = null
-        reviewConnected = false
         reviewing = false
         reviewGeneration++
         reviewJob?.cancel()
@@ -217,8 +209,8 @@ class MainActivity : Activity() {
         review?.end() // Invalidates in-flight pairing and ends the remote session asynchronously.
         pairingCode.text.clear()
         confirmation.text = ""
-        reviewStatus.text = "Test session ended. Unsent records may be lost. Check the console before approval."
-        connectReview.isEnabled = true
+        reviewStatus.text = "Test presentation stopped. Pending records are retained until server confirmation. Receipt is not review approval."
+        connectReview.isEnabled = review?.transferStatus?.canEndSafely == true
         endReview.isEnabled = false
     }
 
@@ -264,7 +256,7 @@ class MainActivity : Activity() {
         }
         column.addView(text("NudgeOn · App launch example"))
         column.addView(text("1. Content review · manual close"))
-        column.addView(text("Paste a workbench code, connect, and compare the confirmation number. Finish with the ad's native Close button, then wait for completion in the console before ending this session."))
+        column.addView(text("Paste a workbench code, connect, and compare the confirmation number. Finish with the ad's native Close button, then End to upload pending records. Server confirmed means receipt, not review approval. Retry failed transfers without reconnecting."))
         pairingCode = EditText(this).apply {
             hint = "Workbench pairing code"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
@@ -284,9 +276,22 @@ class MainActivity : Activity() {
         endReview = Button(this).apply {
             text = "End test session"
             isEnabled = false
-            setOnClickListener { requestEndContentReview() }
+            setOnClickListener { endContentReview() }
         }
         column.addView(endReview)
+        transfer = text("No pending records")
+        column.addView(transfer)
+        retryReview = Button(this).apply { text="Retry transfer"; isEnabled=false; setOnClickListener { review?.retryPendingEvents() } }
+        discardReview = Button(this).apply {
+            text="Discard pending records"; isEnabled=false
+            setOnClickListener {
+                AlertDialog.Builder(this@MainActivity).setTitle("Discard unsent records?")
+                    .setMessage("This abandons delivery and never marks a review as passed.")
+                    .setNegativeButton("Keep records",null)
+                    .setPositiveButton("Discard records") { _,_ -> review?.discardPendingEvents() }.show()
+            }
+        }
+        column.addView(retryReview); column.addView(discardReview)
         column.addView(text("2. Published launch ad · auto-dismiss"))
         column.addView(text("Allow startup ads, then force-stop and relaunch. Returning from Home does not retry."))
         column.addView(Switch(this).apply {
