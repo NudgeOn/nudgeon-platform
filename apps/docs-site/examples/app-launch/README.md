@@ -49,7 +49,7 @@ adb -s YOUR_TEST_DEVICE shell am start -a android.intent.action.MAIN \
 2. 예제의 **Workbench pairing code**에 코드를 붙여 넣고 **Connect for content review**를 누릅니다. 이 버튼이 테스트 모드의 명시적 동의이며, 시작 광고용 **Allow startup ads** 스위치와 별개입니다.
 3. 앱의 **Confirmation number**와 콘솔의 숫자를 대조한 뒤 **같은 기기 확인**을 누릅니다. 앱을 전경에 둔 채 **내 기기에서 실행**합니다.
 4. 광고의 **네이티브 Close 버튼**으로 종료합니다. 콘솔에서 마지막 실행이 완료되고 같은 소스 버전의 노출·닫기 기록이 도착했는지 확인합니다.
-5. 그 다음 예제의 **End test session**으로 연결을 종료합니다. 이 버튼은 검수 통과나 광고의 네이티브 닫기를 대신하지 않습니다. 기록이 도착하기 전에 연결을 끝내면 검수 증거가 누락될 수 있습니다.
+5. 그 다음 예제의 **End test session → Console record checked · end**로 연결을 종료합니다. 아직 기록이 없으면 **Keep waiting**으로 연결을 유지하고, 검수를 포기할 때만 **Discard and end**를 선택합니다. 이 버튼은 검수 통과나 광고의 네이티브 닫기를 대신하지 않습니다. 기록이 도착하기 전에 연결을 끝내면 검수 증거가 누락될 수 있습니다.
 
 연결 코드가 비었거나 잘못되면 화면에 원인을 안내하고 다시 연결할 수 있습니다. 확인 숫자는 연결 중 계속 표시됩니다. 코드·테스트 자격은 저장하지 않으며 연결 종료·백그라운드 전환·프로세스 재시작 후에는 새 코드로 연결합니다. 연결 중 종료하면 늦은 응답도 적용하지 않습니다. 콘텐츠 검수 중에는 운영 광고 클라이언트를 중단합니다.
 
@@ -105,7 +105,7 @@ Requirements: iOS 15+, Xcode and XcodeGen; or Android 8/API 26+, JDK 17 and Andr
 
 1. Save/validate a source in the workbench and generate a pairing code. Paste it into **Workbench pairing code** and tap **Connect for content review**. This explicit test opt-in is independent of the **Allow startup ads** switch.
 2. Compare the persistent **Confirmation number** with the console, confirm the same device, then run the saved revision while the app remains foregrounded.
-3. Finish using the ad's **native Close button**. Wait until the console records the completed run and its impression/close events. Only then tap **End test session**. Ending a connection does not approve a review or replace native close; ending before events arrive can lose the review evidence.
+3. Finish using the ad's **native Close button**. Wait until the console records the completed run and its impression/close events. Only then tap **End test session → Console record checked · end**. Choose **Keep waiting** to keep the connection, or **Discard and end** to abandon this review. Ending a connection does not approve a review or replace native close; ending before events arrive can lose the review evidence.
 4. Approve the same revision for each target OS and publish to the controlled test app. End the test connection, then use the startup steps above to verify automatic dismissal and production events.
 
 Blank/invalid codes show a retryable error. Pairing codes and test credentials are never persisted. Ending the session or backgrounding cancels pending pairing so a delayed reply cannot reactivate it. Reconnect with a new code after backgrounding or restarting. The production campaign client is stopped when content review starts. [Operator procedure](https://nudgeon.io/guide/#launch-ads).

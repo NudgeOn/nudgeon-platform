@@ -16,6 +16,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     private var reviewTask: Task<Void, Never>?
     private var reviewGeneration = 0
     private var reviewing = false
+    private var reviewConnected = false
+    private var endReviewPrompt: UIAlertController?
     private var cover: UIView?
     private var fallback: DispatchWorkItem?
     private var attempted = false
@@ -31,7 +33,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         main.consent.isOn = UserDefaults.standard.bool(forKey: consentKey)
         main.consent.addTarget(self, action: #selector(consentChanged), for: .valueChanged)
         main.connectReview.addTarget(self, action: #selector(connectReview), for: .touchUpInside)
-        main.endReview.addTarget(self, action: #selector(endReview), for: .touchUpInside)
+        main.endReview.addTarget(self, action: #selector(requestEndReview), for: .touchUpInside)
         // This sample is a single-window, startup-only app. Consume a skipped opportunity too.
         eligible = main.consent.isOn && options?[.url] == nil && options?[.userActivityDictionary] == nil
         guard eligible, let url = URL(string: apiURL), !apiURL.contains("YOUR_"),
@@ -127,12 +129,13 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
                     onAction: { [weak self] _ in self?.main.reviewStatus.text = "Test action received; check its result in the console." },
                     onDiagnostic: { [weak self] message in
                         guard let self, self.reviewing, !message.hasPrefix("CONFIRM_DEVICE:") else { return }
-                        self.main.reviewStatus.text = "Test event: \(message)\nWait for the console record before ending the session."
+                        self.main.reviewStatus.text = "Local event: \(message)\nServer receipt is not confirmed here. Check the console completion record."
                     }
                 )
             }
             guard let review else { return }
             reviewing = true
+            reviewConnected = false
             reviewGeneration += 1
             let generation = reviewGeneration
             main.connectReview.isEnabled = false
@@ -142,6 +145,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
                 do {
                     let pairing = try await review.pair(token: token, deviceName: "iOS launch example")
                     guard let self, !Task.isCancelled, self.reviewGeneration == generation else { return }
+                    self.reviewConnected = true
                     self.main.pairingCode.text = "" // Keep pairing credentials out of persistent storage.
                     self.main.confirmation.text = "Confirmation number: \(pairing.confirmation_code)"
                     self.main.reviewStatus.text = "Compare this number in the console, confirm the same device, then run the saved source."
@@ -158,8 +162,35 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
-    @objc private func endReview() {
+    @objc private func requestEndReview() {
+        guard reviewConnected else { endReview(); return } // Pending pairing is safe to cancel.
+        guard endReviewPrompt == nil, main.presentedViewController == nil else { return }
+        let generation = reviewGeneration
+        let prompt = UIAlertController(title: "Check the console before ending",
+            message: "After native Close, wait for this run’s completed state and impression/close records. Local events do not confirm server receipt. Ending now can discard unsent records.", preferredStyle: .alert)
+        prompt.addAction(UIAlertAction(title: "Keep waiting", style: .cancel) { [weak self] _ in
+            self?.endReviewPrompt = nil
+        })
+        prompt.addAction(UIAlertAction(title: "Console record checked · end", style: .default) { [weak self] _ in
+            guard let self, self.reviewGeneration == generation else { return }
+            self.endReviewPrompt = nil
+            self.endReview()
+        })
+        prompt.addAction(UIAlertAction(title: "Discard and end", style: .destructive) { [weak self] _ in
+            guard let self, self.reviewGeneration == generation else { return }
+            self.endReviewPrompt = nil
+            self.endReview()
+            self.main.reviewStatus.text = "Review abandoned. Unsent records may be lost; run a new test before approval."
+        })
+        endReviewPrompt = prompt
+        main.present(prompt, animated: true)
+    }
+
+    private func endReview() {
         guard reviewing || reviewTask != nil else { return }
+        endReviewPrompt?.dismiss(animated: false)
+        endReviewPrompt = nil
+        reviewConnected = false
         reviewing = false
         reviewGeneration += 1
         let generation = reviewGeneration
@@ -168,7 +199,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         review?.contextChanged() // Invalidates a pairing request already in flight.
         main.pairingCode.text = ""
         main.confirmation.text = ""
-        main.reviewStatus.text = "Test session ended. This does not mark a content review as passed."
+        main.reviewStatus.text = "Test session ended. Unsent records may be lost. Check the console before approval."
         main.connectReview.isEnabled = false
         main.endReview.isEnabled = false
         let client = review

@@ -1,6 +1,7 @@
 package io.nudgeon.launchexample
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -41,6 +42,8 @@ class MainActivity : Activity() {
     private val reviewScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var reviewJob: Job? = null
     private var reviewing = false
+    private var reviewConnected = false
+    private var endReviewPrompt: AlertDialog? = null
     private var reviewGeneration = 0
     private lateinit var pairingCode: EditText
     private lateinit var confirmation: TextView
@@ -151,10 +154,11 @@ class MainActivity : Activity() {
                 onAction = { reviewStatus.text = "Test action received; check its result in the console." },
                 onDiagnostic = { message ->
                     if (reviewing && !message.startsWith("CONFIRM_DEVICE:")) {
-                        reviewStatus.text = "Test event: $message\nWait for the console record before ending the session."
+                        reviewStatus.text = "Local event: $message\nServer receipt is not confirmed here. Check the console completion record."
                     }
                 }).also { review = it }
             reviewing = true
+            reviewConnected = false
             val generation = ++reviewGeneration
             connectReview.isEnabled = false
             endReview.isEnabled = true
@@ -163,6 +167,7 @@ class MainActivity : Activity() {
                 try {
                     val pairing = client.pair(token, "Android launch example")
                     if (!isActive || generation != reviewGeneration) return@launch
+                    reviewConnected = true
                     pairingCode.text.clear() // Never persist a test credential or pairing code.
                     confirmation.text = "Confirmation number: ${pairing.confirmationCode}"
                     reviewStatus.text = "Compare this number in the console, confirm the same device, then run the saved source."
@@ -178,8 +183,33 @@ class MainActivity : Activity() {
         } catch (_: Exception) { reviewStatus.text = "Invalid SDK configuration. Check the API address." }
     }
 
+    private fun requestEndContentReview() {
+        if (!reviewConnected) { endContentReview(); return } // Cancel pending pairing directly.
+        if (endReviewPrompt != null) return
+        val generation = reviewGeneration
+        endReviewPrompt = AlertDialog.Builder(this)
+            .setCustomTitle(TextView(this).apply {
+                text = "After native Close, check this run’s completed state and impression/close records in the console. Ending may discard unsent events."
+                textSize = 18f
+                val padding = (24 * resources.displayMetrics.density).toInt()
+                setPadding(padding, padding, padding, padding / 2)
+            })
+            .setItems(arrayOf("Keep waiting", "Console record checked · end", "Discard and end")) { _, choice ->
+                if (generation == reviewGeneration && choice != 0) {
+                    endContentReview()
+                    if (choice == 2) reviewStatus.text = "Review abandoned. Unsent records may be lost; run a new test before approval."
+                }
+            }.create().also { dialog ->
+                dialog.setOnDismissListener { if (endReviewPrompt === dialog) endReviewPrompt = null }
+                dialog.show()
+            }
+    }
+
     private fun endContentReview() {
         if (!reviewing && reviewJob == null) return
+        endReviewPrompt?.dismiss()
+        endReviewPrompt = null
+        reviewConnected = false
         reviewing = false
         reviewGeneration++
         reviewJob?.cancel()
@@ -187,7 +217,7 @@ class MainActivity : Activity() {
         review?.end() // Invalidates in-flight pairing and ends the remote session asynchronously.
         pairingCode.text.clear()
         confirmation.text = ""
-        reviewStatus.text = "Test session ended. This does not mark a content review as passed."
+        reviewStatus.text = "Test session ended. Unsent records may be lost. Check the console before approval."
         connectReview.isEnabled = true
         endReview.isEnabled = false
     }
@@ -254,7 +284,7 @@ class MainActivity : Activity() {
         endReview = Button(this).apply {
             text = "End test session"
             isEnabled = false
-            setOnClickListener { endContentReview() }
+            setOnClickListener { requestEndContentReview() }
         }
         column.addView(endReview)
         column.addView(text("2. Published launch ad · auto-dismiss"))

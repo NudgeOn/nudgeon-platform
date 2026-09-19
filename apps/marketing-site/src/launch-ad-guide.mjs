@@ -1,7 +1,9 @@
+import { launchAdHelp } from './launch-ad-help.mjs';
 import { launchAdTests } from './launch-ad-tests.mjs';
 
 export const launchAdGuide = {
   ko: {
+    help: launchAdHelp.ko,
     id: 'launch-ads', tests: launchAdTests.ko, nav: '앱 시작 전면 광고', title: '앱을 여는 순간, 전면 광고를 보여주세요.',
     intro: 'APP LAUNCH ADS · iOS & ANDROID. 신규·기존 사용자 전체가 대상입니다. 회원 로그인이나 테스트 기기 연결 없이, 선택한 OS의 SDK 연결 기기에서 동의·기간·빈도 조건에 따라 표시합니다. 런치 화면 다음에 이벤트·프로모션을 3~5초 보여주고 자동으로 메인으로 이동합니다. 기본 4초이며, 닫기 버튼을 누를 필요가 없습니다.',
     where: '인앱 이벤트 → 시작 전면 광고 예제 → 캠페인 관리',
@@ -19,6 +21,7 @@ export const launchAdGuide = {
     flow: ['런치 화면', '전면 광고 · 기본 4초', '자동 종료 → 메인'],
   },
   en: {
+    help: launchAdHelp.en,
     id: 'launch-ads', tests: launchAdTests.en, nav: 'App launch ads', title: 'Show a full-screen ad as your app opens.',
     intro: 'APP LAUNCH ADS · iOS & ANDROID. Target all new and existing users. No login or test pairing is required; SDK integration, consent, schedule and frequency apply on selected platforms. Display an event or promotion after the launch screen for 3–5 seconds, then move automatically to the main screen. The default is 4 seconds. No close tap is needed.',
     where: 'In-app events → Full-screen startup ad example → Campaign management',

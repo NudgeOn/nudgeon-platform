@@ -18,7 +18,7 @@ for (const language of ['en', 'ko']) {
   for (const match of html.matchAll(/(?:src|href)="((?:https?:|mailto:)[^"]*)"/g)) {
     const url = new URL(match[1]);
     assert(url.protocol === 'mailto:' ? url.pathname === 'hello@nudgeon.io' :
-      url.protocol === 'https:' && ['nudgeon.io', 'developer.nudgeon.io', 'github.com'].includes(url.hostname),
+      url.protocol === 'https:' && (['nudgeon.io', 'developer.nudgeon.io', 'github.com'].includes(url.hostname) || url.href === 'https://www.w3.org/WAI/WCAG22/Understanding/timing-adjustable.html'),
       `Unexpected external destination: ${match[1]}`);
   }
   for (const match of html.matchAll(/href="#([^"]+)"/g)) assert(html.includes(`id="${match[1]}"`), `Missing target: ${match[1]}`);

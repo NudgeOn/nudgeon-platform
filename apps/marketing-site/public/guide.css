@@ -122,3 +122,9 @@
   .launch-test-grid { grid-template-columns: 1fr; }
   .launch-test-grid article { padding: 20px; }
 }
+
+.launch-help > h3:not(:first-child) { margin-top: 32px; }
+.launch-help > p, .launch-help li { font-size: 14px; line-height: 1.9; overflow-wrap: anywhere; }
+.launch-help ul { padding-left: 20px; }
+.launch-help li + li { margin-top: 14px; }
+.launch-help > a { display: inline-block; margin-top: 16px; color: var(--blue); }
