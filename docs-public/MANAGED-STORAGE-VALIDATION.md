@@ -79,4 +79,4 @@ SHA-256, 실패 원인을 남긴다. 처음에는 모든 행을 `NOT_RUN`으로 
 [PG 로컬 회귀](../tests/ops/postgres-recovery/README.md),
 [Redis 로컬 회귀](../tests/ops/redis-recovery/README.md),
 [Docker 복원 리허설](../tests/ops/backup-restore/README.md),
-[Beta 남은 작업](BETA-REMAINING-2026-09-18.md).
+[출시 체크리스트](RELEASE-CHECKLIST.md).

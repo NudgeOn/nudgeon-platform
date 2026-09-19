@@ -2,10 +2,8 @@
 
 상태: **단계별 설계안 — P0-1·P0-2·P0-2b·P0-3 로컬 회귀 검증, 운영 성능 미검증** · 2026-09-03
 
-P0-1 구현과 회귀 결과는 [발생기 QA](qa/LOADGEN-QA-2026-09-03.md)를 참조한다.
-P0-2의 첫 경보 13.633초·330초 미해결 유지·장애/종료 검증은 [DLQ QA](qa/DLQ-QA-2026-09-03.md)를 참조한다.
-P0-2b의 DB 저장 실패·응답 유실·안전한 ACK 회귀는 [저장 실패 QA](qa/DLQ-STORAGE-QA-2026-09-03.md)를 참조한다.
-P0-3의 실제 API 종료·시간 초과·PG 접수 보존 회귀는 [API 종료 QA](qa/API-SHUTDOWN-QA-2026-09-03.md)를 참조한다.
+재현 절차는 [발생기](../tests/ops/local/README.md), [DLQ 경보](../tests/ops/dlq/README.md),
+[DLQ 저장 실패](../tests/ops/dlq-storage/README.md), [API 종료](../tests/ops/api-shutdown/README.md) 안내를 따른다.
 이 문서의 단계별 목표와 후보 설정은 계속 설계값이며, 시험 실행 승인이나 성능 합격이 아니다.
 
 ## 먼저 알아야 할 결론
@@ -22,7 +20,7 @@ P0-3의 실제 API 종료·시간 초과·PG 접수 보존 회귀는 [API 종료
 
 실제 고객의 최대 예상 트래픽은 아직 확인되지 않았다. 아래 수치와 트래픽 구성은
 이번 프로젝트의 **제안된 검증 계약**이지 업계 공통 기준이나 고객 수용량 보장이 아니다.
-현재 증거는 [로컬 QA 보고서](qa/LOCAL-OPS-QA-2026-09-03.md)이며, 200 TPS/15초까지의 짧은 시험만 통과했다.
+과거 로컬 시험은 200 TPS/15초까지의 짧은 실행만 통과했다.
 100 TPS/5분 시험은 실패했으므로 지속 처리량을 200 TPS라고 보장할 수 없다.
 
 ## 1. 무엇을 측정하는가
@@ -338,90 +336,39 @@ worker도 신규 claim을 멈추고 완료된 작업만 ack하며, 미완료 작
 장애 lane에서 의도한 오류는 성능 lane의 오류율에 섞지 않는다. 이전 로컬 복원 결과는 정지 상태의
 복원만 증명한다. 관리형 DB failover/PITR, 운영 RPO/RTO 및 원격 알림은 계속 별도 작업이다.
 
-## 8. 구현 순서와 롤백
+## 8. 배포와 롤백
 
-| 우선순위 | 작업 | 주 변경 위치 | 완료 증거 |
-| --- | --- | --- | --- |
-| P0-1 | loadgen 연결 재사용·bounded histogram·고유 ID 기록 | `apps/worker/cmd/loadgen/`, `tests/ops/local/` | 10요청 1연결, 메모리 상한, 드롭/timeout 오판 방지 |
-| P0-2 | 첫 DLQ·backlog·collector 장애 경보 | `internal/dlq/`, `internal/metrics/`, `deploy/observability/` | 첫 실패 webhook 30초 내, 재시작·5분 초과 backlog 유지 |
-| P0-2b | DLQ 저장 실패 시 종결/ACK 방지 — 로컬 회귀 통과 | `internal/channel/`, DLQ writer, migration 0006 | INSERT 실패·응답 유실 시 pending 유지, 복구 후 DLQ 1건·추가 시험 공급자 호출 없음 |
-| P0-3 | API 정상 종료·연결 종료 — 로컬 회귀 통과 | `apps/api/src/main.ts`, `infra/` | 처리 중 요청 완료 후 0.550초·exit 0, timeout 약 14초·exit 1, PG 고유 접수 43건 보존 |
-| P0-4 | 기간별 EPS·대기 시간·SQL/CH 계측 및 새 이미지 빌드 | API·worker·시험 metadata | 실행 이미지의 빌드 소스 확인·digest 기록 |
-| P0-4a | 대기량·Redis DLQ 대기·관측 실패/자원 경보 — 로컬 회귀 통과 | 읽기 전용 ops-monitor, metrics, alert rules | PG DLQ 0이어도 pending 경보, 2초 timeout, 한도 초과 unknown, 새 worker-only 시험 image 실행 |
-| P0-4b | 계측·정확한 ID 대사 회귀 완료, **성능 게이트 실패** | API·ingest·load runner·전체 이미지 | 100 req/s 10초, 원장/CH 1,000건 일치. p99 549ms > 500ms. 상세는 [QA](qa/PROJECTION-QA-2026-09-03.md) |
-| P1-1 | 전용 relay·선점 임대·부분 성공 pipeline | `internal/journey/relay.go`, worker 역할, PG migration | 동시 relay·crash 회귀, 처리 여유 확인 |
-| P1-2 | API SQL 왕복·in-flight·pool 예산 | `ingestion/event-receipts.ts`, rate-limit, infra | 동일 접수 계약과 사용자 순서, G1 정상화 |
-| P1-2a | API 키 사용 시각 쓰기 합치기·예산 — 정확성 검증, **성능 실패 유지** | `auth/api-key-usage.ts`, opt-in flag, SQL/lock 시험 | 같은 키 대기 접속 10→1, 갱신 행 1,000→1. 수정 후 100 req/s 2회 중 1회 드롭 154; [QA](qa/API-KEY-USAGE-QA-2026-09-03.md) |
-| P1-3 | 명시적 microbatch·CH 및 유지보수 예산 | `internal/ingest/`, CH 시험 설정 | part/메모리/lock 안정, G2 통과 |
-| P2 | 역할별 증설·G3·백업·장시간 시험 | 별도 capacity Compose/runner | 모든 phase 증거와 자원 승인 |
-
-기존 `--role=all`은 로컬 기능 시험용으로 유지한다. 전용 relay를 켤 때는 기존 scheduler의
-relay를 명시적으로 꺼서 두 구현이 섞이지 않게 한다. 새 동작은 검증 가능한 feature flag로
-배포하고 schema 변경은 additive하게 한다. migration은 commit·락/timeout 회귀를 검증한 뒤 적용한다.
+전용 outbox relay를 켤 때는 기존 scheduler의 relay를 명시적으로 꺼서 두 구현이 섞이지 않게 한다.
+feature flag와 additive migration을 사용하고, commit·락·timeout 회귀를 검증한 뒤 적용한다.
+관측용 연결도 전체 연결 예산에 포함한다.
 
 문제가 생기면 새 writer/claim을 중단하고 배수한 뒤 이전 단일 역할로 돌아간다.
-살아 있는 lease를 무조건 지우거나 새 컬럼·데이터를 즉시 삭제하는 롤백은 하지 않는다.
-호환되지 않는 Journey 진행 상태가 있으면 이전 worker로 되돌리지 않고 승인된 복구 경로를 따른다.
-기존 더티 작업은 보존한다. 최초 설계 작성 시 제품 코드를 변경하지 않았으며,
-후속 P0-1 구현에서 부하 발생기와 로컬 시험 스크립트만 변경했다.
-P0-2는 worker·additive DB 스키마·관측 설정 소스까지 변경하며 격리된 로컬 DB에서 검증한다.
-기존 실행 서비스·DB에는 적용하지 않았다. 모니터의 새 연결 1개도 실제 배포 연결 예산에 추가해야 한다.
+살아 있는 lease나 컬럼·데이터를 즉시 삭제하지 않는다. 호환되지 않는 Journey 진행 상태가 있으면
+승인된 복구 경로를 따른다.
 
-## 9. 결과 발표 형식과 설계 산출물 상태
+## 9. 결과 발표와 남은 검증
 
 최종 결과는 `환경/이미지 digest + workload + batch 크기 + 요청 RPS + 고유 EPS + 기간 +
 API p99 + 분석 지연 + 드롭/오류 + 대사 + 자원 여유`를 한 묶음으로 제시한다.
-예: **“합계 20고객사, 단건 5,000 RPS/5,000 EPS, 1시간×2 통과. 24시간 미검증.”**
-실제 합격 전에는 예시 숫자를 성능 결과로 게시하지 않는다.
+단계별 기준은 검증 목표이며 실측 성능 보장이 아니다.
 
-- 이 문서와 `capacity/test-plan.json`: 구현을 위한 설계안. 프로그램이 이를 실행하도록 아직 구현하지 않았다.
-- 설계 정합성 검사: JSON 3개 파싱, 8개 phase의 속도·기간·이벤트 수·선행 조건,
-  기본 쿼터 배분, 메모리 합계, 연결 예산 44개, 로컬 링크 2개 및 신규 파일 4개의 공백 검사를 통과했다.
-  이는 문서의 정적 검사이며 실제 부하나 성능 합격 결과가 아니다.
-- `capacity/architecture.draft.json`: Archify 구조 초안. 기하 검사 9개는 통과했으나
-  최종 구성 검사에서 본문 글자 가독성 오류 1개가 남아 보정 중단 규칙에 따라 멈췄다.
-  검증된 HTML이나 브라우저 검증 결과는 없다. 설계의 권위 있는 설명은 이 문서다.
-- PostgreSQL 성능 스킬은 전체 pool 예산, 짧은 relay 선점 transaction, 일관된 lock 순서에 반영했다.
-  일반적인 “락을 짧게” 원칙 때문에 현재의 삭제 보호 lock을 제거하지는 않았다.
-- **P0-1**: 연결 재사용·고정 크기 histogram·재현 가능한 ID·증거 기록 및 CLI 회귀 구현 완료.
-  설계의 RAM bitmap 대신 고정 버퍼의 append-only journal을 사용하므로 디스크 예산에 그 증가량을 포함한다.
-  이 완료는 M0/M1·다중 고객사·장시간 자원 사전 점검이나 분석 대사 자동화까지 완료했다는 뜻이 아니다.
-- **P0-2**: DB 기반 미해결/재처리/해결 상태, 전용 읽기 모니터, 조회·관측 장애 경보,
-  명시적 resolve 및 로컬 실제 webhook 회귀 통과. 운영 수신 채널·실제 공급자 발송 증거는 아니다.
-- **P0-2b**: 저장 오류 전파, 만료 없는 저장 대기 상태, 같은 실패 회차의 idempotent upsert,
-  저장/Redis 종결 확인 후 로그·ACK 처리 및 실제 PG/Redis 장애 회귀 통과. 수동 replay 동시 실행,
-  구버전 혼합 소비, Redis 유실/trim까지 안전해졌다는 뜻은 아니다.
-- **P0-3**: 실제 종료 4시나리오, PG receipt/outbox 대사, 실제 PG 회귀 7건 통과.
-  새 빌드의 API 실행을 검증했으며 운영 이미지 배포·TPS 재측정은 아니다.
-- **P0-4a**: [운영 감시 QA](qa/OPS-MONITOR-QA-2026-09-03.md)까지 완료. source SHA·실행 image ID를 대조한
-  새 worker-only 시험 이미지이며 API/다중 CLI 배포 이미지·레지스트리 digest·서명 증거는 아니다.
-- **P0-4b**: [계측 정의](INGESTION-METRICS.md)와 [실대사 QA](qa/PROJECTION-QA-2026-09-03.md)를 추가했다.
-  전체 API/worker 이미지의 동일 소스 SHA·실행 image ID를 확인했고, 실제 1,000개 승인 ID가
-  PG receipt와 CH 물리 행에 일치했다. **계측 회귀 통과와 성능 통과는 별개다.** 마지막 실행은
-  100 req/s를 채웠지만 p99 548.863ms로 500ms 기준 실패이며, 다른 실행에서는 드롭 433건도 발생했다.
-  기존 processed 지표의 저장 전 증가와 시험기의 UUID 정렬 비교·종료 의존 순서를 수정했다.
-  정확한 commit→commit 지연·서버 시계 오차 검증과 다중 고객/긴 측정 구간은 남아 있다.
-- **P1-2a**: 키 인증은 매번 조회하면서 사용 시각 쓰기만 묶는 opt-in 변경을 추가했다.
-  실제 키 행 잠금 중 접속 대기 10→1, 완료 3/20→20/20. 사용 시각 변경 행 1,000→1을 확인했다.
-  실제 PG 인증/접수 회귀 11/11 및 승인 ID/CH 물리 행 대사는 통과했지만 수정 후 두 번째
-  짧은 부하에서 발생기 드롭 154건·p99 1,547ms가 발생했다. 정상 부하 지연 개선이나 G1 통과가 아니다.
-  기본 설정은 false이며 기존 서비스에는 적용하지 않았다. 상세는 [키 갱신 QA](qa/API-KEY-USAGE-QA-2026-09-03.md).
-- 다음 구현 우선순위는 **COMMIT의 WAL 쓰기/동기화·호스트 자원 경합 분리와 SQL 왕복(P1-2), relay 병목(P1-1)**다.
-  한 실행의 양호한 TPS만 선택해 합격 처리하거나 pool을 무조건 늘리지 않는다.
-  대규모 Redis 관측용 원자적 인덱스/이관도 남는다.
-  G0 전체·G1 이후 성능 단계가 통과된 것은 아니다. 자원 변경·장시간 실행·클라우드 비용·커밋/푸시는 별도 승인 범위다.
+과거 로컬 계측·ID 대사 회귀와 운영 성능 합격은 별개다. 짧은 100 req/s 시험에서도
+지연 초과와 발생기 드롭이 관찰되었으므로 G0/G1·5,000 events/s·24시간 시험은
+새 환경의 원본 결과로 검증해야 한다. 완료 작업별 진행 기록을 성능 인증으로 재사용하지 않는다.
+현재 출시 조건은 [출시 체크리스트](RELEASE-CHECKLIST.md)를 따른다.
 
-## 2026-09-18 resource preflight
+재현·검증 절차:
 
+- [접수·분석 대사](../tests/ops/projection/README.md)와 [API 병목 회귀](../tests/ops/api-capacity/README.md)
+- [운영 감시](../tests/ops/capacity/README.md)와 [부하 발생기 자체 검증](../tests/ops/generator-validation/README.md)
+- [실패 요청 오프라인 복원](../tests/ops/loadgen-failures/README.md)
+
+## 10. 자원 사전 점검
+
+기계 판독용 기준은 [test-plan.json](capacity/test-plan.json)이다.
 `node tests/ops/capacity-preflight/preflight.mjs --phase G1 --output /tmp/new-result.json`
 은 현재 파일시스템과 Docker의 자원만 읽으며 시험을 시작하지 않는다.
-실측 입력·원격 환경 입력 및 결과 해석은
-[실행 안내](../tests/ops/capacity-preflight/README.md)를 따른다.
+실측 입력·원격 환경 입력 및 결과 해석은 [실행 안내](../tests/ops/capacity-preflight/README.md)를 따른다.
 반복 실행·추가 M1·warmup의 누적 저장량과 증거 파일, 복원/sort 공간을 포함한다.
 `RESOURCE_PREFLIGHT_READY`도 G0·운영 부하·24시간 통과를 뜻하지 않는다.
-
-[로컬 사전 점검 결과](capacity/preflight-local-2026-09-18.json)는
-`NO_GO_PREFLIGHT`다. 대상 관리형 환경과 실측 성장량이 없고 현재 로컬 디스크도
-20 GiB 안전 여유보다 작았다. 기존 API/콘솔/저장소는 유지했으며 실제 공급자
-발송이나 운영 환경 부하를 실행하지 않았다. 새 격리 대상이 준비되면 그 대상의
-자원·이미지·소스와 G0 결과로 다시 점검해야 한다.
+새 격리 대상의 자원·이미지·소스와 G0 결과로 점검해야 한다.

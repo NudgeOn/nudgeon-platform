@@ -50,6 +50,12 @@ apps/worker/bin/
 
 # Docs
 docs/
+# One-off public QA reports and completed-work snapshots
+/docs-public/qa/
+/docs-public/*-QA-*.md
+/docs-public/BETA-REMAINING-*.md
+/docs-public/capacity/*
+!/docs-public/capacity/test-plan.json
 
 # Editor / OS
 .DS_Store

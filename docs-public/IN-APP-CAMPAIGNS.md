@@ -113,4 +113,4 @@ IN_APP_CAMPAIGNS_ENABLED=true
 
 구 서버가 `lifecycle_events`를 제공하지 않으면 새 SDK는 이미 표시한 정상 종료를 `dismiss`, 표시 전 중단을 `failed(HOST_BLOCKED)`로 보내 구 서버와 호환됩니다. 정상 중단의 세부 구분은 라이브 캠페인에 적용되며 테스트 연결 로그는 별도입니다.
 
-[실기기·콘솔 검증 기록](IN-APP-DEVICE-QA-2026-09-17.md)의 0.2.2 재검증 결과를 참조하세요.
+최신 SDK와 남은 실기기 검증 조건은 [출시 체크리스트](RELEASE-CHECKLIST.md)를 참조하세요.
