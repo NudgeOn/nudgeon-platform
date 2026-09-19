@@ -1,3 +1,4 @@
+import LaunchQuickstart from './LaunchQuickstart.jsx';
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   IconActivityHeartbeat,
@@ -1075,6 +1076,9 @@ function GuideArticles({ content, announce }) {
               <span>{guide.intro}</span>
               <code>{guide.endpoint}</code>
             </header>
+            {guide.quickstart && <LaunchQuickstart guide={guide.quickstart} renderCode={(id, label, code) =>
+              <CodeBlock content={content} label={label} value={code} copied={copiedGuide === `quickstart-${id}`}
+                onCopy={() => copyGuideCode({ id: `quickstart-${id}`, code })} />} />}
             {guide.tests && <section className="launch-tests" aria-label={guide.tests.title}>
               <h3>{guide.tests.title}</h3>
               <div className="launch-test-grid">{guide.tests.phases.map(phase => <article key={phase.title}>
