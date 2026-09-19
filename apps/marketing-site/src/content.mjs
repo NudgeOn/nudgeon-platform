@@ -1,7 +1,7 @@
 export const content = {
   en: {
-    title: 'NudgeOn — The right message. At their moment.',
-    description: 'Open-source customer engagement. Turn customer activity into push journeys, on your own infrastructure. NudgeOn is a partner beta candidate.',
+    title: 'NudgeOn | Open-source customer engagement & app launch ads',
+    description: 'Self-host customer journeys, push notifications and iOS/Android app launch ads with NudgeOn. Open source, Apache-2.0. Partner beta candidate.',
     product: 'Product', deployment: 'Deployment', developer: 'Developer center', contact: 'Contact', home: 'NudgeOn home', skip: 'Skip to content',
     headline: ['Give them a reason', 'to come back.'],
     intro: 'Open-source customer engagement, from the first event to the next push.',
@@ -35,8 +35,8 @@ export const content = {
     roadmapEnd: 'The source includes recent fixes that still need integrated verification. An implemented feature is not the same as a completed release check.'
   },
   ko: {
-    title: 'NudgeOn — 필요한 메시지가, 필요한 순간에.',
-    description: '고객의 행동을 푸시 여정으로 연결하는 오픈소스 고객 인게이지먼트 플랫폼. 원하는 인프라에서 직접 운영하세요. 현재 파트너 베타 후보입니다.',
+    title: 'NudgeOn | 오픈소스 고객 인게이지먼트·푸시·앱 시작 광고',
+    description: '고객 이벤트 수집, 세그먼트, 푸시 알림과 iOS·Android 앱 시작 전면 광고를 우리 서버에서 운영하세요. Apache-2.0 오픈소스 NudgeOn. 현재 파트너 베타 후보입니다.',
     product: '제품', deployment: '도입 방식', developer: '개발자센터', contact: '문의하기', home: 'NudgeOn 홈', skip: '본문으로 건너뛰기',
     headline: ['다시 찾아올', '이유를 보내세요.'],
     intro: '고객의 행동을 다음 푸시로 연결하는 오픈소스 고객 인게이지먼트 플랫폼.',

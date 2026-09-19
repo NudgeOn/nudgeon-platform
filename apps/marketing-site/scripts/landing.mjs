@@ -1,3 +1,5 @@
+import { productInfo } from "../src/product-info.mjs";
+import { renderProductInfo } from "./product-info.mjs";
 import { renderLaunchAds } from "./launch-ads.mjs";
 import { renderInstallation } from "./installation.mjs";
 import { experience } from "../src/experience.mjs";
@@ -35,7 +37,7 @@ export function renderLanding(lang) {
     <div class="header-actions">${language(lang)}<a class="button compact dark" href="#installation">${t.start}</a></div></div></header>
   <main id="main">
     <section class="hero shell" aria-labelledby="hero-title">
-      <div><h1 id="hero-title">${esc(t.headline[0])}<br><span>${esc(t.headline[1])}</span></h1><div class="hero-actions"><a class="button primary" href="#journeys">${t.explore}${icon("arrow")}</a><a class="button secondary" href="#installation">${t.install}</a></div></div>
+      <div><p class="product-category">${esc(productInfo[lang].category)}</p><h1 id="hero-title">${esc(t.headline[0])}<br><span>${esc(t.headline[1])}</span></h1><div class="hero-actions"><a class="button primary" href="#journeys">${t.explore}${icon("arrow")}</a><a class="button secondary" href="#installation">${t.install}</a></div></div>
       <div class="hero-description"><p>${t.intro}</p><a class="text-link" href="${repo}"><img src="/assets/github-mark.svg" alt="" width="22" height="22">${t.source}${icon("arrow")}</a></div>
     </section>
     <section class="journeys shell" id="journeys" aria-label="${t.interactive}" data-demo data-scenarios="${esc(JSON.stringify(t.scenarios))}" data-steps="${esc(JSON.stringify(t.steps))}" data-complete="${esc(t.complete)}" data-result="${esc(t.result)}" data-replaying="${esc(t.replaying)}">
@@ -64,6 +66,7 @@ export function renderLanding(lang) {
     <section class="deployment shell" id="deployment" aria-labelledby="deployment-title"><div class="deployment-grid"><div><h2 id="deployment-title">${t.deployTitle.map(esc).join("<br>")}</h2><p>${t.deployIntro}</p><div class="deployment-actions"><a class="button primary" href="${docs}#self-hosting">${t.setup}${icon("arrow")}</a><a class="text-link" href="${repo}">${t.viewSource}${icon("arrow")}</a></div></div><div class="terminal"><div class="terminal-header"><span class="terminal-dots"><i></i><i></i><i></i></span><span>Self-hosted NudgeOn</span></div><code><span>$</span> ./nudgeon up</code><p>PostgreSQL · ClickHouse · Redis</p><p>${t.terminal}</p><span class="terminal-license">Apache-2.0</span></div></div>
       <div class="release-strip"><strong>${t.beta}</strong><p>${t.betaBody}</p><a class="text-link" href="${repo}/blob/main/docs-public/RELEASE-CHECKLIST.md">${t.checklist}${icon("arrow")}</a></div>
     </section>
+    ${renderProductInfo(lang)}
     <section class="final-cta"><div class="shell"><h2>${t.finalTitle}</h2><a class="button lime" href="${guide}#message">${t.finalCta}${icon("arrow")}</a></div></section>
   </main>
   <footer class="footer shell"><div>${brand}<p>${t.footer}</p></div><nav aria-label="${lang === "ko" ? "관련 링크" : "Resources"}"><a href="${guide}">${t.guide}</a><a href="${docs}">${t.developers}</a><a href="${repo}">GitHub</a><a href="mailto:hello@nudgeon.io">${t.contact}</a></nav>${language(lang)}</footer>`;
