@@ -31,7 +31,7 @@ export const launchAdHelp = {
       "VoiceOver·TalkBack으로 제목 읽기, 광고 종료 후 메인 포커스, 시간 제한 없는 동일 콘텐츠 접근을 확인하세요. 실제 이용자·보조 기술 사용자 검증은 별도로 필요합니다. 3~5초 자동 종료만으로 접근성 적합성을 주장하지 않습니다."
     ],
     "reviewTitle": "검수 연결을 끝내기 전에",
-    "reviewBody": "네이티브 닫기 후 예제 앱에서 전송 대기 → 전송 중 → 서버 확인(대기 0)을 확인하고 End test session으로 종료하세요. 종료 시 남은 기록을 먼저 전송하며 실패하면 암호화 보관합니다. Retry transfer로 다시 보내거나 앱 재실행 후 전송을 복구할 수 있습니다. Discard pending records는 기록을 포기할 때만 선택하세요. 서버 확인은 기록 수신이며 검수 통과가 아닙니다. 콘솔의 동일 버전·OS 검수는 별도로 진행합니다. 테스트 자격(30분)·실행 유효기간(5분)이 지나 거절되면 새 검수가 필요합니다."
+    "reviewBody": "네이티브 닫기 후 앱의 기록 전송 상태를 확인하세요. 일시적인 연결 실패는 “기록 1건 보관 중 · 자동 재시도 예정”으로 안내하며, 앱이 실행 가능한 동안 자동 재시도합니다. 연결 복구 후 다시 전송(Retry transfer) 또는 앱 재실행으로 전송만 복구할 수도 있습니다. 서버가 인증·권한·만료 문제 등으로 거절하면 재전송 버튼 대신 “새 검수가 필요합니다”를 안내합니다. 새 검수 준비(Prepare new review)에서 기록 폐기를 확인하고 새 연결 코드로 다시 검수하세요. 폐기한 기록은 서버 수신이나 검수 통과로 처리되지 않습니다. 수신 완료 뒤 “다음: 콘솔에서 검수 승인”을 따라 같은 소스 버전·OS의 실행과 네이티브 닫기 완료를 확인하고 승인하세요. 중단된 검수는 다시 진행해야 합니다. End test session은 남은 기록을 전송한 뒤 연결을 끝냅니다. 테스트 자격(30분)·실행 유효기간(5분)이 지나면 복구가 거절될 수 있습니다."
   },
   "en": {
     "title": "No ad? Check these in order",
@@ -65,6 +65,6 @@ export const launchAdHelp = {
       "Use VoiceOver and TalkBack to check heading reading, focus after dismissal and access to the same untimed content. Validation with real users and assistive-technology users remains necessary. A 3–5 second auto-dismiss timer alone does not establish accessibility conformance."
     ],
     "reviewTitle": "Before ending content review",
-    "reviewBody": "After native Close, check Waiting → Sending → Server confirmed (pending 0) in the example app, then End test session. Ending uploads remaining records first and retains failures in encrypted storage. Use Retry transfer or relaunch the app to recover delivery. Choose Discard pending records only to abandon the records. Server confirmed means receipt, not review approval; approve the matching revision and OS in the console separately. Expired test credentials (30 minutes) or active runs (five minutes) can reject recovery and require a new review."
+    "reviewBody": "After native Close, check delivery in the app. Temporary failures show retained records and scheduled automatic retry while the app can run. After connection recovery, use Retry transfer or relaunch to recover uploads only. Rejected credentials, permissions, expiry or other permanent errors disable Retry and explain that a new review is required. Choose Prepare new review, confirm discard, then use a new pairing code to repeat the review. Discard never counts as receipt or approval. After delivery, follow “Next: approve the review in the console”: check the same revision, OS and native-close completion, then approve. Interrupted reviews must be repeated. End test session sends remaining records before closing. Expired test credentials (30 minutes) or active runs (five minutes) can reject recovery."
   }
 };

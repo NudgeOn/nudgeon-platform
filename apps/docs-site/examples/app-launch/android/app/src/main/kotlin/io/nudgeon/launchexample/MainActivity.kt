@@ -48,6 +48,7 @@ class MainActivity : Activity() {
     private lateinit var confirmation: TextView
     private lateinit var reviewStatus: TextView
     private lateinit var transfer: TextView
+    private lateinit var transferDetails: TextView
     private lateinit var retryReview: Button
     private lateinit var discardReview: Button
     private lateinit var connectReview: Button
@@ -62,7 +63,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         buildMain()
         if (!API_URL.contains("YOUR_") && !SDK_KEY.contains("YOUR_")) {
-            try { prepareReviewClient() } catch (_: Exception) { transfer.text = "Failed · test storage unavailable"; connectReview.isEnabled = false }
+            try { prepareReviewClient() } catch (_: Exception) { transfer.text = reviewText("검수 기록 저장소를 열지 못했습니다. 기기 저장소 접근을 확인한 뒤 앱을 다시 실행하세요.", "Review storage is unavailable. Check device storage access and restart the app."); connectReview.isEnabled = false }
         }
         val firstOwner = !opportunityConsumed && savedInstanceState == null
         opportunityConsumed = true // Consent changes must not create a late launch.
@@ -185,20 +186,58 @@ class MainActivity : Activity() {
         InAppTestClient.Configuration(apiUrl=API_URL,sdkKey=SDK_KEY),
         host={this},isAllowed={reviewing && resumed && !isFinishing && !isDestroyed},
         onAction={reviewStatus.text="Test action received."},
-        onDiagnostic={if(!it.startsWith("CONFIRM_DEVICE:")) reviewStatus.text="Local event: $it"},
-        onTransferStatus={state ->
-            val name=when(state.phase) {
-                InAppTestTransferStatus.Phase.IDLE -> "No pending records"
-                InAppTestTransferStatus.Phase.PENDING -> "Waiting"
-                InAppTestTransferStatus.Phase.SENDING -> "Sending"
-                InAppTestTransferStatus.Phase.ACKNOWLEDGED -> "Server confirmed"
-                InAppTestTransferStatus.Phase.FAILED -> "Failed"
+        onDiagnostic={android.util.Log.d("NudgeOnReview",it)},
+        onTransferStatus={state -> showTransfer(state)}).also { review=it }
+
+    private fun reviewText(ko: String, en: String) = if (resources.configuration.locales[0].language == "ko") ko else en
+    private fun isPermanent(reason: String?) = reason in setOf("HTTP_400", "HTTP_401", "HTTP_403", "HTTP_404", "HTTP_409", "HTTP_410", "HTTP_422", "QUEUE_FULL")
+    private fun showTransfer(state: InAppTestTransferStatus) {
+        val permanent = isPermanent(state.reason)
+        val count = reviewText("대기 ${state.pendingCount}건 · 서버 수신 ${state.acknowledgedCount}건", "Pending ${state.pendingCount} · received ${state.acknowledgedCount}")
+        val message = when {
+            permanent -> {
+                val cause = when(state.reason) {
+                    "HTTP_401", "HTTP_403" -> reviewText("연결 만료 또는 권한 문제로 서버가 수신을 거절했습니다. API 주소와 SDK 키, 테스트 연결을 확인하세요.", "The server rejected the test credentials. Check the API address, SDK key and test connection; the session may have expired or lost permission.")
+                    "HTTP_404", "HTTP_409", "HTTP_410" -> reviewText("실행 만료·취소 또는 기록 충돌로 서버가 수신을 거절했습니다.", "The run is unavailable, expired or cancelled, or the record conflicts with one already received.")
+                    "QUEUE_FULL" -> reviewText("보관 가능한 기록 수를 넘었습니다.", "The pending-record limit was reached.")
+                    else -> reviewText("서버가 기록 형식을 거절했습니다. 개발 담당자에게 SDK와 서버 설정 확인을 요청하세요.", "The server rejected the record format. Ask your developer to check SDK and server configuration.")
+                }
+                reviewText("새 검수가 필요합니다. ", "A new review is required. ") + cause + reviewText(" 이 기록은 재전송할 수 없습니다. 아래 ‘새 검수 준비’에서 폐기를 확인한 뒤 새 연결 코드를 입력하세요.", " These records cannot be retried. Use Prepare new review below, confirm discard, then enter a new pairing code.")
             }
-            transfer.text="$name · pending ${state.pendingCount} · received ${state.acknowledgedCount}" + (state.reason?.let { " · $it" } ?: "")
-            retryReview.isEnabled=state.phase in setOf(InAppTestTransferStatus.Phase.PENDING,InAppTestTransferStatus.Phase.FAILED)
-            discardReview.isEnabled=!reviewing && (state.phase==InAppTestTransferStatus.Phase.FAILED || state.pendingCount>0)
-            if(!reviewing) connectReview.isEnabled=state.canEndSafely
-        }).also { review=it }
+            state.reason == "STORAGE_ERROR" -> reviewText("기록 저장을 확인하지 못했습니다. 앱을 종료하면 미저장 기록이 유실될 수 있습니다. 기기 저장소 문제를 해결한 뒤 다시 시도하세요. 자동 재시도는 중단되었습니다.", "Storage could not be confirmed. Closing the app can lose unsaved records. Resolve device storage access, then retry. Automatic retries are paused.")
+            else -> when(state.phase) {
+                InAppTestTransferStatus.Phase.IDLE -> reviewText("보낼 기록이 없습니다. 새 검수는 기기 연결 후 시작합니다.", "No pending records. Connect a device to start a new review.")
+                InAppTestTransferStatus.Phase.PENDING, InAppTestTransferStatus.Phase.FAILED -> if(state.pendingCount > 0)
+                    reviewText("기록 ${state.pendingCount}건 보관 중 · 자동 재시도 예정. 앱이 실행 가능한 동안 다시 전송합니다. 연결이 복구되면 ‘다시 전송’을 눌러도 됩니다. 테스트 유효기간 안에 전송을 마치세요.", "${state.pendingCount} record(s) retained · automatic retry scheduled while the app can run. Retry transfer when the connection recovers. Complete delivery before the test expires.")
+                    else reviewText("기록 전송은 끝났고 연결 종료를 확인 중입니다. 앱이 실행 가능한 동안 자동 재시도합니다.", "Records have been sent; session closure is pending. Automatic retry continues while the app can run.")
+                InAppTestTransferStatus.Phase.SENDING -> reviewText("서버 수신을 확인 중입니다. 확인이 끝날 때까지 보관 기록을 유지합니다.", "Confirming server receipt. Records remain retained until acknowledgement.")
+                InAppTestTransferStatus.Phase.ACKNOWLEDGED -> if(state.canEndSafely)
+                    reviewText("기록 전송 완료. 다음: 콘솔에서 검수 승인. 같은 소스 버전·OS의 실행 결과와 네이티브 닫기 완료를 확인하세요. 중단된 검수는 다시 진행해야 합니다. 수신 완료는 검수 통과가 아닙니다.", "Delivery complete. Next: approve the review in the console. Check the same revision, OS and native-close completion. Interrupted reviews must be repeated. Receipt is not approval.")
+                    else reviewText("현재 기록은 서버가 받았습니다. 콘텐츠 확인 후 네이티브 닫기로 검수를 마치세요.", "Current records were received. Finish content review with the native Close button.")
+            }
+        }
+        transfer.text = "$message\n$count"
+        transferDetails.text = state.reason?.let { reviewText("진단 코드: ","Diagnostic code: ") + it } ?: ""
+        retryReview.isEnabled = !permanent && state.phase in setOf(InAppTestTransferStatus.Phase.PENDING,InAppTestTransferStatus.Phase.FAILED)
+        discardReview.text = if(permanent) reviewText("새 검수 준비", "Prepare new review") else reviewText("보관 기록 폐기", "Discard pending records")
+        discardReview.isEnabled = permanent || (!reviewing && (state.phase == InAppTestTransferStatus.Phase.FAILED || state.pendingCount > 0))
+        if(!reviewing) connectReview.isEnabled = state.canEndSafely
+    }
+
+    private fun confirmDiscard() {
+        AlertDialog.Builder(this).setTitle(reviewText("보관 기록을 폐기할까요?", "Discard pending records?"))
+            .setMessage(reviewText("미전송 기록은 삭제되며 서버 수신이나 검수 통과로 처리되지 않습니다. 새 코드를 발급받아 같은 소스를 다시 검수해야 합니다.", "Unsent records will be deleted, never marked received or approved. Generate a new pairing code and review the source again."))
+            .setNegativeButton(reviewText("기록 유지", "Keep records"),null)
+            .setPositiveButton(reviewText("기록 폐기 후 새 검수", "Discard and start new review")) { _,_ ->
+                reviewing = false; reviewGeneration++
+                reviewJob?.cancel(); reviewJob = null
+                pairingCode.text.clear(); confirmation.text = ""; endReview.isEnabled = false
+                review?.discardPendingEvents()
+                if(review?.transferStatus?.phase == InAppTestTransferStatus.Phase.IDLE) {
+                    reviewStatus.text = reviewText("콘솔에서 새 연결 코드를 발급받아 입력하세요. 소스 검수도 다시 진행하세요.", "Generate and enter a new console pairing code, then review the source again.")
+                }
+            }.show()
+    }
 
     private fun endContentReview() {
         if (!reviewing && reviewJob == null) return
@@ -209,7 +248,7 @@ class MainActivity : Activity() {
         review?.end() // Invalidates in-flight pairing and ends the remote session asynchronously.
         pairingCode.text.clear()
         confirmation.text = ""
-        reviewStatus.text = "Test presentation stopped. Pending records are retained until server confirmation. Receipt is not review approval."
+        reviewStatus.text = reviewText("테스트 화면을 종료했습니다. 기록 전송 상태는 아래에서 확인하세요.", "Test presentation stopped. Check record delivery below.")
         connectReview.isEnabled = review?.transferStatus?.canEndSafely == true
         endReview.isEnabled = false
     }
@@ -256,7 +295,7 @@ class MainActivity : Activity() {
         }
         column.addView(text("NudgeOn · App launch example"))
         column.addView(text("1. Content review · manual close"))
-        column.addView(text("Paste a workbench code, connect, and compare the confirmation number. Finish with the ad's native Close button, then End to upload pending records. Server confirmed means receipt, not review approval. Retry failed transfers without reconnecting."))
+        column.addView(text("Paste a workbench code, connect, and compare the confirmation number. Finish with the ad's native Close button, then End to upload pending records. Server confirmed means receipt, not review approval. Retry temporary failures without reconnecting; rejected sessions require a new review."))
         pairingCode = EditText(this).apply {
             hint = "Workbench pairing code"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
@@ -271,7 +310,7 @@ class MainActivity : Activity() {
         column.addView(connectReview)
         confirmation = text("")
         column.addView(confirmation)
-        reviewStatus = text("Not connected. Test mode starts only when you tap Connect.")
+        reviewStatus = text(reviewText("테스트 연결과 기록 전송은 별개입니다. 새 검수는 연결 버튼으로 시작하세요.", "Test pairing and record delivery are separate. Use Connect to start a new review."))
         column.addView(reviewStatus)
         endReview = Button(this).apply {
             text = "End test session"
@@ -279,17 +318,18 @@ class MainActivity : Activity() {
             setOnClickListener { endContentReview() }
         }
         column.addView(endReview)
-        transfer = text("No pending records")
+        transfer = text(reviewText("보낼 기록이 없습니다.", "No pending records"))
+        transfer.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        transferDetails = text("").apply { textSize = 13f }
         column.addView(transfer)
-        retryReview = Button(this).apply { text="Retry transfer"; isEnabled=false; setOnClickListener { review?.retryPendingEvents() } }
+        column.addView(transferDetails)
+        retryReview = Button(this).apply {
+            text=reviewText("다시 전송", "Retry transfer"); isEnabled=false
+            setOnClickListener { if(!isPermanent(review?.transferStatus?.reason)) review?.retryPendingEvents() }
+        }
         discardReview = Button(this).apply {
-            text="Discard pending records"; isEnabled=false
-            setOnClickListener {
-                AlertDialog.Builder(this@MainActivity).setTitle("Discard unsent records?")
-                    .setMessage("This abandons delivery and never marks a review as passed.")
-                    .setNegativeButton("Keep records",null)
-                    .setPositiveButton("Discard records") { _,_ -> review?.discardPendingEvents() }.show()
-            }
+            text=reviewText("보관 기록 폐기", "Discard pending records"); isEnabled=false
+            setOnClickListener { confirmDiscard() }
         }
         column.addView(retryReview); column.addView(discardReview)
         column.addView(text("2. Published launch ad · auto-dismiss"))

@@ -1634,3 +1634,21 @@ a {
 .launch-help ul { padding-left: 20px; }
 .launch-help li + li { margin-top: 14px; }
 .launch-help a { color: var(--accent); }
+
+.launch-quickstart { margin: 24px 0 32px; padding: 24px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-soft); }
+.launch-quickstart h3 { margin: 0 0 12px; font-size: 19px; }
+.launch-quickstart p { font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.launch-platform-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+.launch-platform-buttons button { padding: 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; }
+.launch-platform-buttons button strong { display: block; color: var(--accent); font-size: 16px; }
+.launch-platform-buttons button span { display: block; margin-top: 10px; font-size: 13px; line-height: 1.6; }
+.launch-platform-buttons button[aria-expanded="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.launch-quickstart button:focus-visible, .launch-quickstart a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.launch-quickstart-panel { padding-top: 24px; }
+.launch-quickstart-panel h4 { margin: 0 0 16px; font-size: 18px; }
+.launch-quickstart-panel h5 { margin: 0 0 12px; font-size: 15px; }
+.launch-quickstart-panel ol { padding-left: 24px; }
+.launch-quickstart-panel li { min-width: 0; padding-left: 6px; margin: 24px 0; }
+.launch-quickstart-panel nav { display: flex; flex-wrap: wrap; gap: 16px; }
+.launch-quickstart-panel a { color: var(--accent); font-size: 14px; }
+@media (max-width: 700px) { .launch-platform-buttons { grid-template-columns: 1fr; } .launch-quickstart { padding: 20px; } }

@@ -1,3 +1,4 @@
+import { launchAdQuickstart } from './launchAdQuickstart.js';
 import { launchAdHelp } from './launchAdHelp.js';
 import swift from '../examples/app-launch/ios/LaunchAdExample.swift?raw';
 import kotlin from '../examples/app-launch/android/app/src/main/kotlin/io/nudgeon/launchexample/MainActivity.kt?raw';
@@ -21,7 +22,7 @@ const links = {
 };
 export const launchAdContent = {
   ko: {
-    help: launchAdHelp.ko,
+    help: launchAdHelp.ko, quickstart: launchAdQuickstart.ko,
     id: 'launch-ads', tests: launchAdTests.ko, eyebrow: 'APP LAUNCH ADS · iOS & ANDROID',
     title: '런치 화면 다음, 전면 광고를 자동으로 보여주세요',
     intro: 'APP-AD는 해당 앱의 신규·기존 사용자 전체가 대상입니다. 로그인·세그먼트·테스트 기기 연결 없이 선택한 OS의 SDK 연결 기기에서 동의·기간·빈도 조건에 따라 표시합니다. OS 런치 화면 → 앱의 시작 화면 덮개 → 불투명 전면 광고 → 메인 화면. SDK 0.2.5는 실제 표시부터 기본 4초 뒤 광고를 자동 종료합니다. 표시 시간은 3~5초로 설정하며 시작 광고에는 네이티브 닫기·오늘 하루 안 보기 버튼이 없습니다.',
@@ -40,11 +41,11 @@ export const launchAdContent = {
       { label: 'Android · Maven Central 의존성', code: 'implementation("io.nudgeon:nudgeon-sdk:0.2.5")\nimplementation("io.nudgeon:nudgeon-inapp:0.2.5")\nimplementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")' },
       { label: 'Android · 전체 실행 소스 펼치기 / 복사', code: kotlin, complete: true },
     ],
-    note: '전체 예제 프로젝트와 실행 안내는 아래 링크에서 받습니다. 두 예제에서 Connect for content review로 연결 코드를 입력하고 확인 숫자를 대조할 수 있습니다. 앱에서 전송 상태와 서버 확인(대기 0)을 확인하고 End test session으로 종료하세요. 실패 기록은 보관하며 Retry transfer 또는 재실행 후 전송만 복구합니다. 서버 확인은 검수 통과가 아닙니다. 검수와 운영 광고는 동시에 실행하지 않으며 백그라운드 전환 때 중단합니다. 첫 실행에서 동의한 후 프로세스를 종료·재실행하세요. 추가 화면·이벤트·복귀 캠페인은 앱 생명주기에 맞춰 별도로 연결합니다. InAppTestClient와 운영 InAppCampaignClient는 별도입니다. 앱스토어 업데이트 없이 콘텐츠를 바꾸려면 먼저 앱에 SDK·호스트 연결을 배포해야 합니다. 일반 인앱 팝업의 닫기·숨김 동작은 유지됩니다.',
+    note: '전체 예제 프로젝트와 실행 안내는 아래 링크에서 받습니다. 두 예제에서 Connect for content review로 연결 코드를 입력하고 확인 숫자를 대조할 수 있습니다. 앱에서 전송 상태와 서버 확인(대기 0)을 확인하고 End test session으로 종료하세요. 일시적 실패는 기록을 보관하고 자동 재시도합니다. 재전송할 수 없는 오류는 새 검수 준비를 안내합니다. 수신 완료 뒤 “다음: 콘솔에서 검수 승인”을 따라 진행하세요. 서버 수신은 검수 통과가 아닙니다. 검수와 운영 광고는 동시에 실행하지 않으며 백그라운드 전환 때 중단합니다. 첫 실행에서 동의한 후 프로세스를 종료·재실행하세요. 추가 화면·이벤트·복귀 캠페인은 앱 생명주기에 맞춰 별도로 연결합니다. InAppTestClient와 운영 InAppCampaignClient는 별도입니다. 앱스토어 업데이트 없이 콘텐츠를 바꾸려면 먼저 앱에 SDK·호스트 연결을 배포해야 합니다. 일반 인앱 팝업의 닫기·숨김 동작은 유지됩니다.',
     source: 'APP-LAUNCH-ADS · IN-APP-CAMPAIGNS · iOS/Android SDK 0.2.5', links: links.ko,
   },
   en: {
-    help: launchAdHelp.en,
+    help: launchAdHelp.en, quickstart: launchAdQuickstart.en,
     id: 'launch-ads', tests: launchAdTests.en, eyebrow: 'APP LAUNCH ADS · iOS & ANDROID',
     title: 'Show a timed full-screen ad after the launch screen',
     intro: 'APP-AD targets all new and existing users of this app. No login, segment membership or test pairing is required; SDK integration, consent, schedule and frequency still apply on selected platforms. OS launch screen → host startup cover → opaque full-screen ad → main screen. SDK 0.2.5 automatically dismisses the ad 4 seconds after presentation by default. Configure 3–5 seconds; startup ads have no native close or hide-today buttons.',
@@ -63,7 +64,7 @@ export const launchAdContent = {
       { label: 'Android · Maven Central dependencies', code: 'implementation("io.nudgeon:nudgeon-sdk:0.2.5")\nimplementation("io.nudgeon:nudgeon-inapp:0.2.5")\nimplementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")' },
       { label: 'Android · expand / copy complete app source', code: kotlin, complete: true },
     ],
-    note: 'Get the complete projects and run instructions from the links below. Both examples include Connect for content review and a persistent confirmation number. Check Server confirmed (pending 0) in the app before End test session. Failed records are retained: Retry transfer or relaunch to recover uploads only. Receipt does not approve the review. Review and production clients never run together, and stop when inactive. Grant consent on first run, then terminate and relaunch. Integrate other screen/event/foreground campaigns with your own app lifecycle separately. InAppTestClient and the production InAppCampaignClient are separate. Deploy the SDK and host integration in your app before changing content without app updates. Ordinary in-app close/hide behavior is retained.',
+    note: 'Get the complete projects and run instructions from the links below. Both examples include Connect for content review and a persistent confirmation number. Check Delivery complete (Pending 0) in the app before End test session. Temporary failures retain records and retry automatically. Permanent errors guide you to Prepare new review. After delivery, follow Next: approve the review in the console. Receipt does not approve the review. Review and production clients never run together, and stop when inactive. Grant consent on first run, then terminate and relaunch. Integrate other screen/event/foreground campaigns with your own app lifecycle separately. InAppTestClient and the production InAppCampaignClient are separate. Deploy the SDK and host integration in your app before changing content without app updates. Ordinary in-app close/hide behavior is retained.',
     source: 'APP-LAUNCH-ADS · IN-APP-CAMPAIGNS · iOS/Android SDK 0.2.5', links: links.en,
   },
 };

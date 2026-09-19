@@ -6,6 +6,11 @@ import NudgeOnInApp
 private let apiURL = "https://YOUR_API_HOST"
 private let sdkKey = "YOUR_PUBLIC_SDK_KEY"
 
+private func reviewText(_ ko: String, _ en: String) -> String {
+    Locale.preferredLanguages.first?.hasPrefix("ko") == true ? ko : en
+}
+private let permanentReviewErrors: Set<String> = ["HTTP_400", "HTTP_401", "HTTP_403", "HTTP_404", "HTTP_409", "HTTP_410", "HTTP_422", "QUEUE_FULL"]
+
 @main
 @MainActor
 final class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -35,7 +40,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         main.retryReview.addTarget(self, action: #selector(retryReview), for: .touchUpInside)
         main.discardReview.addTarget(self, action: #selector(discardReview), for: .touchUpInside)
         if !apiURL.contains("YOUR_"), !sdkKey.contains("YOUR_") {
-            do { try prepareReviewClient() } catch { main.transfer.text = "Failed · test storage unavailable"; main.connectReview.isEnabled = false }
+            do { try prepareReviewClient() } catch { main.transfer.text = reviewText("검수 기록 저장소를 열지 못했습니다. 기기 저장소 접근을 확인한 뒤 앱을 다시 실행하세요.", "Review storage is unavailable. Check device storage access and restart the app."); main.connectReview.isEnabled = false }
         }
         // This sample is a single-window, startup-only app. Consume a skipped opportunity too.
         eligible = main.consent.isOn && options?[.url] == nil && options?[.userActivityDictionary] == nil
@@ -157,24 +162,70 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         review = try InAppTestClient(configuration: .init(apiURL: url, sdkKey: sdkKey),
             host: { [weak self] in self?.main }, isAllowed: { [weak self] in self?.reviewing == true },
             onAction: { [weak self] _ in self?.main.reviewStatus.text = "Test action received." },
-            onDiagnostic: { [weak self] message in
+            onDiagnostic: { message in
                 guard !message.hasPrefix("CONFIRM_DEVICE:") else { return }
-                self?.main.reviewStatus.text = "Local event: \(message)"
+                print("NudgeOn review: \(message)")
             }, onTransferStatus: { [weak self] state in
                 guard let self else { return }
-                let names: [InAppTestTransferStatus.Phase: String] = [.idle: "No pending records", .pending: "Waiting", .sending: "Sending", .acknowledged: "Server confirmed", .failed: "Failed"]
-                self.main.transfer.text = "\(names[state.phase] ?? state.phase.rawValue) · pending \(state.pendingCount) · received \(state.acknowledgedCount)" + (state.reason.map { " · " + $0 } ?? "")
-                self.main.retryReview.isEnabled = state.phase == .failed || state.phase == .pending
-                self.main.discardReview.isEnabled = !self.reviewing && (state.phase == .failed || state.pendingCount > 0)
-                if !self.reviewing { self.main.connectReview.isEnabled = state.canEndSafely }
+                self.showTransfer(state)
             })
     }
-    @objc private func retryReview() { review?.retryPendingEvents() }
+    private func showTransfer(_ state: InAppTestTransferStatus) {
+        let permanent = permanentReviewErrors.contains(state.reason ?? "")
+        let count = reviewText("대기 \(state.pendingCount)건 · 서버 수신 \(state.acknowledgedCount)건", "Pending \(state.pendingCount) · received \(state.acknowledgedCount)")
+        let message: String
+        if permanent {
+            let cause: String
+            switch state.reason {
+            case "HTTP_401", "HTTP_403": cause = reviewText("연결 만료 또는 권한 문제로 서버가 수신을 거절했습니다. API 주소와 SDK 키, 테스트 연결을 확인하세요.", "The server rejected the test credentials. Check the API address, SDK key and test connection; the session may have expired or lost permission.")
+            case "HTTP_404", "HTTP_409", "HTTP_410": cause = reviewText("실행 만료·취소 또는 기록 충돌로 서버가 수신을 거절했습니다.", "The run is unavailable, expired or cancelled, or the record conflicts with one already received.")
+            case "QUEUE_FULL": cause = reviewText("보관 가능한 기록 수를 넘었습니다.", "The pending-record limit was reached.")
+            default: cause = reviewText("서버가 기록 형식을 거절했습니다. 개발 담당자에게 SDK와 서버 설정 확인을 요청하세요.", "The server rejected the record format. Ask your developer to check SDK and server configuration.")
+            }
+            message = reviewText("새 검수가 필요합니다. ", "A new review is required. ") + cause + reviewText(" 이 기록은 재전송할 수 없습니다. 아래 ‘새 검수 준비’에서 폐기를 확인한 뒤 새 연결 코드를 입력하세요.", " These records cannot be retried. Use Prepare new review below, confirm discard, then enter a new pairing code.")
+        } else if state.reason == "STORAGE_ERROR" {
+            message = reviewText("기록 저장을 확인하지 못했습니다. 앱을 종료하면 미저장 기록이 유실될 수 있습니다. 기기 저장소 문제를 해결한 뒤 다시 시도하세요. 자동 재시도는 중단되었습니다.", "Storage could not be confirmed. Closing the app can lose unsaved records. Resolve device storage access, then retry. Automatic retries are paused.")
+        } else {
+            switch state.phase {
+            case .idle: message = reviewText("보낼 기록이 없습니다. 새 검수는 기기 연결 후 시작합니다.", "No pending records. Connect a device to start a new review.")
+            case .pending, .failed:
+                message = state.pendingCount > 0
+                    ? reviewText("기록 \(state.pendingCount)건 보관 중 · 자동 재시도 예정. 앱이 실행 가능한 동안 다시 전송합니다. 연결이 복구되면 ‘다시 전송’을 눌러도 됩니다. 테스트 유효기간 안에 전송을 마치세요.", "\(state.pendingCount) record(s) retained · automatic retry scheduled while the app can run. Retry transfer when the connection recovers. Complete delivery before the test expires.")
+                    : reviewText("기록 전송은 끝났고 연결 종료를 확인 중입니다. 앱이 실행 가능한 동안 자동 재시도합니다.", "Records have been sent; session closure is pending. Automatic retry continues while the app can run.")
+            case .sending: message = reviewText("서버 수신을 확인 중입니다. 확인이 끝날 때까지 보관 기록을 유지합니다.", "Confirming server receipt. Records remain retained until acknowledgement.")
+            case .acknowledged:
+                message = state.canEndSafely
+                    ? reviewText("기록 전송 완료. 다음: 콘솔에서 검수 승인. 같은 소스 버전·OS의 실행 결과와 네이티브 닫기 완료를 확인하세요. 중단된 검수는 다시 진행해야 합니다. 수신 완료는 검수 통과가 아닙니다.", "Delivery complete. Next: approve the review in the console. Check the same revision, OS and native-close completion. Interrupted reviews must be repeated. Receipt is not approval.")
+                    : reviewText("현재 기록은 서버가 받았습니다. 콘텐츠 확인 후 네이티브 닫기로 검수를 마치세요.", "Current records were received. Finish content review with the native Close button.")
+            }
+        }
+        main.transfer.text = message + "\n" + count
+        main.transferDetails.text = state.reason.map { reviewText("진단 코드: ", "Diagnostic code: ") + $0 }
+        main.retryReview.isEnabled = !permanent && (state.phase == .failed || state.phase == .pending)
+        main.discardReview.setTitle(permanent ? reviewText("새 검수 준비", "Prepare new review") : reviewText("보관 기록 폐기", "Discard pending records"), for: .normal)
+        main.discardReview.isEnabled = permanent || (!reviewing && (state.phase == .failed || state.pendingCount > 0))
+        if !reviewing { main.connectReview.isEnabled = state.canEndSafely }
+    }
+    @objc private func retryReview() {
+        guard let review, !permanentReviewErrors.contains(review.transferStatus.reason ?? "") else { return }
+        review.retryPendingEvents()
+    }
     @objc private func discardReview() {
-        let prompt = UIAlertController(title: "Discard unsent records?", message: "This abandons delivery and never marks a review as passed.", preferredStyle: .alert)
-        prompt.addAction(UIAlertAction(title: "Keep records", style: .cancel))
-        prompt.addAction(UIAlertAction(title: "Discard records", style: .destructive) { [weak self] _ in
-            Task { await self?.review?.discardPendingEvents() }
+        let prompt = UIAlertController(title: reviewText("보관 기록을 폐기할까요?", "Discard pending records?"), message: reviewText("미전송 기록은 삭제되며 서버 수신이나 검수 통과로 처리되지 않습니다. 새 코드를 발급받아 같은 소스를 다시 검수해야 합니다.", "Unsent records will be deleted, never marked received or approved. Generate a new pairing code and review the source again."), preferredStyle: .alert)
+        prompt.addAction(UIAlertAction(title: reviewText("기록 유지", "Keep records"), style: .cancel))
+        prompt.addAction(UIAlertAction(title: reviewText("기록 폐기 후 새 검수", "Discard and start new review"), style: .destructive) { [weak self] _ in
+            guard let self else { return }
+            self.reviewing = false; self.reviewGeneration += 1
+            let generation = self.reviewGeneration
+            self.reviewTask?.cancel(); self.reviewTask = nil
+            self.main.pairingCode.text = ""; self.main.confirmation.text = ""; self.main.endReview.isEnabled = false
+            Task { [weak self] in
+                guard let self else { return }
+                await self.review?.discardPendingEvents()
+                if self.reviewGeneration == generation, self.review?.transferStatus.phase == .idle {
+                    self.main.reviewStatus.text = reviewText("콘솔에서 새 연결 코드를 발급받아 입력하세요. 소스 검수도 다시 진행하세요.", "Generate and enter a new console pairing code, then review the source again.")
+                }
+            }
         })
         main.present(prompt, animated: true)
     }
@@ -189,7 +240,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         review?.contextChanged() // Invalidates a pairing request already in flight.
         main.pairingCode.text = ""
         main.confirmation.text = ""
-        main.reviewStatus.text = "Test presentation stopped. Pending records are retained until server confirmation. Receipt is not review approval."
+        main.reviewStatus.text = reviewText("테스트 화면을 종료했습니다. 기록 전송 상태는 아래에서 확인하세요.", "Test presentation stopped. Check record delivery below.")
         main.connectReview.isEnabled = false
         main.endReview.isEnabled = false
         let client = review
@@ -241,6 +292,7 @@ final class MainViewController: UIViewController {
     let confirmation = UILabel()
     let reviewStatus = UILabel()
     let transfer = UILabel()
+    let transferDetails = UILabel()
     let retryReview = UIButton(type: .system)
     let discardReview = UIButton(type: .system)
     let connectReview = UIButton(type: .system)
@@ -263,7 +315,7 @@ final class MainViewController: UIViewController {
         reviewTitle.font = .preferredFont(forTextStyle: .headline)
         let reviewHelp = UILabel()
         reviewHelp.numberOfLines = 0
-        reviewHelp.text = "Paste a workbench code, connect, and compare the confirmation number. Finish the test using the ad's native Close button. End stops presentation and sends pending records. Server confirmed means receipt, not review approval. Retry failed transfers without reconnecting."
+        reviewHelp.text = "Paste a workbench code, connect, and compare the confirmation number. Finish the test using the ad's native Close button. End stops presentation and sends pending records. Server confirmed means receipt, not review approval. Retry temporary failures without reconnecting; rejected sessions require a new review."
         pairingCode.placeholder = "Workbench pairing code"
         pairingCode.accessibilityIdentifier = "review-pairing-code"
         pairingCode.borderStyle = .roundedRect
@@ -273,14 +325,20 @@ final class MainViewController: UIViewController {
         confirmation.font = .preferredFont(forTextStyle: .headline)
         confirmation.accessibilityIdentifier = "review-confirmation"
         reviewStatus.numberOfLines = 0
-        reviewStatus.text = "Not connected. Test mode starts only when you tap Connect."
+        reviewStatus.text = reviewText("테스트 연결과 기록 전송은 별개입니다. 새 검수는 연결 버튼으로 시작하세요.", "Test pairing and record delivery are separate. Use Connect to start a new review.")
         connectReview.setTitle("Connect for content review", for: .normal)
         endReview.setTitle("End test session", for: .normal)
         endReview.isEnabled = false
         transfer.numberOfLines = 0
-        transfer.text = "No pending records"
+        transfer.text = reviewText("보낼 기록이 없습니다.", "No pending records")
         transfer.accessibilityIdentifier = "review-transfer"
-        retryReview.setTitle("Retry transfer", for: .normal)
+        retryReview.setTitle(reviewText("다시 전송", "Retry transfer"), for: .normal)
+        retryReview.accessibilityIdentifier = "review-retry"
+        discardReview.accessibilityIdentifier = "review-discard"
+        transferDetails.accessibilityIdentifier = "review-transfer-details"
+        transferDetails.numberOfLines = 0
+        transferDetails.font = .preferredFont(forTextStyle: .caption1)
+        transferDetails.textColor = .secondaryLabel
         discardReview.setTitle("Discard pending records", for: .normal)
         retryReview.isEnabled = false
         discardReview.isEnabled = false
@@ -288,7 +346,7 @@ final class MainViewController: UIViewController {
         launchTitle.text = "2. Published launch ad · auto-dismiss"
         launchTitle.font = .preferredFont(forTextStyle: .headline)
         let stack = UIStackView(arrangedSubviews: [title, reviewTitle, reviewHelp, pairingCode,
-            connectReview, confirmation, reviewStatus, transfer, endReview, retryReview, discardReview, launchTitle, instructions, consent, status])
+            connectReview, confirmation, reviewStatus, transfer, transferDetails, endReview, retryReview, discardReview, launchTitle, instructions, consent, status])
         stack.axis = .vertical
         stack.alignment = .fill
         stack.spacing = 24
