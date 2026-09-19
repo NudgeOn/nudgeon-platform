@@ -8,7 +8,7 @@ B-3는 외부 개발자 **3명**이 문서만 보고 30분 안에 첫 실제 푸
 ## 제공할 자료
 
 - [설치·로그인 안내](DEPLOY.md), [콘솔 화면 안내](CONSOLE-GUIDE.md)
-- [첫 실기기 푸시](FIRST-REAL-PUSH.md), [SDK·베타 현재 상태](BETA-REMAINING-2026-09-18.md)
+- [첫 실기기 푸시](FIRST-REAL-PUSH.md), [SDK·베타 현재 상태](RELEASE-CHECKLIST.md)
 - 실행할 플랫폼과 공개 SDK 버전. 현재 공개 native는 0.2.5다. [최신 연결 안내](APP-LAUNCH-ADS.md)를 확인한다. RN/Flutter 0.1.3은
   로그인 후 게시 예정이므로 공개 배포 완료로 소개하지 않는다.
 - 권한이 있는 시험용 서버·APNs/FCM 프로젝트·앱 서명·시험 기기. 고객 데이터와

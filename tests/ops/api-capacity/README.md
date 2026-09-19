@@ -70,4 +70,4 @@ node tests/ops/api-capacity/pg-regressions.mjs
 This starts only fresh PG and the Node TCP gateway. It does not start API/worker
 services or select a new performance result. The gateway image is pinned to the
 locally built fixture noted in the script; no application source is loaded from
-that image during these tests. See the [recorded QA](../../../docs-public/API-KEY-USAGE-QA-2026-09-03.md).
+that image during these tests. See the [capacity plan](../../../docs-public/CAPACITY-PLAN.md) for performance gates and remaining validation.
