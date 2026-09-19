@@ -236,7 +236,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     @objc private func copyReviewRun() {
         guard let id = review?.transferStatus.review?.runID else { return }
-        UIPasteboard.general.setItems([[UIPasteboard.typeAutomatic: id]], options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(300)])
+        UIPasteboard.general.string = id // Non-secret ID can also be pasted into the desktop console.
         main.lookupHint.text = reviewText("실행 ID를 복사했습니다. 콘솔 → 인앱 캠페인 → 검수 → 실행 ID로 찾기에 붙여 넣으세요. 같은 소스 버전·OS인지 확인한 후 승인하세요.", "Run ID copied. In the console, open In-app campaigns → Review → Find by run ID. Check the matching revision and OS before approving.")
     }
     @objc private func retryReview() {
