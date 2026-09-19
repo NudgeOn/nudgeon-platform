@@ -35,10 +35,10 @@ export const launchAdContent = {
     examples: [
       { label: 'iOS · SPM 0.2.4 + NudgeOnInApp product', code: '.package(url: "https://github.com/NudgeOn/nudgeon-ios-sdk.git", exact: "0.2.4")\n// Add .product(name: "NudgeOnInApp", package: "nudgeon-ios-sdk") to your target.' },
       { label: 'iOS · 전체 실행 소스 펼치기 / 복사', code: swift, complete: true },
-      { label: 'Android · Maven Central 의존성', code: 'implementation("io.nudgeon:nudgeon-sdk:0.2.4")\nimplementation("io.nudgeon:nudgeon-inapp:0.2.4")' },
+      { label: 'Android · Maven Central 의존성', code: 'implementation("io.nudgeon:nudgeon-sdk:0.2.4")\nimplementation("io.nudgeon:nudgeon-inapp:0.2.4")\nimplementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")' },
       { label: 'Android · 전체 실행 소스 펼치기 / 복사', code: kotlin, complete: true },
     ],
-    note: '전체 예제 프로젝트와 실행 안내는 아래 링크에서 받습니다. 예제는 시작 광고 전용이며 백그라운드 전환 때 클라이언트를 중단합니다. 첫 실행에서 동의한 후 프로세스를 종료·재실행하세요. 추가 화면·이벤트·복귀 캠페인은 앱 생명주기에 맞춰 별도로 연결합니다. InAppTestClient와 운영 InAppCampaignClient는 별도입니다. 앱스토어 업데이트 없이 콘텐츠를 바꾸려면 먼저 앱에 SDK·호스트 연결을 배포해야 합니다. 일반 인앱 팝업의 닫기·숨김 동작은 유지됩니다.',
+    note: '전체 예제 프로젝트와 실행 안내는 아래 링크에서 받습니다. 두 예제에서 Connect for content review로 연결 코드를 입력하고 확인 숫자를 대조할 수 있습니다. 네이티브 닫기 기록이 콘솔에 도착한 뒤 End test session으로 연결을 끝내세요. 검수와 운영 광고는 동시에 실행하지 않으며 백그라운드 전환 때 중단합니다. 첫 실행에서 동의한 후 프로세스를 종료·재실행하세요. 추가 화면·이벤트·복귀 캠페인은 앱 생명주기에 맞춰 별도로 연결합니다. InAppTestClient와 운영 InAppCampaignClient는 별도입니다. 앱스토어 업데이트 없이 콘텐츠를 바꾸려면 먼저 앱에 SDK·호스트 연결을 배포해야 합니다. 일반 인앱 팝업의 닫기·숨김 동작은 유지됩니다.',
     source: 'APP-LAUNCH-ADS · IN-APP-CAMPAIGNS · iOS/Android SDK 0.2.4', links: links.ko,
   },
   en: {
@@ -57,10 +57,10 @@ export const launchAdContent = {
     examples: [
       { label: 'iOS · SPM 0.2.4 + NudgeOnInApp product', code: '.package(url: "https://github.com/NudgeOn/nudgeon-ios-sdk.git", exact: "0.2.4")\n// Add .product(name: "NudgeOnInApp", package: "nudgeon-ios-sdk") to your target.' },
       { label: 'iOS · expand / copy complete app source', code: swift, complete: true },
-      { label: 'Android · Maven Central dependencies', code: 'implementation("io.nudgeon:nudgeon-sdk:0.2.4")\nimplementation("io.nudgeon:nudgeon-inapp:0.2.4")' },
+      { label: 'Android · Maven Central dependencies', code: 'implementation("io.nudgeon:nudgeon-sdk:0.2.4")\nimplementation("io.nudgeon:nudgeon-inapp:0.2.4")\nimplementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")' },
       { label: 'Android · expand / copy complete app source', code: kotlin, complete: true },
     ],
-    note: 'Get the complete projects and run instructions from the links below. These startup-only examples stop the client when inactive. Grant consent on first run, then terminate and relaunch. Integrate other screen/event/foreground campaigns with your own app lifecycle separately. InAppTestClient and the production InAppCampaignClient are separate. Deploy the SDK and host integration in your app before changing content without app updates. Ordinary in-app close/hide behavior is retained.',
+    note: 'Get the complete projects and run instructions from the links below. Both examples include Connect for content review and a persistent confirmation number. Wait for the native-close record in the console before End test session. Review and production clients never run together, and stop when inactive. Grant consent on first run, then terminate and relaunch. Integrate other screen/event/foreground campaigns with your own app lifecycle separately. InAppTestClient and the production InAppCampaignClient are separate. Deploy the SDK and host integration in your app before changing content without app updates. Ordinary in-app close/hide behavior is retained.',
     source: 'APP-LAUNCH-ADS · IN-APP-CAMPAIGNS · iOS/Android SDK 0.2.4', links: links.en,
   },
 };

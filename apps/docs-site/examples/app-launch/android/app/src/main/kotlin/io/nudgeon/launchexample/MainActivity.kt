@@ -9,6 +9,11 @@ import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ScrollView
+import android.text.InputType
+import kotlinx.coroutines.*
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -32,6 +37,16 @@ class MainActivity : Activity() {
     private lateinit var root: FrameLayout
     private lateinit var status: TextView
     private var campaigns: InAppCampaignClient? = null
+    private var review: InAppTestClient? = null
+    private val reviewScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var reviewJob: Job? = null
+    private var reviewing = false
+    private var reviewGeneration = 0
+    private lateinit var pairingCode: EditText
+    private lateinit var confirmation: TextView
+    private lateinit var reviewStatus: TextView
+    private lateinit var connectReview: Button
+    private lateinit var endReview: Button
     private var cover: View? = null
     private var pending = false
     private var eligible = false
@@ -98,6 +113,7 @@ class MainActivity : Activity() {
         resumed = false
         // Startup-only example: stop for permission UI, backgrounding or host changes.
         skipLaunch("Main · inactive; force-stop and relaunch for another attempt")
+        endContentReview()
         super.onPause()
     }
 
@@ -105,14 +121,75 @@ class MainActivity : Activity() {
         super.onNewIntent(intent)
         setIntent(intent)
         skipLaunch("Main · external route takes priority")
+        endContentReview()
         // Route to your app's destination here; the sample has no destinations.
     }
 
     override fun onDestroy() {
         removeCover()
+        endContentReview()
+        review?.destroy()
+        reviewScope.cancel()
         campaigns?.destroy()
         campaigns = null
         super.onDestroy()
+    }
+
+    private fun connectContentReview() {
+        val token = pairingCode.text.toString().trim()
+        if (token.isEmpty()) { reviewStatus.text = "Paste the workbench pairing code first."; return }
+        if (API_URL.contains("YOUR_") || SDK_KEY.contains("YOUR_") || SDK_KEY.isBlank()) {
+            reviewStatus.text = "Configure API_URL and the public SDK key in this example first."
+            return
+        }
+        // Test opt-in is separate from campaign consent. Never enable both clients together.
+        skipLaunch("Main · content review mode; relaunch later for the published launch ad")
+        try {
+            val client = review ?: InAppTestClient(application,
+                InAppTestClient.Configuration(apiUrl = API_URL, sdkKey = SDK_KEY),
+                host = { this }, isAllowed = { reviewing && resumed && !isFinishing && !isDestroyed },
+                onAction = { reviewStatus.text = "Test action received; check its result in the console." },
+                onDiagnostic = { message ->
+                    if (reviewing && !message.startsWith("CONFIRM_DEVICE:")) {
+                        reviewStatus.text = "Test event: $message\nWait for the console record before ending the session."
+                    }
+                }).also { review = it }
+            reviewing = true
+            val generation = ++reviewGeneration
+            connectReview.isEnabled = false
+            endReview.isEnabled = true
+            reviewStatus.text = "Connecting…"
+            reviewJob = reviewScope.launch {
+                try {
+                    val pairing = client.pair(token, "Android launch example")
+                    if (!isActive || generation != reviewGeneration) return@launch
+                    pairingCode.text.clear() // Never persist a test credential or pairing code.
+                    confirmation.text = "Confirmation number: ${pairing.confirmationCode}"
+                    reviewStatus.text = "Compare this number in the console, confirm the same device, then run the saved source."
+                } catch (e: CancellationException) { throw e }
+                catch (_: Exception) {
+                    if (generation != reviewGeneration) return@launch
+                    reviewing = false
+                    connectReview.isEnabled = true
+                    endReview.isEnabled = false
+                    reviewStatus.text = "Connection failed. Generate a new pairing code and retry."
+                }
+            }
+        } catch (_: Exception) { reviewStatus.text = "Invalid SDK configuration. Check the API address." }
+    }
+
+    private fun endContentReview() {
+        if (!reviewing && reviewJob == null) return
+        reviewing = false
+        reviewGeneration++
+        reviewJob?.cancel()
+        reviewJob = null
+        review?.end() // Invalidates in-flight pairing and ends the remote session asynchronously.
+        pairingCode.text.clear()
+        confirmation.text = ""
+        reviewStatus.text = "Test session ended. This does not mark a content review as passed."
+        connectReview.isEnabled = true
+        endReview.isEnabled = false
     }
 
     private fun skipLaunch(reason: String) {
@@ -156,6 +233,31 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, padding)
         }
         column.addView(text("NudgeOn · App launch example"))
+        column.addView(text("1. Content review · manual close"))
+        column.addView(text("Paste a workbench code, connect, and compare the confirmation number. Finish with the ad's native Close button, then wait for completion in the console before ending this session."))
+        pairingCode = EditText(this).apply {
+            hint = "Workbench pairing code"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            setSingleLine(true)
+            isSaveEnabled = false
+        }
+        column.addView(pairingCode)
+        connectReview = Button(this).apply {
+            text = "Connect for content review"
+            setOnClickListener { connectContentReview() }
+        }
+        column.addView(connectReview)
+        confirmation = text("")
+        column.addView(confirmation)
+        reviewStatus = text("Not connected. Test mode starts only when you tap Connect.")
+        column.addView(reviewStatus)
+        endReview = Button(this).apply {
+            text = "End test session"
+            isEnabled = false
+            setOnClickListener { endContentReview() }
+        }
+        column.addView(endReview)
+        column.addView(text("2. Published launch ad · auto-dismiss"))
         column.addView(text("Allow startup ads, then force-stop and relaunch. Returning from Home does not retry."))
         column.addView(Switch(this).apply {
             text = "Allow startup ads"
@@ -163,11 +265,13 @@ class MainActivity : Activity() {
             setOnCheckedChangeListener { _, enabled ->
                 preferences.edit().putBoolean("consent", enabled).apply()
                 skipLaunch("Main · consent saved; force-stop and relaunch to test")
+                endContentReview()
             }
         })
         status = text("Main")
         column.addView(status)
-        root.addView(column, ViewGroup.LayoutParams(-1, -1))
+        val scroll = ScrollView(this).apply { addView(column) }
+        root.addView(scroll, ViewGroup.LayoutParams(-1, -1))
         setContentView(root)
     }
 }
