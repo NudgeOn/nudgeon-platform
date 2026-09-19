@@ -1603,3 +1603,22 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+.launch-tests { margin: 28px 0; }
+.launch-tests > h3 { margin-bottom: 18px; font-size: 18px; }
+.launch-test-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.launch-test-grid article { padding: 24px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-soft); }
+.launch-test-grid h4 { margin: 0 0 12px; font-size: 17px; }
+.launch-test-grid p, .launch-test-grid li { font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.launch-test-grid ol { padding-left: 20px; }
+.launch-test-grid li + li { margin-top: 12px; }
+.launch-test-mode { color: var(--accent); }
+.launch-test-success { margin: 20px 0 0; padding-top: 18px; border-top: 1px solid var(--border); }
+.complete-example { margin: 18px 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.complete-example > summary { cursor: pointer; padding: 20px 24px; font-size: 14px; font-weight: 600; }
+.complete-example > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+.complete-example .code-panel { margin: 0; }
+@media (max-width: 700px) {
+  .launch-test-grid { grid-template-columns: 1fr; }
+  .launch-test-grid article { padding: 20px; }
+}

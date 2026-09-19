@@ -1,5 +1,7 @@
 # 앱 실행 직후 전면 광고 — SDK 0.2.4
 
+**대상: 전체 사용자(신규·기존).** 해당 앱의 선택한 OS에 설치되어 SDK가 연결된 모든 기기가 대상이며 회원 로그인·고객 프로필·세그먼트·작업실 기기 연결은 필요하지 않습니다. 게시 후 새로 설치한 기기도 포함됩니다. 실제 표시는 호스트 동의·준비 상태, 게시 기간·우선순위·설치 기기별 빈도·숨김 조건을 따릅니다. 계정 단위 중복 제어나 모든 기기에 대한 동시·보장 노출을 의미하지 않습니다. 다른 앱·테넌트로 노출하지 않습니다.
+
 기존 `enable()`은 앱 활성화(`foreground`) 캠페인을 유지한다. 시작 광고를 쓰는
 앱은 준비된 화면에서 **대신** `enableAfterLaunch`를 호출한다. OS의 정적 launch
 screen 자체에 웹뷰를 넣지 않는다. 호스트는 메인 UI 위에 시작 화면을 유지하며 광고 준비 결과를 기다린다. 호스트 예제의 준비 기한은 3초이며, 광고가 없거나 실패하면 메인으로 바로 진입한다. 성공하면 전면 광고가 4초 표시된 뒤 자동으로 사라져 메인이 보인다.
@@ -52,28 +54,29 @@ screen 자체에 웹뷰를 넣지 않는다. 호스트는 메인 UI 위에 시�
 새 DB migration은 없다. 기존 0010~0012 migration과 인앱 기능 설정은 필요하다.
 SDK 0.2.2 이하의 기존 앱은 시작 광고를 요청하지 않는다.
 
-## 호스트 연결
+## 두 테스트 절차
 
-```swift
-campaigns.enableAfterLaunch(timeoutSeconds: 3, displaySeconds: 4) { result in
-    // 광고가 표시됐거나 시도가 끝나면 시작 화면 덮개를 제거한다.
-    // 광고는 불투명하므로 자동 종료 전에는 메인이 보이지 않는다.
-    revealMainBehindAd()
-}
-```
+| 단계 | 콘텐츠 검수 | 실제 시작 광고 테스트 |
+|---|---|---|
+| 준비 | 작업실 저장·검증, 기기 연결 코드 확인 | 같은 버전 OS별 검수 통과, 통제된 테스트 앱에 게시, `launch` 조건 |
+| SDK | `InAppTestClient` | `InAppCampaignClient` |
+| 실행 | 작업실의 내 기기에서 실행 | 사전 동의 후 앱 프로세스 종료·재실행 |
+| 종료 | **네이티브 닫기** | 실제 표시부터 기본 4초 **자동 종료** |
+| 완료 조건 | 대상 OS별 마지막 테스트와 같은 버전의 검수 통과 | 런치→광고→메인 및 `presented`·`impression`·`dismiss(auto_dismiss)` 대조 |
 
-```kotlin
-campaigns.enableAfterLaunch(timeoutSeconds = 3.0, displaySeconds = 4.0) { result ->
-    revealMainBehindAd() // 호스트가 구현한 시작 화면 덮개 제거 함수
-}
-```
+작업실에서 4초 자동 종료를 기대하지 않습니다. 홈에서 복귀하는 것은 새 프로세스 실행이 아닙니다. 재실행해도 서버 빈도·숨김 제한이 유지되므로 게시 상태·기간·OS·트리거·빈도·시간대도 확인합니다.
 
-두 예제의 `campaigns`는 초기화 후 앱 소유자가 보관하는 운영 `InAppCampaignClient`다. `revealMainBehindAd`는 SDK API가 아니다. `shown`/`SHOWN`은 표시 **시작**이며 종료 알림이 아니다. 콜백에서 광고 뒤의 덮개를 제거하고 호스트 fallback을 취소한다. fallback이 먼저 실행되면 `contextChanged()`로 준비를 취소한 뒤 덮개를 제거한다.
+## 플랫폼별 완성 호스트 예제
 
-작업실의 `InAppTestClient`는 콘텐츠 검수용이며 시작 타이머를 적용하지 않는다. 대상 OS별 테스트를 네이티브 닫기로 마치고 같은 버전을 검수·게시한 뒤, 통제된 테스트 앱 프로세스를 재시작해 실제 4초 자동 종료를 검증한다.
+[설정·빌드·실행·실패 경로 확인 안내 (한/영)](../apps/docs-site/examples/app-launch/README.md)
+
+- [iOS · UIKit/AppDelegate 전체 앱](../apps/docs-site/examples/app-launch/ios/LaunchAdExample.swift) + [XcodeGen 프로젝트](../apps/docs-site/examples/app-launch/ios/project.yml): iOS 15 이상, 공개 SPM **정확히 0.2.4**.
+- [Android · Activity 전체 앱](../apps/docs-site/examples/app-launch/android/app/src/main/kotlin/io/nudgeon/launchexample/MainActivity.kt) + [Gradle 프로젝트](../apps/docs-site/examples/app-launch/android): API 26 이상, 공개 Maven Central core/in-app **0.2.4**.
+
+두 예제에는 클라이언트 생성·보관, 실제 메인 화면, 첫 프레임 전 덮개, 독립적인 3초 fallback, 동의 저장, 외부 진입 제외와 생명주기 정리가 포함됩니다. `shown`/`SHOWN` 콜백에서는 광고 뒤 덮개를 제거하고 fallback을 취소합니다. 광고 자체는 SDK가 자동 종료하므로 이 콜백에서 `disable()`을 호출하지 않습니다.
+
+첫 실행에서 동의한 뒤 프로세스를 종료·재실행하세요. 예제는 시작 광고 전용으로 비활성화 시 SDK를 중단하며 작업실 기기 연결 화면은 포함하지 않습니다. 일반 화면·이벤트·복귀 캠페인은 서비스 앱 생명주기에 맞게 별도로 연결합니다.
 
 [유저가이드](https://nudgeon.io/ko/guide/#launch-ads) · [개발자센터](https://developer.nudgeon.io/#launch-ads)
 
-시작 화면 덮개는 첫 프레임 전에 추가하고 자체 3초 fallback을 둔다. 동의·딥링크 제외,
-백그라운드·Activity 재생성 때 해제해 앱 진입이 영구 차단되지 않도록 한다.
-카드형 HTML을 그대로 사용하면 문서 안의 카드 스타일은 남으므로 전면 광고용 소스를 별도로 게시한다.
+카드형 HTML을 그대로 사용하면 문서 안의 카드 스타일은 남으므로 전면 광고용 소스를 별도로 게시합니다.

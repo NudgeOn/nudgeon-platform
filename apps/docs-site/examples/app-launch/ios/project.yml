@@ -1,0 +1,29 @@
+name: LaunchAdExample
+options:
+  deploymentTarget:
+    iOS: '15.0'
+packages:
+  NudgeOnSDK:
+    url: https://github.com/NudgeOn/nudgeon-ios-sdk.git
+    exactVersion: 0.2.4
+targets:
+  LaunchAdExample:
+    type: application
+    platform: iOS
+    sources: [LaunchAdExample.swift]
+    dependencies:
+      - package: NudgeOnSDK
+        product: NudgeOnInApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.nudgeon.launch-example
+        SWIFT_VERSION: '5.9'
+        TARGETED_DEVICE_FAMILY: '1,2'
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+schemes:
+  LaunchAdExample:
+    build:
+      targets:
+        LaunchAdExample: all

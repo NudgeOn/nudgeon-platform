@@ -1,46 +1,28 @@
+import swift from '../examples/app-launch/ios/LaunchAdExample.swift?raw';
+import kotlin from '../examples/app-launch/android/app/src/main/kotlin/io/nudgeon/launchexample/MainActivity.kt?raw';
+import { launchAdTests } from './launchAdTests.js';
+
 const links = {
   ko: [
+    { label: '전체 예제 · 설정·빌드·테스트 안내', href: 'https://github.com/NudgeOn/nudgeon-platform/tree/main/apps/docs-site/examples/app-launch' },
+    { label: 'iOS 실행 프로젝트', href: 'https://github.com/NudgeOn/nudgeon-platform/tree/main/apps/docs-site/examples/app-launch/ios' },
+    { label: 'Android 실행 프로젝트', href: 'https://github.com/NudgeOn/nudgeon-platform/tree/main/apps/docs-site/examples/app-launch/android' },
     { label: '운영자 가이드', href: 'https://nudgeon.io/ko/guide/#launch-ads' },
     { label: '시작 광고 전체 계약', href: 'https://github.com/NudgeOn/nudgeon-platform/blob/main/docs-public/APP-LAUNCH-ADS.md' },
   ],
   en: [
+    { label: 'Complete examples · setup, build and test', href: 'https://github.com/NudgeOn/nudgeon-platform/tree/main/apps/docs-site/examples/app-launch' },
+    { label: 'Runnable iOS project', href: 'https://github.com/NudgeOn/nudgeon-platform/tree/main/apps/docs-site/examples/app-launch/ios' },
+    { label: 'Runnable Android project', href: 'https://github.com/NudgeOn/nudgeon-platform/tree/main/apps/docs-site/examples/app-launch/android' },
     { label: 'Operator guide', href: 'https://nudgeon.io/guide/#launch-ads' },
     { label: 'Full startup-ad contract', href: 'https://github.com/NudgeOn/nudgeon-platform/blob/main/docs-public/APP-LAUNCH-ADS.md' },
   ],
 };
-const swift = `import NudgeOnInApp
-
-// campaigns: an InAppCampaignClient retained by the app/Scene.
-// Call on the main actor, after consent, routing and the host are ready.
-// Keep a startup cover above the first main frame before calling this.
-// Use instead of enable(); do not immediately call screen("home").
-campaigns.enableAfterLaunch(timeoutSeconds: 3, displaySeconds: 4) { result in
-    // shown means presentation STARTED, not that the ad finished.
-    // Remove the host cover behind the opaque ad for every result.
-    revealMainBehindAd() // Your app's cover-removal function.
-}
-// Keep a separate 3-second host fallback. On fallback:
-// campaigns.contextChanged(); revealMainBehindAd()
-// Cancel that fallback when the result callback runs.`;
-const kotlin = `// campaigns: an InAppCampaignClient retained by the app/Activity owner.
-// Call on the main thread, with a resumed, focused Activity,
-// after consent and routing. Add the startup cover before the first frame.
-// Use instead of enable(); do not immediately call screen("home").
-campaigns.enableAfterLaunch(timeoutSeconds = 3.0, displaySeconds = 4.0) { result ->
-    // SHOWN means presentation STARTED. Remove the cover behind the ad.
-    revealMainBehindAd() // Your app's cover-removal function.
-}
-// Keep a separate 3-second host fallback. On fallback:
-// campaigns.contextChanged(); revealMainBehindAd()
-// Cancel that fallback when the result callback runs.
-// Later real app foreground returns: campaigns.foreground()
-// Host state changes: campaigns.contextChanged()
-// Owner teardown: campaigns.destroy()`;
 export const launchAdContent = {
   ko: {
-    id: 'launch-ads', eyebrow: 'APP LAUNCH ADS · iOS & ANDROID',
+    id: 'launch-ads', tests: launchAdTests.ko, eyebrow: 'APP LAUNCH ADS · iOS & ANDROID',
     title: '런치 화면 다음, 전면 광고를 자동으로 보여주세요',
-    intro: 'OS 런치 화면 → 앱의 시작 화면 덮개 → 불투명 전면 광고 → 메인 화면. SDK 0.2.4는 실제 표시부터 기본 4초 뒤 광고를 자동 종료합니다. 표시 시간은 3~5초로 설정하며 시작 광고에는 네이티브 닫기·오늘 하루 안 보기 버튼이 없습니다.',
+    intro: 'APP-AD는 해당 앱의 신규·기존 사용자 전체가 대상입니다. 로그인·세그먼트·테스트 기기 연결 없이 선택한 OS의 SDK 연결 기기에서 동의·기간·빈도 조건에 따라 표시합니다. OS 런치 화면 → 앱의 시작 화면 덮개 → 불투명 전면 광고 → 메인 화면. SDK 0.2.4는 실제 표시부터 기본 4초 뒤 광고를 자동 종료합니다. 표시 시간은 3~5초로 설정하며 시작 광고에는 네이티브 닫기·오늘 하루 안 보기 버튼이 없습니다.',
     endpoint: 'enableAfterLaunch(timeoutSeconds: 3, displaySeconds: 4) · trigger: launch',
     steps: [
       { title: '서버와 네이티브 SDK를 준비합니다', body: 'launch 트리거를 지원하는 서버·콘솔과 migration 0010~0012를 먼저 반영합니다. IN_APP_ENABLED와 IN_APP_CAMPAIGNS_ENABLED를 켜고 영속 자산 볼륨·별도 HTTPS 콘텐츠 호스트를 설정합니다. SPM NudgeOnInApp과 Maven nudgeon-inapp/core 0.2.4를 사용합니다. RN·Flutter의 인앱 연결은 아직 제공하지 않습니다.' },
@@ -51,18 +33,18 @@ export const launchAdContent = {
       { title: '표시되지 않는 이유를 구분합니다', body: 'noCampaign/NO_CAMPAIGN은 선택 가능한 광고 없음, timedOut/TIMED_OUT은 준비 시간 초과, blocked/BLOCKED는 호스트 조건 불충족입니다. cancelled/CANCELLED는 상태 변경, failed/FAILED는 통신·검증 실패, alreadyHandled/ALREADY_HANDLED는 활성화 또는 시작 기회 사용을 뜻합니다. 준비 중 screen/contextChanged/disable 및 백그라운드 전환은 취소합니다. 결과 Bool은 새 시도 여부이며 노출 성공 여부가 아닙니다.' },
     ],
     examples: [
-      { label: 'iOS · SPM 0.2.4 + NudgeOnInApp product', code: '.package(url: "https://github.com/NudgeOn/nudgeon-ios-sdk.git", from: "0.2.4")\n// Add .product(name: "NudgeOnInApp", package: "nudgeon-ios-sdk") to your target.' },
-      { label: 'iOS · 준비된 운영 클라이언트에 시작 흐름 연결', code: swift },
+      { label: 'iOS · SPM 0.2.4 + NudgeOnInApp product', code: '.package(url: "https://github.com/NudgeOn/nudgeon-ios-sdk.git", exact: "0.2.4")\n// Add .product(name: "NudgeOnInApp", package: "nudgeon-ios-sdk") to your target.' },
+      { label: 'iOS · 전체 실행 소스 펼치기 / 복사', code: swift, complete: true },
       { label: 'Android · Maven Central 의존성', code: 'implementation("io.nudgeon:nudgeon-sdk:0.2.4")\nimplementation("io.nudgeon:nudgeon-inapp:0.2.4")' },
-      { label: 'Android · 준비된 운영 클라이언트에 시작 흐름 연결', code: kotlin },
+      { label: 'Android · 전체 실행 소스 펼치기 / 복사', code: kotlin, complete: true },
     ],
-    note: 'revealMainBehindAd는 SDK API가 아니라 호스트가 구현할 덮개 제거 함수입니다. InAppTestClient와 운영 InAppCampaignClient는 별도입니다. 앱스토어 업데이트 없이 콘텐츠를 바꾸려면 먼저 앱에 SDK·호스트 연결을 배포해야 합니다. 일반 인앱 팝업의 닫기·숨김 동작은 유지됩니다.',
+    note: '전체 예제 프로젝트와 실행 안내는 아래 링크에서 받습니다. 예제는 시작 광고 전용이며 백그라운드 전환 때 클라이언트를 중단합니다. 첫 실행에서 동의한 후 프로세스를 종료·재실행하세요. 추가 화면·이벤트·복귀 캠페인은 앱 생명주기에 맞춰 별도로 연결합니다. InAppTestClient와 운영 InAppCampaignClient는 별도입니다. 앱스토어 업데이트 없이 콘텐츠를 바꾸려면 먼저 앱에 SDK·호스트 연결을 배포해야 합니다. 일반 인앱 팝업의 닫기·숨김 동작은 유지됩니다.',
     source: 'APP-LAUNCH-ADS · IN-APP-CAMPAIGNS · iOS/Android SDK 0.2.4', links: links.ko,
   },
   en: {
-    id: 'launch-ads', eyebrow: 'APP LAUNCH ADS · iOS & ANDROID',
+    id: 'launch-ads', tests: launchAdTests.en, eyebrow: 'APP LAUNCH ADS · iOS & ANDROID',
     title: 'Show a timed full-screen ad after the launch screen',
-    intro: 'OS launch screen → host startup cover → opaque full-screen ad → main screen. SDK 0.2.4 automatically dismisses the ad 4 seconds after presentation by default. Configure 3–5 seconds; startup ads have no native close or hide-today buttons.',
+    intro: 'APP-AD targets all new and existing users of this app. No login, segment membership or test pairing is required; SDK integration, consent, schedule and frequency still apply on selected platforms. OS launch screen → host startup cover → opaque full-screen ad → main screen. SDK 0.2.4 automatically dismisses the ad 4 seconds after presentation by default. Configure 3–5 seconds; startup ads have no native close or hide-today buttons.',
     endpoint: 'enableAfterLaunch(timeoutSeconds: 3, displaySeconds: 4) · trigger: launch',
     steps: [
       { title: 'Prepare the server and native SDKs', body: 'Deploy the launch-capable server/console and migrations 0010–0012 first. Enable IN_APP_ENABLED and IN_APP_CAMPAIGNS_ENABLED, persistent asset storage and a separate HTTPS content host. Use SPM NudgeOnInApp and Maven in-app/core 0.2.4. React Native and Flutter in-app integration is not yet available.' },
@@ -73,12 +55,12 @@ export const launchAdContent = {
       { title: 'Distinguish no ad from a failure', body: 'noCampaign/NO_CAMPAIGN means no eligible ad; timedOut/TIMED_OUT means preparation expired; blocked/BLOCKED means host conditions failed. cancelled/CANCELLED means context changed, failed/FAILED indicates communication/validation failure, and alreadyHandled/ALREADY_HANDLED means already enabled or consumed. screen/contextChanged/disable or backgrounding cancel preparation. The returned Boolean reports a new attempt, not a successful impression.' },
     ],
     examples: [
-      { label: 'iOS · SPM 0.2.4 + NudgeOnInApp product', code: '.package(url: "https://github.com/NudgeOn/nudgeon-ios-sdk.git", from: "0.2.4")\n// Add .product(name: "NudgeOnInApp", package: "nudgeon-ios-sdk") to your target.' },
-      { label: 'iOS · connect an initialized campaign client', code: swift },
+      { label: 'iOS · SPM 0.2.4 + NudgeOnInApp product', code: '.package(url: "https://github.com/NudgeOn/nudgeon-ios-sdk.git", exact: "0.2.4")\n// Add .product(name: "NudgeOnInApp", package: "nudgeon-ios-sdk") to your target.' },
+      { label: 'iOS · expand / copy complete app source', code: swift, complete: true },
       { label: 'Android · Maven Central dependencies', code: 'implementation("io.nudgeon:nudgeon-sdk:0.2.4")\nimplementation("io.nudgeon:nudgeon-inapp:0.2.4")' },
-      { label: 'Android · connect an initialized campaign client', code: kotlin },
+      { label: 'Android · expand / copy complete app source', code: kotlin, complete: true },
     ],
-    note: 'revealMainBehindAd is your host cover-removal function, not an SDK API. InAppTestClient and the production InAppCampaignClient are separate. Deploy the SDK and host integration in your app before changing content without app updates. Ordinary in-app close/hide behavior is retained.',
+    note: 'Get the complete projects and run instructions from the links below. These startup-only examples stop the client when inactive. Grant consent on first run, then terminate and relaunch. Integrate other screen/event/foreground campaigns with your own app lifecycle separately. InAppTestClient and the production InAppCampaignClient are separate. Deploy the SDK and host integration in your app before changing content without app updates. Ordinary in-app close/hide behavior is retained.',
     source: 'APP-LAUNCH-ADS · IN-APP-CAMPAIGNS · iOS/Android SDK 0.2.4', links: links.en,
   },
 };

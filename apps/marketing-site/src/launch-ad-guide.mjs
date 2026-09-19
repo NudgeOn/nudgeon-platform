@@ -1,7 +1,9 @@
+import { launchAdTests } from './launch-ad-tests.mjs';
+
 export const launchAdGuide = {
   ko: {
-    id: 'launch-ads', nav: '앱 시작 전면 광고', title: '앱을 여는 순간, 전면 광고를 보여주세요.',
-    intro: 'APP LAUNCH ADS · iOS & ANDROID. 런치 화면 다음에 이벤트·프로모션을 3~5초 보여주고 자동으로 메인으로 이동합니다. 기본 4초이며, 닫기 버튼을 누를 필요가 없습니다.',
+    id: 'launch-ads', tests: launchAdTests.ko, nav: '앱 시작 전면 광고', title: '앱을 여는 순간, 전면 광고를 보여주세요.',
+    intro: 'APP LAUNCH ADS · iOS & ANDROID. 신규·기존 사용자 전체가 대상입니다. 회원 로그인이나 테스트 기기 연결 없이, 선택한 OS의 SDK 연결 기기에서 동의·기간·빈도 조건에 따라 표시합니다. 런치 화면 다음에 이벤트·프로모션을 3~5초 보여주고 자동으로 메인으로 이동합니다. 기본 4초이며, 닫기 버튼을 누를 필요가 없습니다.',
     where: '인앱 이벤트 → 시작 전면 광고 예제 → 캠페인 관리',
     steps: [
       ['개발 담당자와 시작 화면을 연결하세요', 'iOS·Android SDK 0.2.4의 인앱 모듈과 앱 시작 흐름 연결이 필요합니다. 서버의 인앱 기능도 켜져 있어야 합니다. 먼저 테스트 앱과 기기를 준비하세요. 최초 동의·딥링크·권한 요청처럼 다른 화면이 우선이면 시작 광고를 건너뛰도록 개발 담당자와 정합니다.'],
@@ -17,8 +19,8 @@ export const launchAdGuide = {
     flow: ['런치 화면', '전면 광고 · 기본 4초', '자동 종료 → 메인'],
   },
   en: {
-    id: 'launch-ads', nav: 'App launch ads', title: 'Show a full-screen ad as your app opens.',
-    intro: 'APP LAUNCH ADS · iOS & ANDROID. Display an event or promotion after the launch screen for 3–5 seconds, then move automatically to the main screen. The default is 4 seconds. No close tap is needed.',
+    id: 'launch-ads', tests: launchAdTests.en, nav: 'App launch ads', title: 'Show a full-screen ad as your app opens.',
+    intro: 'APP LAUNCH ADS · iOS & ANDROID. Target all new and existing users. No login or test pairing is required; SDK integration, consent, schedule and frequency apply on selected platforms. Display an event or promotion after the launch screen for 3–5 seconds, then move automatically to the main screen. The default is 4 seconds. No close tap is needed.',
     where: 'In-app events → Full-screen startup ad example → Campaign management',
     steps: [
       ['Connect the startup flow with your developer', 'Install the iOS or Android in-app SDK 0.2.4 and integrate the host startup flow. Enable the server in-app features and prepare a controlled test app and device. Agree on when to skip startup ads, including initial consent, deep links and permission prompts.'],

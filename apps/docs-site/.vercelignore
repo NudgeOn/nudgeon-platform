@@ -2,3 +2,7 @@ design/
 node_modules/
 dist/
 .env*
+examples/**/build/
+examples/**/.gradle/
+examples/**/*.xcodeproj/
+examples/**/local.properties
