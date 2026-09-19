@@ -5,7 +5,7 @@ const androidBuild = 'cd android\n./gradlew :app:assembleDebug\nadb -s YOUR_TEST
 export const launchAdQuickstart = {
   ko: {
     title: '완성 예제로 바로 시작하세요', intro: '플랫폼을 선택하면 설정할 두 값과 빌드·테스트 순서를 바로 볼 수 있습니다.',
-    prerequisite: '먼저 인앱 기능이 켜진 NudgeOn 테스트 앱을 준비하세요. 공개 SDK 0.2.5를 사용하며, 이 예제에는 푸시 인증서가 필요하지 않습니다.',
+    prerequisite: '먼저 인앱 기능이 켜진 NudgeOn 테스트 앱을 준비하세요. 공개 SDK 0.2.6를 사용하며, 이 예제에는 푸시 인증서가 필요하지 않습니다.',
     download: '예제 내려받기', configure: 'API 주소와 공개 SDK 키 설정', build: '빌드하고 실행', test: '작업실에 기기 연결', clone,
     keyNote: '테스트 앱의 HTTPS API 기본 주소와 공개 SDK 키를 사용하세요. 콘텐츠 호스트 주소나 Admin 키를 넣지 마세요. 자리표시자를 바꾸지 않으면 광고 없이 메인 화면이 열립니다.',
     testBody: '앱의 Connect for content review에 작업실 연결 코드를 입력하고 확인 숫자를 대조하세요. 콘솔에서 같은 기기 확인 → 내 기기에서 실행 후 네이티브 닫기로 마칩니다. 서버 수신 완료를 확인한 뒤 콘솔에서 같은 버전·OS를 검수 승인하세요. 게시 후 실제 4초 자동 종료 테스트는 아래 두 번째 절차로 진행합니다.',
@@ -17,7 +17,7 @@ export const launchAdQuickstart = {
   },
   en: {
     title: 'Start with a complete example', intro: 'Choose a platform for the two configuration values and the build-and-test steps.',
-    prerequisite: 'Prepare a NudgeOn test app with in-app features enabled first. These examples use public SDK 0.2.5; no push certificates are required.',
+    prerequisite: 'Prepare a NudgeOn test app with in-app features enabled first. These examples use public SDK 0.2.6; no push certificates are required.',
     download:'Get the example', configure:'Set the API URL and public SDK key', build:'Build and run', test:'Connect to the workbench', clone,
     keyNote:'Use your test app’s HTTPS API base URL and public SDK key, not the content host or an admin key. Unchanged placeholders open main without ads.',
     testBody:'Enter a workbench pairing code through Connect for content review and compare the confirmation number. Confirm the device in the console, run the saved source and finish with native Close. After server receipt, approve the matching revision and OS in the console. Use the second procedure below for the published four-second auto-dismiss test.',

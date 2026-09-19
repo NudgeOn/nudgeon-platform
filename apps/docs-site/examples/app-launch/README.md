@@ -4,10 +4,10 @@
 
 ## 한국어
 
-**SDK 0.2.5 · 콘텐츠 검수와 시작 광고를 실행하는 앱.** 앱 진입점, SDK 생성·보관, 첫 프레임 전 덮개, 독립적인 3초 fallback, 동의·외부 진입 제외, 생명주기 정리가 모두 포함됩니다. 개발자센터의 전체 코드도 이 파일들을 직접 읽어 표시합니다.
+**SDK 0.2.6 · 콘텐츠 검수와 시작 광고를 실행하는 앱.** 앱 진입점, SDK 생성·보관, 첫 프레임 전 덮개, 독립적인 3초 fallback, 동의·외부 진입 제외, 생명주기 정리가 모두 포함됩니다. 개발자센터의 전체 코드도 이 파일들을 직접 읽어 표시합니다.
 
-- iOS 15 이상, Xcode + XcodeGen. SPM의 `NudgeOnInApp` **정확히 0.2.5**.
-- Android 8(API 26) 이상, JDK 17, Android SDK 34. Gradle wrapper 8.13 포함, Maven Central core/in-app **0.2.5**. `mavenLocal`이나 형제 SDK 체크아웃을 사용하지 않습니다.
+- iOS 15 이상, Xcode + XcodeGen. SPM의 `NudgeOnInApp` **정확히 0.2.6**.
+- Android 8(API 26) 이상, JDK 17, Android SDK 34. Gradle wrapper 8.13 포함, Maven Central core/in-app **0.2.6**. `mavenLocal`이나 형제 SDK 체크아웃을 사용하지 않습니다.
 - 서버에 migration 0010~0012, `IN_APP_ENABLED`, `IN_APP_CAMPAIGNS_ENABLED`, 영속 자산 볼륨·별도 HTTPS 콘텐츠 호스트가 준비되어 있어야 합니다. [서버·콘솔 계약](../../../../docs-public/APP-LAUNCH-ADS.md).
 - 푸시 토큰이나 FCM/APNs 인증서는 이 시작 광고 예제에 필요하지 않습니다.
 
@@ -87,9 +87,13 @@ adb -s YOUR_TEST_DEVICE shell am start -a android.intent.action.MAIN \
 
 운영 캠페인 예제는 **시작 광고만** 다루므로 앱이 비활성화되면 운영 클라이언트를 중단합니다. 일반 화면·이벤트·복귀 캠페인, 실제 딥링크 라우팅, 권한 요청 및 결제 화면은 서비스 앱의 생명주기에 맞춰 추가하세요. 시작 기회를 건너뛴 뒤 나중에 광고를 삽입하지 마세요. URL 허용 목록은 기본적으로 비어 있으며 예제는 광고 액션을 외부로 열지 않습니다.
 
+### 검수 상세 정보
+
+SDK 0.2.6 예제는 최근 실행 ID·소스 버전·OS와 마지막 전송 시도·수신 확인·연결/실행 유효기간을 표시합니다. 시각은 KST이며 수신 확인은 서버 시각이 아닌 기기가 응답을 확인한 시각입니다. 정보는 앱 재시작 후에도 유지됩니다. ‘실행 ID 복사’ 후 콘솔 → 인앱 캠페인 → 검수 → ‘실행 ID로 찾기’에 붙여 넣고 같은 소스 버전·OS를 대조하세요. 현재 앱의 최근 50개 실행만 검색하며, 오래된 실행이 없으면 새 검수를 진행합니다. 선택만으로 승인되지는 않습니다. 이전 SDK 기록의 없는 정보는 ‘아직 확인되지 않음’으로 표시하며, 자격증명은 복사하지 않습니다. 수신 건수는 연결 전체 누적이고 상세 정보는 최근 실행 기준입니다.
+
 ## English
 
-These are complete **content-review and startup-ad** apps pinned to public SDK **0.2.5**: app entry point, retained client, startup cover before the first frame, independent three-second fallback, prior-consent/routing exclusions and lifecycle cleanup. The developer page imports the exact source files shown here.
+These are complete **content-review and startup-ad** apps pinned to public SDK **0.2.6**: app entry point, retained client, startup cover before the first frame, independent three-second fallback, prior-consent/routing exclusions and lifecycle cleanup. The developer page imports the exact source files shown here.
 
 Requirements: iOS 15+, Xcode and XcodeGen; or Android 8/API 26+, JDK 17 and Android SDK 34. The Gradle 8.13 wrapper is included. No local SDK checkouts, push tokens or FCM/APNs credentials are required. Prepare a launch-capable server with migrations 0010–0012, both in-app feature flags, persistent assets and a separate HTTPS content host.
 
@@ -113,3 +117,7 @@ The pairing code is not stored. The short-lived credential and up to 200 pending
 The iOS project uses simulator-only `Simulator.entitlements` and ad-hoc signing for Keychain access. Keep signing enabled. Physical devices require your own Team and Bundle ID; the simulator entitlement is not applied to them.
 
 The examples stop the client when inactive. Add ordinary screen/event/foreground campaigns, real routing, permission prompts and checkout exclusions according to your production host lifecycle. Never insert a skipped startup ad later. URL allowlists are empty and the examples do not open campaign actions externally.
+
+### Review details
+
+SDK 0.2.6 examples show the latest run ID, revision, OS, last delivery attempt, observed receipt, and session/run expiry in KST. Receipt time is observed on the device, not a server timestamp. Context survives restart. Use Copy run ID, then Console → In-app campaigns → Review → Find by run ID; match the revision and OS before approving. Search covers this app’s latest 50 runs; perform a new review if an older run is unavailable. Selection never approves automatically. Missing old-SDK fields show Not recorded, credentials are never copied, and receipt counts remain cumulative for the session while context describes the latest run.

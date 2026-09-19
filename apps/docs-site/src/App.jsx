@@ -1107,6 +1107,7 @@ function GuideArticles({ content, announce }) {
                 <summary>{title}</summary><p>{body}</p>
               </details>)}
               <h3>{guide.help.reviewTitle}</h3><p>{guide.help.reviewBody}</p>
+              <h3>{guide.help.detailsTitle}</h3><p>{guide.help.detailsBody}</p>
               <h3>{guide.help.contentTitle}</h3>
               <ul>{guide.help.contentItems.map(item => <li key={item}>{item}</li>)}</ul>
               <a href="https://www.w3.org/WAI/WCAG22/Understanding/timing-adjustable.html">W3C · Timing Adjustable</a>

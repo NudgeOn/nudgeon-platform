@@ -1,4 +1,4 @@
-# 앱 실행 직후 전면 광고 — SDK 0.2.5
+# 앱 실행 직후 전면 광고 — SDK 0.2.6
 
 **대상: 전체 사용자(신규·기존).** 해당 앱의 선택한 OS에 설치되어 SDK가 연결된 모든 기기가 대상이며 회원 로그인·고객 프로필·세그먼트·작업실 기기 연결은 필요하지 않습니다. 게시 후 새로 설치한 기기도 포함됩니다. 실제 표시는 호스트 동의·준비 상태, 게시 기간·우선순위·설치 기기별 빈도·숨김 조건을 따릅니다. 계정 단위 중복 제어나 모든 기기에 대한 동시·보장 노출을 의미하지 않습니다. 다른 앱·테넌트로 노출하지 않습니다.
 
@@ -70,8 +70,8 @@ SDK 0.2.2 이하의 기존 앱은 시작 광고를 요청하지 않는다.
 
 [설정·빌드·실행·실패 경로 확인 안내 (한/영)](../apps/docs-site/examples/app-launch/README.md)
 
-- [iOS · UIKit/AppDelegate 전체 앱](../apps/docs-site/examples/app-launch/ios/LaunchAdExample.swift) + [XcodeGen 프로젝트](../apps/docs-site/examples/app-launch/ios/project.yml): iOS 15 이상, 공개 SPM **정확히 0.2.5**.
-- [Android · Activity 전체 앱](../apps/docs-site/examples/app-launch/android/app/src/main/kotlin/io/nudgeon/launchexample/MainActivity.kt) + [Gradle 프로젝트](../apps/docs-site/examples/app-launch/android): API 26 이상, 공개 Maven Central core/in-app **0.2.5**.
+- [iOS · UIKit/AppDelegate 전체 앱](../apps/docs-site/examples/app-launch/ios/LaunchAdExample.swift) + [XcodeGen 프로젝트](../apps/docs-site/examples/app-launch/ios/project.yml): iOS 15 이상, 공개 SPM **정확히 0.2.6**.
+- [Android · Activity 전체 앱](../apps/docs-site/examples/app-launch/android/app/src/main/kotlin/io/nudgeon/launchexample/MainActivity.kt) + [Gradle 프로젝트](../apps/docs-site/examples/app-launch/android): API 26 이상, 공개 Maven Central core/in-app **0.2.6**.
 
 두 예제에는 클라이언트 생성·보관, 실제 메인 화면, 첫 프레임 전 덮개, 독립적인 3초 fallback, 동의 저장, 외부 진입 제외와 생명주기 정리가 포함됩니다. `shown`/`SHOWN` 콜백에서는 광고 뒤 덮개를 제거하고 fallback을 취소합니다. 광고 자체는 SDK가 자동 종료하므로 이 콜백에서 `disable()`을 호출하지 않습니다.
 
@@ -115,3 +115,7 @@ KST 시각, 앱·캠페인 ID, 소스 버전, OS·SDK 버전, 실행 방법, SDK
 - VoiceOver·TalkBack으로 제목 읽기, 광고 종료 후 메인 포커스, 시간 제한 없는 동일 콘텐츠 접근을 확인하세요. 실제 이용자·보조 기술 사용자 검증은 별도로 필요합니다. 3~5초 자동 종료만으로 접근성 적합성을 주장하지 않습니다.
 
 검수 근거: [시간 제한](https://www.w3.org/WAI/WCAG22/Understanding/timing-adjustable.html), [텍스트 대비](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html), [텍스트 확대](https://www.w3.org/WAI/WCAG22/Understanding/resize-text.html). 이 안내와 예제는 접근성 인증이나 실제 FGI 합격 결과가 아닙니다.
+
+## 검수 실행 상세 정보와 콘솔 연결
+
+SDK 0.2.6 예제는 최근 실행 ID·소스 버전·OS와 마지막 전송 시도·수신 확인·연결/실행 유효기간을 표시합니다. 시각은 KST이며 수신 확인은 서버 시각이 아닌 기기가 응답을 확인한 시각입니다. 정보는 앱 재시작 후에도 유지됩니다. ‘실행 ID 복사’ 후 콘솔 → 인앱 캠페인 → 검수 → ‘실행 ID로 찾기’에 붙여 넣고 같은 소스 버전·OS를 대조하세요. 현재 앱의 최근 50개 실행만 검색하며, 오래된 실행이 없으면 새 검수를 진행합니다. 선택만으로 승인되지는 않습니다. 이전 SDK 기록의 없는 정보는 ‘아직 확인되지 않음’으로 표시하며, 자격증명은 복사하지 않습니다. 수신 건수는 연결 전체 누적이고 상세 정보는 최근 실행 기준입니다.
