@@ -8,7 +8,7 @@ const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', 
 // settings and logs screens, plus docs-public/CONSOLE-GUIDE.md and JOURNEY-GRAPH.md.
 const copy = {
   en: {
-    title: 'NudgeOn user guide | From your first customer to your first push',
+    title: 'NudgeOn user guide | Push journeys & app launch ads',
     description: 'A practical guide for NudgeOn operators: prepare your app, understand customers, build audiences, set up push journeys and full-screen startup ads, and check results.',
     home: 'NudgeOn home', product: 'Product', deployment: 'Deployment', guide: 'User guide', developer: 'Developer center', language: 'Language', navigation: 'Main navigation', skip: 'Skip to the guide',
     heading: 'A clear path to\nyour first message.',
@@ -84,7 +84,7 @@ const copy = {
     nextLink: 'Open the developer center', sources: 'Guide references', sourceConsole: 'Current console guide', sourceJourney: 'Journey behavior', contact: 'Contact', footer: 'Customer engagement, on your terms.', top: 'Back to top',
   },
   ko: {
-    title: 'NudgeOn 사용자 가이드 | 첫 고객부터 첫 푸시까지',
+    title: 'NudgeOn 사용자 가이드 | 푸시·저니·앱 시작 광고',
     description: '앱 준비, 고객과 세그먼트 확인, 푸시·저니와 시작 전면 광고 설정, 결과 확인까지. NudgeOn 운영자를 위한 사용 순서를 안내합니다.',
     home: 'NudgeOn 홈', product: '제품', deployment: '도입 방식', guide: '유저가이드', developer: '개발자센터', language: '언어 선택', navigation: '메인 메뉴', skip: '가이드 본문으로 이동',
     heading: '첫 메시지까지,\n순서대로 시작하세요.',
@@ -170,25 +170,41 @@ export function renderGuide(lang) {
   const t = copy[lang];
   const home = lang === 'ko' ? '/ko/' : '/';
   const pageUrl = `${siteUrl}${lang === 'ko' ? '/ko/guide/' : '/guide/'}`;
-  const socialImage = `${siteUrl}/assets/nudgeon-lockup.png`;
-  const schema = { '@context': 'https://schema.org', '@type': 'WebPage', '@id': `${pageUrl}#webpage`, url: pageUrl, name: t.title, description: t.description, inLanguage: lang, image: socialImage, about: { '@id': `${siteUrl}/#software` }, publisher: { '@type': 'Organization', '@id': `${siteUrl}/#organization`, name: 'NudgeOn' } };
+  const socialImage = `${siteUrl}/assets/og-${lang}.png`;
+  const socialAlt = lang === 'ko' ? 'NudgeOn — 다시 찾아올 이유를 보내세요.' : 'NudgeOn — Give them a reason to come back.';
+  const schema = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'WebPage', '@id': `${pageUrl}#webpage`, url: pageUrl, name: t.title,
+        description: t.description, inLanguage: lang, image: socialImage,
+        isPartOf: { '@id': `${siteUrl}/#website` }, about: { '@id': `${siteUrl}/#software` },
+        breadcrumb: { '@id': `${pageUrl}#breadcrumb` },
+        publisher: { '@type': 'Organization', '@id': `${siteUrl}/#organization`, name: 'NudgeOn' } },
+      { '@type': 'BreadcrumbList', '@id': `${pageUrl}#breadcrumb`, itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'NudgeOn', item: `${siteUrl}${home}` },
+        { '@type': 'ListItem', position: 2, name: t.guide, item: pageUrl },
+      ] },
+    ],
+  };
   const flow = `<figure class="guide-flow"><figcaption>${t.exampleTitle}</figcaption><ol aria-label="${t.exampleLabel}">${t.example.map(item => `<li>${escape(item)}</li>`).join('')}</ol><p>${t.exampleNote}</p></figure>`;
   const screenshot = `<figure class="guide-screen"><a href="/assets/console-journey.png" aria-label="${t.screenshotOpen}"><img src="/assets/console-journey.png" alt="${t.screenshotAlt}" width="1600" height="1000" loading="lazy"></a><figcaption>${t.screenshotCaption} <a href="/assets/console-journey.png">${t.screenshotOpen} ↗</a></figcaption></figure>`;
   return `<!doctype html>
 <html lang="${lang}"><head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="index, follow, max-image-preview:large">
   <meta name="color-scheme" content="light"><meta name="theme-color" content="#f5f4ef">
   <title>${escape(t.title)}</title><meta name="description" content="${escape(t.description)}">
   <link rel="canonical" href="${pageUrl}"><link rel="alternate" hreflang="en" href="${siteUrl}/guide/"><link rel="alternate" hreflang="ko" href="${siteUrl}/ko/guide/"><link rel="alternate" hreflang="x-default" href="${siteUrl}/guide/">
   <meta property="og:type" content="website"><meta property="og:site_name" content="NudgeOn"><meta property="og:title" content="${escape(t.title)}"><meta property="og:description" content="${escape(t.description)}"><meta property="og:url" content="${pageUrl}"><meta property="og:locale" content="${lang === 'ko' ? 'ko_KR' : 'en_US'}">
-  <meta property="og:image" content="${socialImage}"><meta property="og:image:width" content="1600"><meta property="og:image:height" content="528"><meta property="og:image:alt" content="NudgeOn — N monogram and wordmark">
-  <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escape(t.title)}"><meta name="twitter:description" content="${escape(t.description)}"><meta name="twitter:image" content="${socialImage}"><meta name="twitter:image:alt" content="NudgeOn — N monogram and wordmark">
+  <meta property="og:image" content="${socialImage}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="${escape(socialAlt)}">
+  <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escape(t.title)}"><meta name="twitter:description" content="${escape(t.description)}"><meta name="twitter:image" content="${socialImage}"><meta name="twitter:image:alt" content="${escape(socialAlt)}">
   <script type="application/ld+json">${JSON.stringify(schema).replace(/</g, '\\u003c')}</script>
   <link rel="icon" type="image/svg+xml" href="/assets/nudgeon-mark.svg"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/guide.css">
 </head><body class="guide-page" id="top">
   <a class="skip" href="#main">${t.skip}</a>
   <header class="header shell guide-header"><a class="brand" href="${home}" aria-label="${t.home}"><img src="/assets/nudgeon-mark.svg" alt="" width="40" height="40"><span>NudgeOn</span></a><nav class="main-nav" aria-label="${t.navigation}"><a href="${home}#product">${t.product}</a><a href="${home}#deployment">${t.deployment}</a><a href="${lang === 'ko' ? '/ko/guide/' : '/guide/'}" aria-current="page">${t.guide}</a><a class="developer-link" href="${docsUrl}/">${lang === 'en' ? 'Developers' : t.developer}<span aria-hidden="true">↗</span></a></nav><div class="header-actions"><a class="github-link" href="${repoUrl}" aria-label="${lang === 'ko' ? 'GitHub에서 NudgeOn 소스 보기' : 'View NudgeOn on GitHub'}" title="GitHub"><img src="/assets/github-mark.svg" width="24" height="24" alt=""></a>${languageLinks(lang, t.language)}</div></header>
   <main id="main">
+    <nav class="guide-breadcrumb section-shell" aria-label="${lang === 'ko' ? '현재 위치' : 'Breadcrumb'}"><a href="${home}">NudgeOn</a><span aria-hidden="true"> / </span><span aria-current="page">${t.guide}</span></nav>
     <section class="guide-hero section-shell"><h1>${t.heading.split('\n').map(escape).join('<br>')}</h1><p class="guide-intro">${t.intro}</p><a class="guide-start" href="#prepare">${t.start}<span aria-hidden="true">↘</span></a><p class="guide-scope">${t.scope}</p></section>
     <div class="guide-layout section-shell"><aside class="guide-toc"><nav aria-label="${t.toc}"><p>${t.toc}</p><ol>${t.sections.map((s, i) => `<li><a href="#${s.id}"><span aria-hidden="true">0${i + 1}</span>${s.nav}</a></li>`).join('')}</ol></nav></aside>
       <div class="guide-articles">${t.sections.map((s, i) => `<section class="guide-section" id="${s.id}" aria-labelledby="title-${s.id}"><header class="guide-section-header"><span class="guide-number" aria-label="${t.sectionLabel} ${i + 1}">0${i + 1}</span><h2 id="title-${s.id}">${s.title}</h2><p class="guide-section-intro">${s.intro}</p></header><p class="guide-location"><strong>${t.where}</strong><span>${s.where}</span></p>${s.tests ? `<section class="launch-tests" aria-label="${escape(s.tests.title)}"><h3>${escape(s.tests.title)}</h3><div class="launch-test-grid">${s.tests.phases.map(phase => `<article><h4>${escape(phase.title)}</h4><p class="launch-test-mode">${escape(phase.mode)}</p><ol>${phase.steps.map(step => `<li>${escape(step)}</li>`).join('')}</ol><p class="launch-test-success"><strong>${escape(s.tests.done)}</strong> ${escape(phase.success)}</p></article>`).join('')}</div></section>` : ''}<ol class="guide-procedure">${s.steps.map(([title, body]) => `<li><h3>${escape(title)}</h3><p>${escape(body)}</p></li>`).join('')}</ol>${s.id === 'message' ? screenshot + flow : ''}${s.flow ? `<figure class="guide-flow"><figcaption>APP LAUNCH ADS · iOS &amp; ANDROID</figcaption><ol>${s.flow.map(item => `<li>${escape(item)}</li>`).join('')}</ol></figure>` : ''}<div class="guide-checkpoint"><h3>${t.checkpoint}</h3><p>${s.check}</p></div><p class="guide-note">${s.note}</p><nav class="guide-references" aria-label="${s.nav} · ${t.technical}">${s.links.map(([label, hash]) => `<a href="${docsUrl}/#${hash}">${label}<span aria-hidden="true">↗</span></a>`).join('')}</nav>${s.help ? `<section class="guide-troubleshooting launch-help" aria-label="${escape(s.help.title)}"><h3>${escape(s.help.title)}</h3>${s.help.items.map(([title, body]) => `<details><summary>${escape(title)}</summary><p>${escape(body)}</p></details>`).join('')}<h3>${escape(s.help.reviewTitle)}</h3><p>${escape(s.help.reviewBody)}</p><h3>${escape(s.help.detailsTitle)}</h3><p>${escape(s.help.detailsBody)}</p><h3>${escape(s.help.contentTitle)}</h3><ul>${s.help.contentItems.map(item => `<li>${escape(item)}</li>`).join('')}</ul><a href="https://www.w3.org/WAI/WCAG22/Understanding/timing-adjustable.html">W3C · Timing Adjustable</a></section>` : ''}${s.id === 'results' ? `<div class="guide-troubleshooting"><h3>${t.troubleshootTitle}</h3>${t.troubleshooting.map(([question, answer]) => `<details><summary>${escape(question)}</summary><p>${escape(answer)}</p></details>`).join('')}</div>` : ''}</section>`).join('')}

@@ -2,7 +2,7 @@ export const experience = {
   en: {
     headline: ["The right message.", "At their moment."],
     intro:
-      "Turn customer actions into thoughtful journeys. Open source. On your infrastructure.",
+      "NudgeOn connects customer events to push notifications, email and in-app campaigns. Open source. On your infrastructure.",
     explore: "Explore a journey",
     install: "Self-host NudgeOn",
     start: "Start building",
@@ -112,7 +112,7 @@ export const experience = {
   ko: {
     headline: ["필요한 메시지가,", "필요한 순간에."],
     intro:
-      "고객의 행동을 다음 대화로 연결하세요. 우리 인프라에서 시작하는 오픈소스 고객 인게이지먼트.",
+      "NudgeOn은 고객 이벤트를 푸시 알림·이메일·인앱 캠페인으로 연결합니다. 우리 서버에서 직접 운영하는 오픈소스 고객 인게이지먼트 플랫폼입니다.",
     explore: "저니 직접 체험하기",
     install: "NudgeOn 직접 설치",
     start: "시작하기",

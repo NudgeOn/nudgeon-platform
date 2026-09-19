@@ -128,3 +128,6 @@
 .launch-help ul { padding-left: 20px; }
 .launch-help li + li { margin-top: 14px; }
 .launch-help > a { display: inline-block; margin-top: 16px; color: var(--blue); }
+
+.guide-breadcrumb { padding-top: 24px; font-size: 13px; color: var(--muted); }
+.guide-breadcrumb a { text-decoration: underline; text-underline-offset: 3px; }

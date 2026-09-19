@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { renderLanding } from './landing.mjs';
 import { content } from '../src/content.mjs';
+import { productInfo } from '../src/product-info.mjs';
 import { renderGuide } from './user-guide.mjs';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
@@ -30,6 +31,11 @@ export function render(lang) {
         sameAs: ['https://github.com/NudgeOn']
       },
       {
+        '@type': 'WebSite', '@id': `${siteUrl}/#website`,
+        name: 'NudgeOn', url: `${siteUrl}/`, inLanguage: ['en', 'ko'],
+        publisher: { '@id': `${siteUrl}/#organization` }
+      },
+      {
         '@type': 'SoftwareApplication', '@id': `${siteUrl}/#software`,
         name: 'NudgeOn', url: `${siteUrl}/`, description: t.description,
         applicationCategory: 'BusinessApplication', applicationSubCategory: 'Customer engagement',
@@ -37,11 +43,13 @@ export function render(lang) {
         image: socialImage, sameAs: [repoUrl],
         author: { '@id': `${siteUrl}/#organization` },
         softwareHelp: { '@type': 'CreativeWork', name: 'NudgeOn Developer Center', url: `${docsUrl}/` },
-        featureList: ['Event collection', 'Audience segmentation', 'Customer journeys', 'FCM and APNs push', 'Self-hosted deployment', 'Timed full-screen startup ads']
+        featureList: ['Event collection', 'Audience segmentation', 'Customer journeys', 'FCM and APNs push', 'Email', 'HTML in-app campaigns', 'Self-hosted deployment', 'Timed full-screen startup ads']
       },
       {
         '@type': 'WebPage', '@id': `${pageUrl}#webpage`, url: pageUrl,
         name: t.title, description: t.description, inLanguage: lang,
+        isPartOf: { '@id': `${siteUrl}/#website` },
+        mainEntity: { '@id': `${siteUrl}/#software` },
         about: { '@id': `${siteUrl}/#software` },
         publisher: { '@id': `${siteUrl}/#organization` }
       }
@@ -52,6 +60,7 @@ export function render(lang) {
 <html lang="${lang}">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="index, follow, max-image-preview:large">
   <meta name="color-scheme" content="light"><meta name="theme-color" content="#ffffff">
   <title>${escape(t.title)}</title><meta name="description" content="${escape(t.description)}">
   <meta property="og:type" content="website"><meta property="og:site_name" content="NudgeOn">
@@ -67,7 +76,7 @@ export function render(lang) {
   <script type="application/ld+json">${JSON.stringify(structuredData).replace(/</g, '\\u003c')}</script>
   <link rel="alternate" hreflang="en" href="${siteUrl}/"><link rel="alternate" hreflang="ko" href="${siteUrl}/ko/"><link rel="alternate" hreflang="x-default" href="${siteUrl}/">
   <link rel="icon" type="image/svg+xml" href="/assets/nudgeon-mark.svg">
-  <link rel="stylesheet" href="/landing.css"><link rel="stylesheet" href="/landing-responsive.css"><link rel="stylesheet" href="/installation.css"><link rel="stylesheet" href="/launch-ads.css"><script type="module" src="/launch-ads.js"></script><script type="module" src="/journey-demo.js"></script><script type="module" src="/install-tour.js"></script>
+  <link rel="stylesheet" href="/product-info.css"><link rel="stylesheet" href="/landing.css"><link rel="stylesheet" href="/landing-responsive.css"><link rel="stylesheet" href="/installation.css"><link rel="stylesheet" href="/launch-ads.css"><script type="module" src="/launch-ads.js"></script><script type="module" src="/journey-demo.js"></script><script type="module" src="/install-tour.js"></script>
 </head>
 <body>
   <a class="skip" href="#main">${t.skip}</a>
@@ -75,7 +84,7 @@ export function render(lang) {
 </body></html>`;
 }
 
-function llmsTxt() {
+export function llmsTxt() {
   const t = content.en;
   return `# NudgeOn
 
@@ -89,6 +98,10 @@ Status: partner beta candidate. Push (FCM/APNs) and email are implemented;
 Alimtalk has a connector contract and mock vendor. Managed hosting is not available.
 See the release checklist for verified results and remaining beta gates.
 
+## Product facts
+
+${productInfo.en.questions.map(([question, answer]) => `### ${question}\n\n${answer}`).join("\n\n")}
+
 ## Site
 
 - [Home](${siteUrl}/): product overview
@@ -96,6 +109,9 @@ See the release checklist for verified results and remaining beta gates.
 - [User guide](${siteUrl}/guide/): what the console does
 - [User guide (Korean)](${siteUrl}/ko/guide/): 콘솔 사용 안내
 - [Developer Center](${docsUrl}/): integration and API reference
+- [SDK quickstart](${docsUrl}/#sdk-quickstart): native integration examples
+- [Self-hosting](${docsUrl}/#self-hosting): prerequisites and setup
+- [APP LAUNCH ADS guide](${siteUrl}/guide/#launch-ads): review, publish and verify startup ads
 
 ## Source
 
