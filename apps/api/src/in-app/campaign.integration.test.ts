@@ -591,7 +591,7 @@ describe.skipIf(!url)("live in-app campaigns", () => {
     }
     const campaign = await create({ platforms: ["ios", "android"], trigger: { type: "launch" }, time_zone: "Asia/Seoul", max_per_day: 1 });
     await publish(campaign);
-    const fresh = [await installation("ios"), await installation("android")];
+    const fresh = [await installation("ios"), await installation("android")] as const;
     // These four installations have no account/profile/segment/test pairing.
     for (const device of [...existing, ...fresh]) {
       const delivery = (await live.decide(device.context, launch(), true)).delivery!;
