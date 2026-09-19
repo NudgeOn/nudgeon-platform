@@ -1,7 +1,7 @@
 const copy = {
   ko: {
     title: '앱을 여는 순간,\n새로운 소식을 전하세요.',
-    intro: '런치 화면 다음에 나타나는 전면 광고. 이벤트와 프로모션을 3~5초 동안 보여주고, 누를 필요 없이 메인 화면으로 자연스럽게 이어집니다.',
+    intro: '신규·기존 사용자 모두에게 전하는 소식. 런치 화면 다음에 나타나는 전면 광고. 이벤트와 프로모션을 3~5초 동안 보여주고, 누를 필요 없이 메인 화면으로 자연스럽게 이어집니다.',
     steps: ['런치 화면', '전면 광고 · 기본 4초', '메인 화면'],
     points: [
       ['웹 소스로 자유롭게', 'HTML·CSS·JS를 올리거나 시작 전면 광고 예제로 만드세요. 웹 소스는 NudgeOn에서 관리합니다.'],
@@ -17,7 +17,7 @@ const copy = {
   },
   en: {
     title: 'A new story,\nright as your app opens.',
-    intro: 'Show a full-screen event or promotion after the launch screen. After 3–5 seconds, it disappears automatically and your main screen takes over. No tap needed.',
+    intro: 'Reach new and existing users. Show a full-screen event or promotion after the launch screen. After 3–5 seconds, it disappears automatically and your main screen takes over. No tap needed.',
     steps: ['Launch screen', 'Full-screen ad · 4s default', 'Main screen'],
     points: [
       ['Create with web assets', 'Upload HTML, CSS and JavaScript, or start from the full-screen ad example. NudgeOn manages your web assets.'],

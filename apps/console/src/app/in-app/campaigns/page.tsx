@@ -322,6 +322,12 @@ export default function CampaignPage() {
                   ? reviewPlatforms.join(" / ")
                   : t("none")}
               </p>
+              <section className="ic-audience" aria-labelledby="campaign-audience-title">
+                <h3 id="campaign-audience-title">{t("audience")}</h3>
+                <strong>{t("audienceAll")}</strong>
+                <p>{t("audienceAllHelp")}</p>
+                <p className="ic-muted">{t("audienceConditions")}</p>
+              </section>
               <div className="ic-inline">
                 {(["ios", "android"] as const).map((p) => (
                   <label key={p}>

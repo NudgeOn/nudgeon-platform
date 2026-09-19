@@ -1644,7 +1644,7 @@
     "review": "Device review",
     "conditions": "Display rules",
     "publish": "Publish saved version",
-    "publicOnly": "App installations · public content",
+    "publicOnly": "All users · public content",
     "disabled": "Live campaigns are not enabled on this server yet.",
     "loadError": "Could not load data. Check your login and app configuration.",
     "operationFailed": "Operation failed: {reason}",
@@ -1662,7 +1662,7 @@
     "trigger": "When should it appear?",
     "foreground": "App activation / return",
     "launch": "After app launch",
-    "launchHint": "Checked once after the launch screen. Skipped if no ad is eligible or preparation takes too long. Separate from app return; requires launch integration with SDK 0.2.3 or later.",
+    "launchHint": "With iOS/Android SDK 0.2.4 and the startup host integration, a full-screen ad follows the launch screen and auto-dismisses after four seconds by default (3–5 seconds). One attempt per new process; no ad or slow preparation proceeds to main.",
     "screen": "On a specific screen",
     "event": "On a specific event",
     "triggerName": "Exact screen or event name",
@@ -1720,6 +1720,10 @@
       "display_timeout": "Display time limit reached",
       "launch_timeout": "Launch ad preparation timed out",
       "legacy_context_changed": "Legacy SDK: context changed (cause unavailable)"
-    }
+    },
+    "audience": "Who will see it?",
+    "audienceAll": "All users · new + existing",
+    "audienceAllHelp": "Every installation on the selected platforms in this app is eligible. No account login, customer profile, segment membership or test-device pairing is required. New installations after publication are included.",
+    "audienceConditions": "The app needs SDK integration and permission to display campaigns. Publication dates, frequency, suppression and host readiness determine actual display. Frequency is counted per installation, not per user account."
   }
 }

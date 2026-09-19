@@ -111,11 +111,11 @@ describe.skipIf(!url)("live in-app campaigns", () => {
       context: await live.auth(tenant, app, d.credential),
     };
   }
-  async function reviewed() {
+  async function reviewed(platform = "ios") {
     const p = await workbench.pairing(tenant, app, member);
     await pg.query(
-      "UPDATE in_app_test_devices SET state='active',platform='ios' WHERE tenant_id=$1 AND app_id=$2 AND id=$3",
-      [tenant, app, p.id],
+      "UPDATE in_app_test_devices SET state='active',platform=$4 WHERE tenant_id=$1 AND app_id=$2 AND id=$3",
+      [tenant, app, p.id, platform],
     );
     const r = await workbench.run(tenant, app, {
       revision_id: revision,
@@ -570,6 +570,46 @@ describe.skipIf(!url)("live in-app campaigns", () => {
     expect(report.failures.map(e=>e.detail)).toEqual(["WEBVIEW_ERROR"]);
     expect(report.deliveries.find(e=>e.state==="cancelled")?.count).toBe(1);
     expect(report.events.find(e=>e.kind==="impression")).toBeUndefined();
+  });
+
+  it("offers launch ads to new and existing unpaired installations on both OSes within the app", async () => {
+    // Isolate selection from campaigns created by earlier tests.
+    for (const existing of (await campaigns.list(tenant, app)).campaigns) {
+      if (existing.state === "published") {
+        await campaigns.transition(tenant, app, existing.id, member,
+          { expected_version: existing.version }, false);
+      }
+    }
+    const existing = [await installation("ios"), await installation("android")];
+    const launch = () => ({ ...input(), trigger: { type: "launch" } });
+    for (const device of existing) expect((await live.decide(device.context, launch(), true)).delivery).toBeNull();
+    for (const platform of ["ios", "android"]) {
+      const run = await reviewed(platform);
+      await campaigns.review(tenant, app, member, {
+        run_id: run.id, passed: true, layout_checked: true, close_checked: true, actions_checked: true,
+      });
+    }
+    const campaign = await create({ platforms: ["ios", "android"], trigger: { type: "launch" }, time_zone: "Asia/Seoul", max_per_day: 1 });
+    await publish(campaign);
+    const fresh = [await installation("ios"), await installation("android")] as const;
+    // These four installations have no account/profile/segment/test pairing.
+    for (const device of [...existing, ...fresh]) {
+      const delivery = (await live.decide(device.context, launch(), true)).delivery!;
+      expect(delivery.campaign_id).toBe(campaign.id);
+      await live.authorize(device.context, delivery.id);
+      await event(device.context, delivery.id, "presented");
+      await event(device.context, delivery.id, "impression");
+      await event(device.context, delivery.id, "dismiss", "auto_dismiss");
+      expect((await live.decide(device.context, launch(), true)).delivery).toBeNull();
+    }
+    const otherApp = randomUUID();
+    await pg.query("INSERT INTO apps(id,tenant_id,name) VALUES($1,$2,'Other launch app')", [otherApp, tenant]);
+    const outsider = await live.register(tenant, otherApp, { platform: "ios" });
+    const otherContext = await live.auth(tenant, otherApp, outsider.credential);
+    expect((await live.decide(otherContext, launch(), true)).delivery).toBeNull();
+    await expect(live.auth(tenant, otherApp, fresh[0].credential)).rejects.toMatchObject({ status: 401 });
+    const report = await campaigns.report(tenant, app, campaign.id);
+    expect(report.events.find((row) => row.kind === "impression")?.count).toBe(4);
   });
 
 });

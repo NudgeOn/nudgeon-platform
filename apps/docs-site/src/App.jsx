@@ -292,7 +292,7 @@ const resourceSections = [
     id: "release",
     eyebrow: "릴리즈·호환성",
     title: "지원 범위를 과장하지 않습니다",
-    body: "NudgeOn는 Push MVP Alpha입니다. 검증된 플랫폼과 제한을 버전별로 공개합니다.",
+    body: "NudgeOn은 파트너 베타 후보입니다. 검증된 플랫폼과 제한을 버전별로 공개합니다.",
     icon: IconGitBranch,
     href: "#compatibility",
   },
@@ -549,7 +549,7 @@ const englishResourceSections = [
     id: "release",
     eyebrow: "Releases & compatibility",
     title: "No claims beyond verified support",
-    body: "NudgeOn is Push MVP Alpha. Verified platforms and constraints are published by version.",
+    body: "NudgeOn is a partner beta candidate. Verified platforms and constraints are published by version.",
     icon: IconGitBranch,
     href: "#compatibility",
   },
@@ -1075,6 +1075,14 @@ function GuideArticles({ content, announce }) {
               <span>{guide.intro}</span>
               <code>{guide.endpoint}</code>
             </header>
+            {guide.tests && <section className="launch-tests" aria-label={guide.tests.title}>
+              <h3>{guide.tests.title}</h3>
+              <div className="launch-test-grid">{guide.tests.phases.map(phase => <article key={phase.title}>
+                <h4>{phase.title}</h4><p className="launch-test-mode">{phase.mode}</p>
+                <ol>{phase.steps.map(step => <li key={step}>{step}</li>)}</ol>
+                <p className="launch-test-success"><strong>{guide.tests.done}</strong> {phase.success}</p>
+              </article>)}</div>
+            </section>}
             <div className="guide-workflow">
               <p>{content.ui.guideSteps}</p>
               <ol>
@@ -1091,9 +1099,12 @@ function GuideArticles({ content, announce }) {
             </div>
             {(guide.examples ?? [{ label: guide.codeLabel, code: guide.code }]).map((example, index) => {
               const copyId = `${guide.id}-${index}`;
-              return <CodeBlock key={copyId} content={content} label={example.label}
+              const block = <CodeBlock content={content} label={example.label}
                 value={example.code} copied={copiedGuide === copyId}
                 onCopy={() => copyGuideCode({ id: copyId, code: example.code })} />;
+              return example.complete ? <details className="complete-example" key={copyId}>
+                <summary>{example.label}</summary>{block}
+              </details> : <div key={copyId}>{block}</div>;
             })}
             <div className="warning-note guide-note">
               <IconAlertTriangle size={19} stroke={1.9} aria-hidden="true" />
@@ -1324,7 +1335,7 @@ export function App() {
         <div className="content-grid">
           <div className="primary-content">
             <section className="hero" id="checklist">
-              <div className="status-label"><span aria-hidden="true" />Push MVP Alpha</div>
+              <div className="status-label"><span aria-hidden="true" />{language === "ko" ? "파트너 베타 후보" : "Partner beta candidate"}</div>
               <h1>{content.ui.heroTitle}</h1>
               <p>{content.ui.heroBody}</p>
               <button className="primary-button" type="button" onClick={startChecklist}>

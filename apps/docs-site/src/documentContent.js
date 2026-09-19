@@ -26,7 +26,7 @@ Content-Type: application/json
     "properties": { "product_id": "sku-42" }
   }]
 }`,
-    note: "NudgeOn는 현재 Push MVP Alpha이며 실제 채널은 FCM·APNs입니다. /v1/track의 202는 PostgreSQL 원본과 outbox 커밋까지만 보장합니다.",
+    note: "NudgeOn은 파트너 베타 후보입니다. 푸시 채널은 FCM·APNs입니다. /v1/track의 202는 PostgreSQL 원본과 outbox 커밋까지만 보장합니다.",
     source: "API 가이드 · PUSH-CONTRACT · README",
   },
   {
@@ -291,19 +291,24 @@ Cookie: nudgeon_session=<SESSION>`,
   {
     id: "release-notes",
     eyebrow: "릴리즈·호환성",
-    title: "미출시 알파 변경과 배포된 릴리즈를 구분하세요",
-    intro: "현재 작업 브랜치의 기능은 소스 구현 상태이며 v* 태그와 레지스트리 산출물이 확인되기 전에는 정식 릴리즈가 아닙니다.",
-    endpoint: "git tag · GHCR release workflow",
+    title: "파트너 베타 후보 · 배포 상태와 남은 검증",
+    intro: "2026-09-19 기준. 제품의 베타 준비 상태와 개별 SDK의 공개 배포 상태를 구분합니다. 네이티브 SDK 배포 완료가 전체 제품의 베타 검증 완료를 뜻하지는 않습니다.",
+    endpoint: "파트너 베타 후보 · iOS/Android SDK 0.2.4 공개",
     steps: [
-      { title: "소스 구현을 릴리즈로 부르지 않습니다", body: "미출시 브랜치에는 저니 메시지 채널 확장과 발송기 선택 경로가 포함될 수 있지만 배포 증거가 아닙니다." },
-      { title: "현재 체크아웃의 태그를 확인합니다", body: "package manifest 버전만으로 배포를 판단하지 않고 v* 태그와 대응 이미지·패키지를 함께 확인합니다." },
-      { title: "산출물과 검증 범위를 기록합니다", body: "릴리즈 workflow는 API·콘솔·워커 멀티 아키텍처 이미지를 만들도록 구성되어 있으며 실제 레지스트리 결과는 별도 확인합니다." },
+      { title: "공개 배포 완료", body: "iOS SPM과 Android Maven Central의 core·in-app 0.2.4를 사용할 수 있습니다. 시작 광고의 기본 4초 자동 종료를 포함하며 공개 패키지만 사용하는 앱 빌드를 확인했습니다." },
+      { title: "게시 대기", body: "React Native·Flutter 0.1.3은 준비·CI·머지를 마쳤으며 npm·pub.dev·CocoaPods 로그인과 게시가 남아 있습니다. RN·Flutter 인앱 시작 광고 연결은 아직 제공하지 않습니다." },
+      { title: "베타 판정 전 검증", body: "관리형 DB 연결·복구, 목표 부하·24시간 연속 시험, 외부 개발자 온보딩, 네 SDK 계약과 파일럿 검증이 남아 있습니다. 최신 SDK 실단말 푸시 재검증은 별도 항목입니다." },
     ],
-    codeLabel: "현재 릴리즈 근거 확인",
-    code: `git describe --tags --always --dirty
-git tag --list 'v*' --sort=-version:refname`,
-    note: "manifest의 0.1.0은 배포 증거가 아닙니다. 공급자·고객 E2E, SBOM, 이미지 서명, 자동 변경 로그는 별도 검증이 필요합니다.",
-    source: "release workflow · package manifest · RELEASE-CHECKLIST",
+    codeLabel: "공개 SDK 태그 확인 · 서버 이미지 버전과 별도",
+    code: `git ls-remote --tags https://github.com/NudgeOn/nudgeon-ios-sdk.git refs/tags/0.2.4
+git ls-remote --tags https://github.com/NudgeOn/nudgeon-android-sdk.git refs/tags/0.2.4`,
+    note: "SDK 버전은 서버 이미지 버전이 아닙니다. 서버·콘솔·워커는 배포 대상의 태그와 이미지 digest를 별도로 확인하세요. 실제 Fold3 화면 캡처는 미확인이며 런타임 이벤트 확인과 구분합니다.",
+    source: "RELEASE-CHECKLIST · native SDK 0.2.4 releases",
+    links: [
+      { label: "출시 상태와 남은 게이트", href: "https://github.com/NudgeOn/nudgeon-platform/blob/main/docs-public/RELEASE-CHECKLIST.md" },
+      { label: "iOS 0.2.4 릴리스", href: "https://github.com/NudgeOn/nudgeon-ios-sdk/releases/tag/0.2.4" },
+      { label: "Android 0.2.4 릴리스", href: "https://github.com/NudgeOn/nudgeon-android-sdk/releases/tag/0.2.4" },
+    ],
   },
   {
     id: "compatibility",
@@ -321,7 +326,7 @@ git tag --list 'v*' --sort=-version:refname`,
 pnpm --version
 go version
 docker compose version`,
-    note: "API·스키마는 알파이며 바뀔 수 있습니다. 관리형 DB, N-1, 최소 OS·패키지 버전, 네 SDK 신규 설치·실기기 수신 인증 매트릭스는 아직 없습니다.",
+    note: "파트너 베타 후보 단계이며 API·스키마가 바뀔 수 있습니다. 시작 광고 예제의 최소 OS는 iOS 15·Android 8(API 26)입니다. 관리형 DB·N-1 호환성·네 SDK 전체의 신규 설치와 실기기 수신 검증은 아직 완료되지 않았습니다.",
     source: "package config · DEPLOY · JOURNEY-GRAPH · RELEASE-CHECKLIST",
   },
 ];
@@ -351,7 +356,7 @@ Content-Type: application/json
     "properties": { "product_id": "sku-42" }
   }]
 }`,
-    note: "NudgeOn is currently Push MVP Alpha, with FCM and APNs as its live channels. A 202 from /v1/track confirms the PostgreSQL raw record and outbox commit only.",
+    note: "NudgeOn is a partner beta candidate. Push channels are FCM and APNs. A 202 from /v1/track confirms the PostgreSQL raw record and outbox commit only.",
     source: "API guide · PUSH-CONTRACT · README",
   },
   {
@@ -616,19 +621,24 @@ Cookie: nudgeon_session=<SESSION>`,
   {
     id: "release-notes",
     eyebrow: "Releases & compatibility",
-    title: "Separate unreleased alpha work from shipped releases",
-    intro: "Features on the current working branch are source implementations, not a release until a v* tag and registry artifacts are verified.",
-    endpoint: "git tag · GHCR release workflow",
+    title: "Partner beta candidate · published artifacts and remaining checks",
+    intro: "As of September 19, 2026. Product beta readiness and individual SDK publication are separate statuses. Publishing the native SDKs does not close the product's beta gates.",
+    endpoint: "Partner beta candidate · iOS/Android SDK 0.2.4 published",
     steps: [
-      { title: "Do not call source work a release", body: "An unreleased branch may contain journey-channel or provider changes, but implementation alone is not shipment evidence." },
-      { title: "Verify tags from the active checkout", body: "A package manifest version is insufficient; match a v* tag to the published image or package." },
-      { title: "Record artifacts and verification scope", body: "The release workflow is configured for multi-architecture API, console, and worker images. Verify the actual registry result separately." },
+      { title: "Published", body: "iOS SPM and Android Maven Central core/in-app 0.2.4 are available, including startup ads with a default four-second automatic dismissal. App builds consuming only public packages were verified." },
+      { title: "Awaiting publication", body: "React Native and Flutter 0.1.3 preparation, CI and merge are complete; npm, pub.dev and CocoaPods authentication/publication are pending. RN/Flutter in-app startup integration is not available." },
+      { title: "Remaining beta gates", body: "Managed-database connection/recovery, target load and 24-hour soak, external onboarding, all-four-SDK contracts and pilot validation remain open. Latest-SDK physical push revalidation is a separate gate." },
     ],
-    codeLabel: "Inspect current release evidence",
-    code: `git describe --tags --always --dirty
-git tag --list 'v*' --sort=-version:refname`,
-    note: "A manifest version of 0.1.0 is not shipment evidence. Provider and customer E2E, SBOMs, image signing, and generated changelogs require separate verification.",
-    source: "release workflow · package manifest · RELEASE-CHECKLIST",
+    codeLabel: "Inspect public SDK tags · separate from server image versions",
+    code: `git ls-remote --tags https://github.com/NudgeOn/nudgeon-ios-sdk.git refs/tags/0.2.4
+git ls-remote --tags https://github.com/NudgeOn/nudgeon-android-sdk.git refs/tags/0.2.4`,
+    note: "SDK versions are not server image versions. Verify the target API/console/worker tag and image digest separately. Physical Fold3 visual capture remains unverified; runtime events are separate evidence.",
+    source: "RELEASE-CHECKLIST · native SDK 0.2.4 releases",
+    links: [
+      { label: "Release status and remaining gates", href: "https://github.com/NudgeOn/nudgeon-platform/blob/main/docs-public/RELEASE-CHECKLIST.md" },
+      { label: "iOS 0.2.4 release", href: "https://github.com/NudgeOn/nudgeon-ios-sdk/releases/tag/0.2.4" },
+      { label: "Android 0.2.4 release", href: "https://github.com/NudgeOn/nudgeon-android-sdk/releases/tag/0.2.4" },
+    ],
   },
   {
     id: "compatibility",
@@ -646,7 +656,7 @@ git tag --list 'v*' --sort=-version:refname`,
 pnpm --version
 go version
 docker compose version`,
-    note: "APIs and schemas remain alpha. There is no certified matrix yet for managed databases, N-1 compatibility, minimum OS/package versions, or all four SDK clean installs and real-device delivery.",
+    note: "APIs and schemas may change during the partner beta candidate stage. Launch examples require iOS 15 or Android 8 (API 26). Managed-database, N-1, and all-four-SDK clean-install and real-device delivery certification remain incomplete.",
     source: "package config · DEPLOY · JOURNEY-GRAPH · RELEASE-CHECKLIST",
   },
 ];

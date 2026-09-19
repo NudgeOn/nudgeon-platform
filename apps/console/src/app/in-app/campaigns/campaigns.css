@@ -202,3 +202,13 @@
     flex-wrap: wrap;
   }
 }
+
+.ic-audience {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--muted);
+}
+.ic-audience h3 { margin: 0 0 12px; font-size: 12px; }
+.ic-audience strong { display: block; margin-bottom: 12px; font-size: 16px; }
+.ic-audience p { margin: 10px 0 0; font-size: 12px; line-height: 1.8; }
