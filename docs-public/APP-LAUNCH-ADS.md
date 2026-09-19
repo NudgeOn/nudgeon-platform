@@ -1,4 +1,4 @@
-# 앱 실행 직후 전면 광고 — SDK 0.2.4
+# 앱 실행 직후 전면 광고 — SDK 0.2.5
 
 **대상: 전체 사용자(신규·기존).** 해당 앱의 선택한 OS에 설치되어 SDK가 연결된 모든 기기가 대상이며 회원 로그인·고객 프로필·세그먼트·작업실 기기 연결은 필요하지 않습니다. 게시 후 새로 설치한 기기도 포함됩니다. 실제 표시는 호스트 동의·준비 상태, 게시 기간·우선순위·설치 기기별 빈도·숨김 조건을 따릅니다. 계정 단위 중복 제어나 모든 기기에 대한 동시·보장 노출을 의미하지 않습니다. 다른 앱·테넌트로 노출하지 않습니다.
 
@@ -70,12 +70,12 @@ SDK 0.2.2 이하의 기존 앱은 시작 광고를 요청하지 않는다.
 
 [설정·빌드·실행·실패 경로 확인 안내 (한/영)](../apps/docs-site/examples/app-launch/README.md)
 
-- [iOS · UIKit/AppDelegate 전체 앱](../apps/docs-site/examples/app-launch/ios/LaunchAdExample.swift) + [XcodeGen 프로젝트](../apps/docs-site/examples/app-launch/ios/project.yml): iOS 15 이상, 공개 SPM **정확히 0.2.4**.
-- [Android · Activity 전체 앱](../apps/docs-site/examples/app-launch/android/app/src/main/kotlin/io/nudgeon/launchexample/MainActivity.kt) + [Gradle 프로젝트](../apps/docs-site/examples/app-launch/android): API 26 이상, 공개 Maven Central core/in-app **0.2.4**.
+- [iOS · UIKit/AppDelegate 전체 앱](../apps/docs-site/examples/app-launch/ios/LaunchAdExample.swift) + [XcodeGen 프로젝트](../apps/docs-site/examples/app-launch/ios/project.yml): iOS 15 이상, 공개 SPM **정확히 0.2.5**.
+- [Android · Activity 전체 앱](../apps/docs-site/examples/app-launch/android/app/src/main/kotlin/io/nudgeon/launchexample/MainActivity.kt) + [Gradle 프로젝트](../apps/docs-site/examples/app-launch/android): API 26 이상, 공개 Maven Central core/in-app **0.2.5**.
 
 두 예제에는 클라이언트 생성·보관, 실제 메인 화면, 첫 프레임 전 덮개, 독립적인 3초 fallback, 동의 저장, 외부 진입 제외와 생명주기 정리가 포함됩니다. `shown`/`SHOWN` 콜백에서는 광고 뒤 덮개를 제거하고 fallback을 취소합니다. 광고 자체는 SDK가 자동 종료하므로 이 콜백에서 `disable()`을 호출하지 않습니다.
 
-첫 실행에서 동의한 뒤 프로세스를 종료·재실행하세요. 같은 예제의 **Connect for content review**에서 작업실 코드를 입력하고 확인 숫자를 대조할 수 있습니다. 네이티브 닫기 후 콘솔에 완료 기록이 도착하면 **End test session**으로 연결을 종료합니다. 연결 종료는 검수 통과를 대신하지 않습니다. 콘텐츠 검수와 운영 광고는 동시에 활성화하지 않으며 비활성화 시 중단합니다. 일반 화면·이벤트·복귀 캠페인은 서비스 앱 생명주기에 맞게 별도로 연결합니다.
+첫 실행에서 동의한 뒤 프로세스를 종료·재실행하세요. 같은 예제의 **Connect for content review**에서 작업실 코드를 입력하고 확인 숫자를 대조할 수 있습니다. 네이티브 닫기 후 앱의 **Server confirmed · pending 0**을 확인하고 **End test session**으로 연결을 종료합니다. 실패한 전송은 암호화 보관하며 재시도·재실행 후 복구합니다. 연결 종료는 검수 통과를 대신하지 않습니다. 콘텐츠 검수와 운영 광고는 동시에 활성화하지 않으며 비활성화 시 중단합니다. 일반 화면·이벤트·복귀 캠페인은 서비스 앱 생명주기에 맞게 별도로 연결합니다.
 
 [유저가이드](https://nudgeon.io/ko/guide/#launch-ads) · [개발자센터](https://developer.nudgeon.io/#launch-ads)
 
@@ -105,7 +105,7 @@ KST 시각, 앱·캠페인 ID, 소스 버전, OS·SDK 버전, 실행 방법, SDK
 
 ## 검수 연결을 끝내기 전에
 
-네이티브 닫기 후 콘솔에서 같은 실행의 완료 상태와 노출·닫기 기록을 확인하세요. 예제의 로컬 이벤트 메시지는 서버 수신 확인이 아닙니다. End test session에서 완료 기록 확인 후 종료하거나, Keep waiting으로 연결을 유지합니다. 검수를 포기할 때만 Discard and end를 선택하세요. 백그라운드·외부 화면 전환·앱 종료 시 미전송 기록은 유실될 수 있어 재검수가 필요합니다.
+네이티브 닫기 후 예제 앱에서 전송 대기 → 전송 중 → 서버 확인(대기 0)을 확인하고 End test session으로 종료하세요. 종료 시 남은 기록을 먼저 전송하며 실패하면 암호화 보관합니다. Retry transfer로 다시 보내거나 앱 재실행 후 전송을 복구할 수 있습니다. Discard pending records는 기록을 포기할 때만 선택하세요. 서버 확인은 기록 수신이며 검수 통과가 아닙니다. 콘솔의 동일 버전·OS 검수는 별도로 진행합니다. 테스트 자격(30분)·실행 유효기간(5분)이 지나 거절되면 새 검수가 필요합니다.
 
 ## 짧게 알리고, 메인에서 다시 읽게 하세요
 

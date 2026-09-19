@@ -5,7 +5,7 @@ options:
 packages:
   NudgeOnSDK:
     url: https://github.com/NudgeOn/nudgeon-ios-sdk.git
-    exactVersion: 0.2.4
+    exactVersion: 0.2.5
 targets:
   LaunchAdExample:
     type: application
@@ -17,6 +17,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.nudgeon.launch-example
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]": Simulator.entitlements
+        "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": '-'
         SWIFT_VERSION: '5.9'
         TARGETED_DEVICE_FAMILY: '1,2'
         GENERATE_INFOPLIST_FILE: YES

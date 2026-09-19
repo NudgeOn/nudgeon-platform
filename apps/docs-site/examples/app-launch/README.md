@@ -4,10 +4,10 @@
 
 ## 한국어
 
-**SDK 0.2.4 · 콘텐츠 검수와 시작 광고를 실행하는 앱.** 앱 진입점, SDK 생성·보관, 첫 프레임 전 덮개, 독립적인 3초 fallback, 동의·외부 진입 제외, 생명주기 정리가 모두 포함됩니다. 개발자센터의 전체 코드도 이 파일들을 직접 읽어 표시합니다.
+**SDK 0.2.5 · 콘텐츠 검수와 시작 광고를 실행하는 앱.** 앱 진입점, SDK 생성·보관, 첫 프레임 전 덮개, 독립적인 3초 fallback, 동의·외부 진입 제외, 생명주기 정리가 모두 포함됩니다. 개발자센터의 전체 코드도 이 파일들을 직접 읽어 표시합니다.
 
-- iOS 15 이상, Xcode + XcodeGen. SPM의 `NudgeOnInApp` **정확히 0.2.4**.
-- Android 8(API 26) 이상, JDK 17, Android SDK 34. Gradle wrapper 8.13 포함, Maven Central core/in-app **0.2.4**. `mavenLocal`이나 형제 SDK 체크아웃을 사용하지 않습니다.
+- iOS 15 이상, Xcode + XcodeGen. SPM의 `NudgeOnInApp` **정확히 0.2.5**.
+- Android 8(API 26) 이상, JDK 17, Android SDK 34. Gradle wrapper 8.13 포함, Maven Central core/in-app **0.2.5**. `mavenLocal`이나 형제 SDK 체크아웃을 사용하지 않습니다.
 - 서버에 migration 0010~0012, `IN_APP_ENABLED`, `IN_APP_CAMPAIGNS_ENABLED`, 영속 자산 볼륨·별도 HTTPS 콘텐츠 호스트가 준비되어 있어야 합니다. [서버·콘솔 계약](../../../../docs-public/APP-LAUNCH-ADS.md).
 - 푸시 토큰이나 FCM/APNs 인증서는 이 시작 광고 예제에 필요하지 않습니다.
 
@@ -26,11 +26,11 @@ cd nudgeon-platform/apps/docs-site/examples/app-launch
 cd ios
 xcodegen generate
 xcodebuild -project LaunchAdExample.xcodeproj -scheme LaunchAdExample \
-  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=YES build
 open LaunchAdExample.xcodeproj
 ```
 
-Xcode에서 시뮬레이터를 선택하고 실행합니다. 실제 iPhone은 본인 Team과 고유 Bundle ID를 설정하고 실행하세요. 단일 `UIWindow`/AppDelegate 예제이며 Scene 기반 앱은 동일한 덮개·취소 규칙을 해당 Scene 소유자에 연결합니다.
+Xcode에서 시뮬레이터를 선택하고 실행합니다. 시뮬레이터 전용 `Simulator.entitlements`와 ad-hoc 서명은 Keychain 전송 저장소 접근에 필요합니다. 서명을 끄면 저장소 초기화가 실패할 수 있습니다. 이 설정은 실제 기기에는 적용되지 않습니다. 실제 iPhone은 본인 Team과 고유 Bundle ID를 설정하고 실행하세요. 단일 `UIWindow`/AppDelegate 예제이며 Scene 기반 앱은 동일한 덮개·취소 규칙을 해당 Scene 소유자에 연결합니다.
 
 ### 3. Android 실행
 
@@ -48,10 +48,10 @@ adb -s YOUR_TEST_DEVICE shell am start -a android.intent.action.MAIN \
 1. 작업실에서 소스를 저장·검증하고 **기기 연결** 코드를 만듭니다.
 2. 예제의 **Workbench pairing code**에 코드를 붙여 넣고 **Connect for content review**를 누릅니다. 이 버튼이 테스트 모드의 명시적 동의이며, 시작 광고용 **Allow startup ads** 스위치와 별개입니다.
 3. 앱의 **Confirmation number**와 콘솔의 숫자를 대조한 뒤 **같은 기기 확인**을 누릅니다. 앱을 전경에 둔 채 **내 기기에서 실행**합니다.
-4. 광고의 **네이티브 Close 버튼**으로 종료합니다. 콘솔에서 마지막 실행이 완료되고 같은 소스 버전의 노출·닫기 기록이 도착했는지 확인합니다.
-5. 그 다음 예제의 **End test session → Console record checked · end**로 연결을 종료합니다. 아직 기록이 없으면 **Keep waiting**으로 연결을 유지하고, 검수를 포기할 때만 **Discard and end**를 선택합니다. 이 버튼은 검수 통과나 광고의 네이티브 닫기를 대신하지 않습니다. 기록이 도착하기 전에 연결을 끝내면 검수 증거가 누락될 수 있습니다.
+4. 광고의 **네이티브 Close 버튼**으로 종료합니다. 앱의 **Waiting → Sending → Server confirmed · pending 0**으로 서버 수신을 확인합니다. 로컬 이벤트 메시지와 별개입니다.
+5. **End test session**은 남은 기록을 전송한 뒤 연결을 끝냅니다. **Failed**이면 **Retry transfer**를 누르거나 앱을 재실행해 전송만 복구하세요. **Discard pending records**는 기록을 포기할 때만 확인 후 선택합니다. 서버 확인은 검수 통과가 아니며 콘솔에서 같은 소스 버전·대상 OS의 검수를 별도로 승인합니다.
 
-연결 코드가 비었거나 잘못되면 화면에 원인을 안내하고 다시 연결할 수 있습니다. 확인 숫자는 연결 중 계속 표시됩니다. 코드·테스트 자격은 저장하지 않으며 연결 종료·백그라운드 전환·프로세스 재시작 후에는 새 코드로 연결합니다. 연결 중 종료하면 늦은 응답도 적용하지 않습니다. 콘텐츠 검수 중에는 운영 광고 클라이언트를 중단합니다.
+연결 코드는 저장하지 않습니다. 전송에 필요한 단기 자격과 최대 200개 기록을 iOS Keychain·Android Keystore 보호 저장소에 보관합니다. 앱은 시작할 때 테스트 클라이언트를 생성하여 전송을 복구하지만 과거 광고·명령을 다시 실행하지 않습니다. 복구 또는 명시적 폐기 후 새 코드로 연결하세요. 자동 재시도는 앱이 실행 가능한 동안 1~30초 간격이며 백그라운드에서는 OS가 중단할 수 있습니다. 테스트 자격(30분)·실행 유효기간(5분) 이후 서버 거절은 실패로 남고 새 검수가 필요합니다. 저장 실패·명시적 폐기·앱 삭제까지 수신을 보장하지는 않습니다. 콘텐츠 검수 중에는 운영 광고 클라이언트를 중단합니다.
 
 ### 5. 게시 후 새 프로세스에서 시작 광고 테스트
 
@@ -89,7 +89,7 @@ adb -s YOUR_TEST_DEVICE shell am start -a android.intent.action.MAIN \
 
 ## English
 
-These are complete **content-review and startup-ad** apps pinned to public SDK **0.2.4**: app entry point, retained client, startup cover before the first frame, independent three-second fallback, prior-consent/routing exclusions and lifecycle cleanup. The developer page imports the exact source files shown here.
+These are complete **content-review and startup-ad** apps pinned to public SDK **0.2.5**: app entry point, retained client, startup cover before the first frame, independent three-second fallback, prior-consent/routing exclusions and lifecycle cleanup. The developer page imports the exact source files shown here.
 
 Requirements: iOS 15+, Xcode and XcodeGen; or Android 8/API 26+, JDK 17 and Android SDK 34. The Gradle 8.13 wrapper is included. No local SDK checkouts, push tokens or FCM/APNs credentials are required. Prepare a launch-capable server with migrations 0010–0012, both in-app feature flags, persistent assets and a separate HTTPS content host.
 
@@ -105,9 +105,11 @@ Requirements: iOS 15+, Xcode and XcodeGen; or Android 8/API 26+, JDK 17 and Andr
 
 1. Save/validate a source in the workbench and generate a pairing code. Paste it into **Workbench pairing code** and tap **Connect for content review**. This explicit test opt-in is independent of the **Allow startup ads** switch.
 2. Compare the persistent **Confirmation number** with the console, confirm the same device, then run the saved revision while the app remains foregrounded.
-3. Finish using the ad's **native Close button**. Wait until the console records the completed run and its impression/close events. Only then tap **End test session → Console record checked · end**. Choose **Keep waiting** to keep the connection, or **Discard and end** to abandon this review. Ending a connection does not approve a review or replace native close; ending before events arrive can lose the review evidence.
-4. Approve the same revision for each target OS and publish to the controlled test app. End the test connection, then use the startup steps above to verify automatic dismissal and production events.
+3. Finish using the ad's **native Close button**. The app shows **Waiting → Sending → Server confirmed · pending 0** separately from local events. **End test session** uploads remaining records before ending the connection. On **Failed**, use **Retry transfer** or restart the app to recover uploads only. **Discard pending records** requires confirmation and abandons the records; it never acknowledges receipt.
+4. Server confirmed means telemetry receipt, not approval. Approve the same revision for each target OS in the console and publish to the controlled test app. End the test connection, then use the startup steps above to verify automatic dismissal and production events.
 
-Blank/invalid codes show a retryable error. Pairing codes and test credentials are never persisted. Ending the session or backgrounding cancels pending pairing so a delayed reply cannot reactivate it. Reconnect with a new code after backgrounding or restarting. The production campaign client is stopped when content review starts. [Operator procedure](https://nudgeon.io/guide/#launch-ads).
+The pairing code is not stored. The short-lived credential and up to 200 pending records are protected in iOS Keychain / Android Keystore storage. The examples initialize the test client at startup for delivery-only recovery: old ads and commands never resume. Finish recovery or explicitly discard before pairing again. Retries back off from 1 to 30 seconds while the process can run; background execution may be suspended. Expired test credentials (30 minutes) or active runs (five minutes) can reject delayed records and require a new review. No receipt guarantee covers failed storage writes, explicit discard or uninstall. The production client stops when content review starts. [Operator procedure](https://nudgeon.io/guide/#launch-ads).
+
+The iOS project uses simulator-only `Simulator.entitlements` and ad-hoc signing for Keychain access. Keep signing enabled. Physical devices require your own Team and Bundle ID; the simulator entitlement is not applied to them.
 
 The examples stop the client when inactive. Add ordinary screen/event/foreground campaigns, real routing, permission prompts and checkout exclusions according to your production host lifecycle. Never insert a skipped startup ad later. URL allowlists are empty and the examples do not open campaign actions externally.

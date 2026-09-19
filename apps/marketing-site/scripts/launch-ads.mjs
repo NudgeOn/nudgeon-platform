@@ -12,7 +12,7 @@ const copy = {
     adTitle: '새로운 계절,\n새로운 발견.', adBody: '오늘의 특별한 이벤트를 만나보세요.',
     adFooter: '잠시 후 메인 화면으로 이동합니다', mainTitle: '다시 만나 반가워요', mainBody: '오늘의 발견을 이어가세요.',
     card: '당신을 위한 새로운 이야기', label: '시작 광고 미리보기',
-    integration: 'iOS·Android SDK 0.2.4와 앱 시작 화면 연결이 필요합니다. 기본 표시 시간은 4초이며 SDK에서 3~5초로 설정합니다.',
+    integration: 'iOS·Android SDK 0.2.5와 앱 시작 화면 연결이 필요합니다. 기본 표시 시간은 4초이며 SDK에서 3~5초로 설정합니다.',
     docs: '시작 광고 연결 가이드',
   },
   en: {
@@ -28,7 +28,7 @@ const copy = {
     adTitle: 'A new season.\nA fresh discovery.', adBody: 'Discover something special today.',
     adFooter: 'Your main screen is coming next', mainTitle: 'Good to see you again', mainBody: 'Keep discovering something new.',
     card: 'A new story, picked for you', label: 'Startup ad preview',
-    integration: 'Requires iOS or Android SDK 0.2.4 and a host-app startup integration. Display time defaults to 4 seconds and is configurable from 3 to 5 seconds in the SDK.',
+    integration: 'Requires iOS or Android SDK 0.2.5 and a host-app startup integration. Display time defaults to 4 seconds and is configurable from 3 to 5 seconds in the SDK.',
     docs: 'Read the startup ad guide',
   },
 };

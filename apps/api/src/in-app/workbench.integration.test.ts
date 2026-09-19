@@ -223,11 +223,19 @@ describe.skipIf(!url)(
           (e) => e.kind === "impression",
         ),
       ).toHaveLength(1);
-      await sdk.event(req, run.id, {
-        event_id: randomUUID(),
-        kind: "dismiss",
-        detail: "close_button",
-      });
+      const dismiss = {
+        event_id: randomUUID(), kind: "dismiss", detail: "close_button",
+      };
+      // A committed response can be lost. Replay after completion must acknowledge
+      // the same ID, without creating a second close or reviving the run.
+      await sdk.event(req, run.id, dismiss);
+      await Promise.all([
+        sdk.event(req, run.id, dismiss), sdk.event(req, run.id, dismiss),
+      ]);
+      const recorded = (await service.events(tenant, app, run.id)).events;
+      expect(recorded.filter((e) => e.event_id === dismiss.event_id)).toHaveLength(1);
+      await expect(sdk.event(req, run.id, { ...dismiss, detail: "different" }))
+        .rejects.toMatchObject({ status: 409 });
       await expect(
         sdk.event(req, run.id, { event_id: randomUUID(), kind: "presented" }),
       ).rejects.toMatchObject({ status: 409 });

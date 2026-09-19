@@ -31,7 +31,7 @@ export const launchAdHelp = {
       "VoiceOver·TalkBack으로 제목 읽기, 광고 종료 후 메인 포커스, 시간 제한 없는 동일 콘텐츠 접근을 확인하세요. 실제 이용자·보조 기술 사용자 검증은 별도로 필요합니다. 3~5초 자동 종료만으로 접근성 적합성을 주장하지 않습니다."
     ],
     "reviewTitle": "검수 연결을 끝내기 전에",
-    "reviewBody": "네이티브 닫기 후 콘솔에서 같은 실행의 완료 상태와 노출·닫기 기록을 확인하세요. 예제의 로컬 이벤트 메시지는 서버 수신 확인이 아닙니다. End test session에서 완료 기록 확인 후 종료하거나, Keep waiting으로 연결을 유지합니다. 검수를 포기할 때만 Discard and end를 선택하세요. 백그라운드·외부 화면 전환·앱 종료 시 미전송 기록은 유실될 수 있어 재검수가 필요합니다."
+    "reviewBody": "네이티브 닫기 후 예제 앱에서 전송 대기 → 전송 중 → 서버 확인(대기 0)을 확인하고 End test session으로 종료하세요. 종료 시 남은 기록을 먼저 전송하며 실패하면 암호화 보관합니다. Retry transfer로 다시 보내거나 앱 재실행 후 전송을 복구할 수 있습니다. Discard pending records는 기록을 포기할 때만 선택하세요. 서버 확인은 기록 수신이며 검수 통과가 아닙니다. 콘솔의 동일 버전·OS 검수는 별도로 진행합니다. 테스트 자격(30분)·실행 유효기간(5분)이 지나 거절되면 새 검수가 필요합니다."
   },
   "en": {
     "title": "No ad? Check these in order",
@@ -65,6 +65,6 @@ export const launchAdHelp = {
       "Use VoiceOver and TalkBack to check heading reading, focus after dismissal and access to the same untimed content. Validation with real users and assistive-technology users remains necessary. A 3–5 second auto-dismiss timer alone does not establish accessibility conformance."
     ],
     "reviewTitle": "Before ending content review",
-    "reviewBody": "After native Close, check the same run’s completed state and impression/close records in the console. Local event messages do not acknowledge server receipt. In End test session, confirm the console record or choose Keep waiting to stay connected. Use Discard and end only to abandon the review. Backgrounding, external navigation or process termination can lose unsent records and require another review."
+    "reviewBody": "After native Close, check Waiting → Sending → Server confirmed (pending 0) in the example app, then End test session. Ending uploads remaining records first and retains failures in encrypted storage. Use Retry transfer or relaunch the app to recover delivery. Choose Discard pending records only to abandon the records. Server confirmed means receipt, not review approval; approve the matching revision and OS in the console separately. Expired test credentials (30 minutes) or active runs (five minutes) can reject recovery and require a new review."
   }
 };
