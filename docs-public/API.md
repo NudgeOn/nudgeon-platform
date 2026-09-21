@@ -350,7 +350,7 @@ HTTP 요청은 `batch` 안에 `insert_id`(UUID), `external_id` 또는 `anon_id`,
 기존 `purchase`를 `purchase_completed`로 자동 변환하지 않으므로, 이미 연결한 이벤트와 저니는 기존 이름을 유지하세요.
 가입한 사용자 식별·속성 갱신은 별도의 `identify` 연동이 필요합니다. `login` 이벤트 자체가 콘솔 로그인이나 SDK 사용자 식별을 수행하지는 않습니다.
 
-네 클라이언트 SDK에는 다음 릴리스용 `NudgeOnEvents` 상수를 추가했습니다. 기존 게시 버전에는 이 상수가 없으므로, 해당 릴리스 전에는 위 문자열을 그대로 `track`에 전달합니다.
+`NudgeOnEvents` 상수는 iOS SPM **0.2.7+**, Android Maven Central **0.2.7+**에서 사용할 수 있습니다. React Native·Flutter에는 다음 릴리스용으로 추가되어 있으며, npm·pub.dev 게시 전입니다. 상수를 제공하지 않는 이전 버전에서는 위 문자열을 그대로 `track`에 전달합니다.
 
 | SDK | 회원가입 호출 예시 (초기화 후) | 구입 이벤트 상수 |
 |---|---|---|
