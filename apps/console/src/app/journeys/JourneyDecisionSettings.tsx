@@ -1,5 +1,7 @@
 "use client";
 
+import { EventNameInput } from "@/components/event-name-input";
+
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ABSplitNode, EventWaitNode, JourneyNode } from "@nudgeon/journey-model";
@@ -103,8 +105,8 @@ function ConditionFields({ condition, editable, label, onChange }: {
       {condition.op === "contains" && <p className="j-inspector-help">{t("containsHelp")}</p>}
     </>}
     {condition.type === "event" && <>
-      <input aria-label={t("fieldLabel.eventName", { label })} value={condition.event} disabled={!editable} placeholder={t("eventPlaceholder")}
-        autoComplete="off" spellCheck={false} onChange={(event) => onChange({ ...condition, event: event.currentTarget.value })} />
+      <EventNameInput aria-label={t("fieldLabel.eventName", { label })} value={condition.event} disabled={!editable} placeholder={t("eventPlaceholder")}
+        autoComplete="off" spellCheck={false} onValueChange={(event) => onChange({ ...condition, event })} />
       <select aria-label={t("fieldLabel.performed", { label })} value={condition.op} disabled={!editable}
         onChange={(event) => onChange({ ...condition, op: event.currentTarget.value as "performed" | "not_performed" })}>
         {!["performed", "not_performed"].includes(condition.op) && <option value={condition.op} disabled>{t("existingOp", { op: condition.op })}</option>}
@@ -177,8 +179,8 @@ export function EventWaitSettings({ node, editable, onUpdate, id }: {
   }
   return <>
     <div className="j-inspector-field"><label htmlFor={`${id}-wait-event`}>{t("eventWait.event")}</label>
-      <input id={`${id}-wait-event`} value={node.event_name} maxLength={200} disabled={!editable} placeholder={t("decision.eventPlaceholder")}
-        autoComplete="off" spellCheck={false} onChange={(event) => update({ event_name: event.currentTarget.value })} />
+      <EventNameInput id={`${id}-wait-event`} value={node.event_name} maxLength={200} disabled={!editable} placeholder={t("decision.eventPlaceholder")}
+        autoComplete="off" spellCheck={false} onValueChange={(event_name) => update({ event_name })} />
     </div>
     <div className="j-inspector-duration-fields">
       <div className="j-inspector-field"><label htmlFor={`${id}-timeout`}>{t("eventWait.timeout")} <span className="j-inspector-required">{t("eventWait.required")}</span></label>

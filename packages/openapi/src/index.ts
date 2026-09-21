@@ -1,4 +1,5 @@
 import { inAppCampaignClient } from "./in-app-campaigns";
+export { STANDARD_EVENTS, type StandardEventName } from "./event-catalog";
 export * from "./in-app-campaigns";
 import { inAppClient } from "./in-app";
 export * from "./in-app";

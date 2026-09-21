@@ -326,6 +326,41 @@ curl -sS -X DELETE \
 
 `externalId`가 URL 경로에 들어가므로 예약문자가 있다면 URL encoding이 필요합니다.
 
+### 기본 이벤트
+
+새 앱과 기존 앱 모두 콘솔 **데이터 → 이벤트**에서 기본 이벤트의 이름·권장 속성·복사 가능한 예시를 확인할 수 있습니다.
+저니의 진입·전환·이벤트 대기·조건 분기와 세그먼트의 이벤트 조건에서 같은 목록을 선택합니다.
+
+| 이벤트 이름 | 발생 시점 | 권장 속성 |
+|---|---|---|
+| `sign_up` | 회원가입 성공 | `method` |
+| `login` | 사용자 인증 성공 | `method` |
+| `purchase_completed` | 주문·결제 확정 | `order_id`, `total_amount`, `currency`, `item_count` |
+| `product_viewed` | 상품 상세 조회 | `product_id`, `price`, `currency` |
+| `add_to_cart` | 장바구니 상품 추가 | `product_id`, `quantity`, `price`, `currency` |
+| `checkout_started` | 주문·결제 시작 | `cart_id`, `item_count`, `total_amount`, `currency` |
+
+이 목록은 권장 연동 규약이며 실제 이벤트를 자동으로 생성하지 않습니다. SDK의 `track` 또는 `POST /v1/track`으로 전송해야 합니다.
+HTTP 요청은 `batch` 안에 `insert_id`(UUID), `external_id` 또는 `anon_id`, `event`, `properties`, `client_ts`를 넣습니다.
+성공한 행동이 발생했을 때 한 번 생성하고, 전송 재시도에는 원래 `insert_id`를 재사용합니다.
+금액은 통화의 기본 단위(원·달러 등) 숫자, `currency`는 ISO 4217 코드(`KRW`, `USD` 등)를 사용합니다.
+권장 속성은 서버가 강제하는 필수 스키마가 아니며 서비스별 속성을 더할 수 있습니다.
+
+커스텀 이벤트도 계속 지원합니다. 이벤트 이름은 대소문자까지 정확하게 일치해야 합니다.
+기존 `purchase`를 `purchase_completed`로 자동 변환하지 않으므로, 이미 연결한 이벤트와 저니는 기존 이름을 유지하세요.
+가입한 사용자 식별·속성 갱신은 별도의 `identify` 연동이 필요합니다. `login` 이벤트 자체가 콘솔 로그인이나 SDK 사용자 식별을 수행하지는 않습니다.
+
+네 클라이언트 SDK에는 다음 릴리스용 `NudgeOnEvents` 상수를 추가했습니다. 기존 게시 버전에는 이 상수가 없으므로, 해당 릴리스 전에는 위 문자열을 그대로 `track`에 전달합니다.
+
+| SDK | 회원가입 호출 예시 (초기화 후) | 구입 이벤트 상수 |
+|---|---|---|
+| [iOS](https://github.com/NudgeOn/nudgeon-ios-sdk) | `NudgeOn.track(NudgeOnEvents.signUp, properties: ["method": "email"])` | `NudgeOnEvents.purchaseCompleted` |
+| [Android](https://github.com/NudgeOn/nudgeon-android-sdk) | `NudgeOn.track(NudgeOnEvents.SIGN_UP, mapOf("method" to "email"))` | `NudgeOnEvents.PURCHASE_COMPLETED` |
+| [React Native](https://github.com/NudgeOn/nudgeon-rn-sdk) | `await NudgeOn.track(NudgeOnEvents.signUp, { method: 'email' })` | `NudgeOnEvents.purchaseCompleted` |
+| [Flutter](https://github.com/NudgeOn/nudgeon-flutter-sdk) | `await NudgeOn.track(NudgeOnEvents.signUp, properties: {'method': 'email'})` | `NudgeOnEvents.purchaseCompleted` |
+
+React Native는 `import NudgeOn, { NudgeOnEvents } from '@nudgeon/react-native'`, Flutter는 기존 `package:nudgeon_flutter/nudgeon_flutter.dart`에서 가져옵니다.
+
 ### 접수와 재시도
 
 | API | `202`의 의미 | 공개된 중복 제거 계약 |

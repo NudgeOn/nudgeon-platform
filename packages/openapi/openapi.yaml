@@ -161,7 +161,10 @@ paths:
                       insert_id: { type: string, format: uuid }
                       anon_id: { type: [string, "null"], format: uuid }
                       external_id: { type: [string, "null"] }
-                      event: { type: string, maxLength: 128 }
+                      event:
+                        type: string
+                        maxLength: 128
+                        description: "기본 이벤트: sign_up, login, purchase_completed, product_viewed, add_to_cart, checkout_started. 권장 이름이며 커스텀 이벤트도 허용합니다. 이름은 대소문자를 구분합니다."
                       properties: { type: object }
                       client_ts: { type: string, format: date-time }
                 device:

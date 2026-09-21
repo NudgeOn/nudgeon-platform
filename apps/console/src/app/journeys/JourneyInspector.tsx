@@ -1,5 +1,7 @@
 "use client";
 
+import { EventNameInput } from "@/components/event-name-input";
+
 import { useId, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
@@ -211,10 +213,9 @@ function EntrySettings({ definition, segments, pending, error, onRetry, editable
       ) : (
         <>
           <Field id={`${id}-trigger-event`} label={t("triggerEvent")}>
-            <input id={`${id}-trigger-event`} value={entry.trigger_event ?? ""} disabled={!editable}
+            <EventNameInput id={`${id}-trigger-event`} value={entry.trigger_event ?? ""} disabled={!editable}
               autoComplete="off" spellCheck={false} placeholder={t("triggerPlaceholder")}
-              aria-describedby={`${id}-trigger-help`} onChange={(event) => {
-                const triggerEvent = event.currentTarget.value;
+              aria-describedby={`${id}-trigger-help`} onValueChange={(triggerEvent) => {
                 onUpdate((draft) => { draft.entry = { ...draft.entry, trigger_event: triggerEvent || undefined }; });
               }} />
             <p id={`${id}-trigger-help`} className="j-inspector-help">{t("triggerHelp")}</p>
@@ -263,10 +264,9 @@ function ExitSettings({ definition, editable, onUpdate, id }: {
     <>
       <Field id={`${id}-conversion-event`} label={t("conversionEvent")}
         detail={<span className="j-inspector-optional">{t("optional")}</span>}>
-        <input id={`${id}-conversion-event`} value={definition.exit?.conversion_event ?? ""}
+        <EventNameInput id={`${id}-conversion-event`} value={definition.exit?.conversion_event ?? ""}
           disabled={!editable} autoComplete="off" spellCheck={false} placeholder={t("conversionPlaceholder")}
-          aria-describedby={`${id}-conversion-help`} onChange={(event) => {
-            const conversionEvent = event.currentTarget.value;
+          aria-describedby={`${id}-conversion-help`} onValueChange={(conversionEvent) => {
             onUpdate((draft) => { draft.exit = { ...draft.exit, conversion_event: conversionEvent || undefined }; });
           }} />
         <p id={`${id}-conversion-help`} className="j-inspector-help">{t("conversionHelp")}</p>
