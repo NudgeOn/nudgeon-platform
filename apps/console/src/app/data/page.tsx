@@ -8,14 +8,15 @@ import { useAppId } from "../use-app-id";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Events } from "./Events";
 
 export default function DataPage() {
   const t = useTranslations("data");
   const appId = useAppId();
-  const [tab, setTab] = useState<"attributes" | "errors">("attributes");
+  const [tab, setTab] = useState<"events" | "attributes" | "errors">("events");
 
   return (
-    <main className="mx-auto max-w-4xl p-8">
+    <main className="mx-auto max-w-4xl p-4 sm:p-8">
       <header className="mb-6">
         <p className="text-sm text-muted-foreground">
           <Link href="/" className="underline">
@@ -25,7 +26,14 @@ export default function DataPage() {
         <h1 className="mt-2 text-2xl font-bold">{t("title")}</h1>
       </header>
 
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button
+          aria-pressed={tab === "events"}
+          className={`rounded-md px-3 py-1 text-sm ${tab === "events" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+          onClick={() => setTab("events")}
+        >
+          {t("tabEvents")}
+        </button>
         <button
           className={`rounded-md px-3 py-1 text-sm ${tab === "attributes" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
           onClick={() => setTab("attributes")}
@@ -40,7 +48,7 @@ export default function DataPage() {
         </button>
       </div>
 
-      {appId && (tab === "attributes" ? <Attributes appId={appId} /> : <Errors appId={appId} />)}
+      {appId && (tab === "events" ? <Events /> : tab === "attributes" ? <Attributes appId={appId} /> : <Errors appId={appId} />)}
     </main>
   );
 }

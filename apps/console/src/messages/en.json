@@ -250,7 +250,8 @@
       "reason": "Reason",
       "detail": "Details",
       "empty": "No ingestion errors. 👍"
-    }
+    },
+    "tabEvents": "Events"
   },
   "team": {
     "backToDashboard": "← Dashboard",
@@ -1736,5 +1737,57 @@
     "lookupRun": "Run ID",
     "lookupRevision": "Revision",
     "lookupCreated": "Run created"
+  },
+  "eventCatalog": {
+    "title": "Standard events",
+    "intro": "Start with common events, from sign-up to purchase. Send these names from your app or server to use them in journeys and segments.",
+    "choose": "Choose a standard event",
+    "name": "Event name",
+    "propertyHelp": "These properties are recommended examples. Add properties that fit your service.",
+    "number": "number",
+    "string": "string",
+    "example": "Event and properties example",
+    "copy": "Copy example",
+    "copied": "Copied.",
+    "copyFailed": "Could not copy. Select the example and copy it manually.",
+    "integrationHelp": "Pass the event name and properties to the SDK track method. For HTTP, add insert_id (UUID), external_id or anon_id, and client_ts, then send the object in the /v1/track batch. No events occur until your integration sends them.",
+    "customHelp": "Existing custom events still work. Names are case-sensitive and must match exactly; purchase and purchase_completed are separate events.",
+    "events": {
+      "sign_up": {
+        "label": "Sign up",
+        "description": "When a new account is successfully created"
+      },
+      "login": {
+        "label": "Log in",
+        "description": "When the user successfully authenticates"
+      },
+      "purchase_completed": {
+        "label": "Purchase",
+        "description": "When the order and payment are confirmed"
+      },
+      "product_viewed": {
+        "label": "View product",
+        "description": "When the user views a product detail screen"
+      },
+      "add_to_cart": {
+        "label": "Add to cart",
+        "description": "When a product is added to the cart"
+      },
+      "checkout_started": {
+        "label": "Start checkout",
+        "description": "When the user starts the checkout process"
+      }
+    },
+    "properties": {
+      "method": "Sign-up or authentication method (email, google, apple, etc.)",
+      "order_id": "Order identifier in your service",
+      "total_amount": "Order or cart total in major currency units (won, dollars, etc.)",
+      "currency": "ISO 4217 currency code (KRW, USD, etc.)",
+      "item_count": "Total item quantity in the order or cart",
+      "product_id": "Product identifier in your service",
+      "price": "Unit price, using the same currency units as total_amount",
+      "quantity": "Quantity added to the cart in this action",
+      "cart_id": "Cart identifier in your service"
+    }
   }
 }

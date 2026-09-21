@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { EventNameInput } from "@/components/event-name-input";
 import { Label } from "@/components/ui/label";
 import {
   ATTR_OPS,
@@ -247,11 +248,11 @@ function ConditionRow({
       )}
       {condition.type === "event" && (
         <>
-          <Input
-            className="h-8 w-32 text-xs"
+          <EventNameInput
+            className="h-8 text-xs"
             placeholder={t("condition.eventName")}
             value={condition.event}
-            onChange={(e) => setField({ event: e.target.value })}
+            onValueChange={(event) => setField({ event })}
           />
           <Select
             value={condition.op}

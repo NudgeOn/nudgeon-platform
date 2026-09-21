@@ -250,7 +250,8 @@
       "reason": "사유",
       "detail": "상세",
       "empty": "수집 오류가 없습니다. 👍"
-    }
+    },
+    "tabEvents": "이벤트"
   },
   "team": {
     "backToDashboard": "← 대시보드",
@@ -1736,5 +1737,57 @@
     "lookupRun": "실행 ID",
     "lookupRevision": "소스 버전",
     "lookupCreated": "실행 생성 시각"
+  },
+  "eventCatalog": {
+    "title": "기본 이벤트",
+    "intro": "회원가입부터 구입까지, 자주 쓰는 이벤트를 미리 준비했습니다. 앱이나 서버에서 아래 이름으로 전송하면 저니와 세그먼트에서 바로 사용할 수 있습니다.",
+    "choose": "기본 이벤트 선택",
+    "name": "이벤트 이름",
+    "propertyHelp": "아래 속성은 연동에 권장하는 예시입니다. 서비스에 맞는 속성을 추가할 수 있습니다.",
+    "number": "숫자",
+    "string": "문자열",
+    "example": "이벤트·속성 예시",
+    "copy": "예시 복사",
+    "copied": "복사했습니다.",
+    "copyFailed": "복사하지 못했습니다. 예시를 직접 선택해서 복사해주세요.",
+    "integrationHelp": "SDK의 track에 이벤트 이름과 속성을 전달하세요. HTTP 연동에서는 이 예시에 insert_id(UUID), external_id 또는 anon_id, client_ts를 추가하고 /v1/track의 batch에 넣어 전송합니다. 전송 전까지 실제 이벤트는 발생하지 않습니다.",
+    "customHelp": "기존 커스텀 이벤트도 그대로 사용할 수 있습니다. 이름은 대소문자까지 정확히 일치해야 하며, purchase와 purchase_completed는 서로 다른 이벤트입니다.",
+    "events": {
+      "sign_up": {
+        "label": "회원가입",
+        "description": "새 계정의 가입이 성공적으로 완료되었을 때"
+      },
+      "login": {
+        "label": "로그인",
+        "description": "사용자 인증에 성공했을 때"
+      },
+      "purchase_completed": {
+        "label": "구입",
+        "description": "주문과 결제가 성공적으로 확정되었을 때"
+      },
+      "product_viewed": {
+        "label": "상품 조회",
+        "description": "사용자가 상품 상세 화면을 보았을 때"
+      },
+      "add_to_cart": {
+        "label": "장바구니 담기",
+        "description": "장바구니에 상품을 추가했을 때"
+      },
+      "checkout_started": {
+        "label": "결제 시작",
+        "description": "주문·결제 과정을 시작했을 때"
+      }
+    },
+    "properties": {
+      "method": "가입·인증 방법 (email, google, apple 등)",
+      "order_id": "서비스에서 사용하는 주문 식별자",
+      "total_amount": "주문·장바구니의 총 금액. 원·달러 등 통화의 기본 단위로 전송",
+      "currency": "ISO 4217 통화 코드 (KRW, USD 등)",
+      "item_count": "주문·장바구니에 담긴 상품의 총 수량",
+      "product_id": "서비스에서 사용하는 상품 식별자",
+      "price": "상품 1개의 가격. total_amount와 동일한 통화 단위 사용",
+      "quantity": "이번에 장바구니에 추가한 수량",
+      "cart_id": "서비스에서 사용하는 장바구니 식별자"
+    }
   }
 }
