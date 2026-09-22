@@ -162,6 +162,10 @@
         ] }
       ] },
       "expect": { "compiles": false }
-    }
+    },
+    {"name": "Promoted dob eq preserves legacy storage", "category": "marketing", "dsl": {"version": 1, "operator": "AND", "groups": [{"operator": "AND", "conditions": [{"type": "attribute", "key": "dob", "op": "eq", "value": "1995-03-15"}]}]}, "expect": {"compiles": true, "contains": ["if(JSONHas(std_attrs, ?), JSONExtractString(std_attrs, ?), JSONExtractString(custom_attrs, ?))"]}},
+    {"name": "Promoted gender eq preserves legacy storage", "category": "marketing", "dsl": {"version": 1, "operator": "AND", "groups": [{"operator": "AND", "conditions": [{"type": "attribute", "key": "gender", "op": "eq", "value": "F"}]}]}, "expect": {"compiles": true, "contains": ["if(JSONHas(std_attrs, ?), JSONExtractString(std_attrs, ?), JSONExtractString(custom_attrs, ?))"]}},
+    {"name": "Promoted home_city exists preserves legacy storage", "category": "marketing", "dsl": {"version": 1, "operator": "AND", "groups": [{"operator": "AND", "conditions": [{"type": "attribute", "key": "home_city", "op": "exists"}]}]}, "expect": {"compiles": true, "contains": ["if(JSONHas(std_attrs, ?), JSONExtractRaw(std_attrs, ?), JSONExtractRaw(custom_attrs, ?))"]}},
+    {"name": "Promoted home_city not_exists preserves legacy storage", "category": "marketing", "dsl": {"version": 1, "operator": "AND", "groups": [{"operator": "AND", "conditions": [{"type": "attribute", "key": "home_city", "op": "not_exists"}]}]}, "expect": {"compiles": true, "contains": ["if(JSONHas(std_attrs, ?), JSONExtractRaw(std_attrs, ?), JSONExtractRaw(custom_attrs, ?))"]}}
   ]
 }

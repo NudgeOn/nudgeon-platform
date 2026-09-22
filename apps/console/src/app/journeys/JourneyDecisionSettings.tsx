@@ -1,5 +1,6 @@
 "use client";
 
+import { AttributeNameInput } from "@/components/attribute-name-input";
 import { EventNameInput } from "@/components/event-name-input";
 
 import { useState } from "react";
@@ -90,8 +91,8 @@ function ConditionFields({ condition, editable, label, onChange }: {
       <option value="attribute">{t("typeAttribute")}</option><option value="event">{t("typeEvent")}</option>
     </select>
     {condition.type === "attribute" && <>
-      <input aria-label={t("fieldLabel.attributeKey", { label })} value={condition.key} disabled={!editable} placeholder={t("attributeKeyPlaceholder")}
-        autoComplete="off" spellCheck={false} onChange={(event) => onChange({ ...condition, key: event.currentTarget.value })} />
+      <AttributeNameInput aria-label={t("fieldLabel.attributeKey", { label })} value={condition.key} disabled={!editable} placeholder={t("attributeKeyPlaceholder")}
+        autoComplete="off" spellCheck={false} onValueChange={(key) => onChange({ ...condition, key })} />
       <select aria-label={t("fieldLabel.op", { label })} value={condition.op} disabled={!editable} onChange={(event) => {
         const op = event.currentTarget.value as AttributeOp;
         const value = op === "in" ? (Array.isArray(condition.value) ? condition.value : [])

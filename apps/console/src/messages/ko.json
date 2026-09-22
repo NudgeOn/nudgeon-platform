@@ -241,7 +241,8 @@
       "lastSeen": "최근 수신",
       "delete": "삭제",
       "referenced": "참조 중인 세그먼트가 있습니다: {segments} — 다시 삭제를 누르면 강제 삭제됩니다.",
-      "empty": "아직 수집된 커스텀 속성이 없습니다."
+      "empty": "아직 수집된 커스텀 속성이 없습니다.",
+      "observed": "수집된 속성"
     },
     "errors": {
       "title": "수집 오류 (타입 불일치·스키마 오류 거부 건)",
@@ -1788,6 +1789,77 @@
       "price": "상품 1개의 가격. total_amount와 동일한 통화 단위 사용",
       "quantity": "이번에 장바구니에 추가한 수량",
       "cart_id": "서비스에서 사용하는 장바구니 식별자"
+    }
+  },
+  "attributeCatalog": {
+    "title": "기본 사용자 속성",
+    "intro": "이름·연락처·생일 등 공통 사용자 속성입니다. SDK에서 직접 설정한 값만 저장되며, 목록을 열어도 사용자 정보가 자동 수집되지 않습니다.",
+    "choose": "기본 속성 선택",
+    "name": "속성 키",
+    "string": "문자열",
+    "datetime": "날짜·시간",
+    "example": "identify 요청의 attributes 예시",
+    "copy": "JSON 복사",
+    "copied": "복사했습니다.",
+    "copyFailed": "복사하지 못했습니다. 예시를 직접 복사하세요.",
+    "integrationHelp": "SDK 초기화 → identify → setUserAttributes 순서로 호출하세요. null은 해당 값을 삭제합니다. 수신 동의는 속성이 아닌 구독 API로 관리합니다.",
+    "customHelp": "커스텀 키도 지원합니다. 형식은 권장 규칙이며 기존 값의 이름·형식은 자동 변환하지 않습니다. 생일은 날짜 문자열로 저장되며, 생일 반복 조건을 자동 생성하지 않습니다.",
+    "attributes": {
+      "first_name": {
+        "label": "이름",
+        "description": "사용자가 제공한 이름.",
+        "format": "사용자가 제공한 이름."
+      },
+      "last_name": {
+        "label": "성",
+        "description": "사용자가 제공한 성.",
+        "format": "사용자가 제공한 성."
+      },
+      "email": {
+        "label": "이메일",
+        "description": "이메일 주소 문자열.",
+        "format": "이메일 주소 문자열."
+      },
+      "phone": {
+        "label": "전화번호",
+        "description": "국가 코드를 포함한 E.164 형식 권장: +821012345678.",
+        "format": "국가 코드를 포함한 E.164 형식 권장: +821012345678."
+      },
+      "dob": {
+        "label": "생일",
+        "description": "YYYY-MM-DD 형식의 날짜 문자열. 예: 1995-03-15.",
+        "format": "YYYY-MM-DD 형식의 날짜 문자열. 예: 1995-03-15."
+      },
+      "gender": {
+        "label": "성별",
+        "description": "권장 코드: M, F, O(기타), N(해당 없음), P(응답하지 않음), U(알 수 없음).",
+        "format": "권장 코드: M, F, O(기타), N(해당 없음), P(응답하지 않음), U(알 수 없음)."
+      },
+      "home_city": {
+        "label": "거주 도시",
+        "description": "도시 이름 문자열. 예: Seoul.",
+        "format": "도시 이름 문자열. 예: Seoul."
+      },
+      "country": {
+        "label": "국가",
+        "description": "ISO 3166-1 alpha-2 국가 코드 권장. 예: KR.",
+        "format": "ISO 3166-1 alpha-2 국가 코드 권장. 예: KR."
+      },
+      "language": {
+        "label": "언어",
+        "description": "ISO 639-1 언어 코드 권장. 예: ko.",
+        "format": "ISO 639-1 언어 코드 권장. 예: ko."
+      },
+      "timezone": {
+        "label": "시간대",
+        "description": "IANA 시간대. 예: Asia/Seoul. Braze의 time_zone은 NudgeOn의 timezone에 대응합니다.",
+        "format": "IANA 시간대. 예: Asia/Seoul. Braze의 time_zone은 NudgeOn의 timezone에 대응합니다."
+      },
+      "created_at": {
+        "label": "가입일",
+        "description": "고객 서비스의 가입일. 시간대를 포함한 RFC 3339 문자열. 예: 2026-09-22T00:00:00Z.",
+        "format": "고객 서비스의 가입일. 시간대를 포함한 RFC 3339 문자열. 예: 2026-09-22T00:00:00Z."
+      }
     }
   }
 }

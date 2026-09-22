@@ -30,6 +30,7 @@ var stdAttributeKeys = map[string]bool{
 	"external_id": true, "first_name": true, "last_name": true, "email": true,
 	"phone": true, "language": true, "country": true, "timezone": true,
 	"created_at": true, "last_seen_at": true,
+	"dob": true, "gender": true, "home_city": true,
 }
 
 func validateCondition(dsl *segment.DSL) error {
@@ -81,20 +82,8 @@ func (s *Scheduler) captureCondition(ctx context.Context, tx pgx.Tx, c *claimedS
 	if err := json.Unmarshal(customRaw, &custom); err != nil {
 		return nil, err
 	}
-	attrs := map[string]any{}
-	for key, value := range custom {
-		if !stdAttributeKeys[key] {
-			attrs[key] = value
-		}
-	}
-	for key, value := range std {
-		if stdAttributeKeys[key] {
-			attrs[key] = value
-		}
-	}
-	// Use the same JSON attribute namespace as Segment DSL. In particular,
-	// created_at is the customer's signup date, not NudgeOn's profile-row timestamp.
-	return &conditionSnapshot{Attributes: attrs, EvaluatedAt: now, ReceiptSeq: sequence}, nil
+	// Use the same attribute namespace as Segment DSL, including legacy values.
+	return &conditionSnapshot{Attributes: conditionAttributes(std, custom), EvaluatedAt: now, ReceiptSeq: sequence}, nil
 }
 
 // No logical short circuit hides an evaluation error. An unavailable dependency
@@ -384,4 +373,19 @@ func parseDate(value any) (time.Time, bool) {
 		}
 	}
 	return time.Time{}, false
+}
+
+func conditionAttributes(std, custom map[string]any) map[string]any {
+	attrs := map[string]any{}
+	for key, value := range custom {
+		if !stdAttributeKeys[key] || key == "dob" || key == "gender" || key == "home_city" {
+			attrs[key] = value
+		}
+	}
+	for key, value := range std {
+		if stdAttributeKeys[key] {
+			attrs[key] = value
+		}
+	}
+	return attrs
 }

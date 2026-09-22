@@ -122,6 +122,7 @@ const STD_ATTR_KEYS = new Set([
   "timezone",
   "created_at",
   "last_seen_at",
+  "dob", "gender", "home_city",
 ]);
 const CMP_OPS: Record<string, string> = {
   eq: "=",
@@ -212,8 +213,12 @@ function compileCondition(
 function compileAttribute(c: AttributeCondition, p: Params): string {
   if (!c.key) throw new CompileError("attribute 조건에 key 없음");
   const col = STD_ATTR_KEYS.has(c.key) ? "std_attrs" : "custom_attrs";
-  const extract = () => `JSONExtractString(${col}, ${p.add(c.key)})`;
-  const extractRaw = () => `JSONExtractRaw(${col}, ${p.add(c.key)})`;
+  const promoted = ["dob", "gender", "home_city"].includes(c.key);
+  const jsonExtract = (fn: string) => promoted
+    ? `if(JSONHas(std_attrs, ${p.add(c.key)}), ${fn}(std_attrs, ${p.add(c.key)}), ${fn}(custom_attrs, ${p.add(c.key)}))`
+    : `${fn}(${col}, ${p.add(c.key)})`;
+  const extract = () => jsonExtract("JSONExtractString");
+  const extractRaw = () => jsonExtract("JSONExtractRaw");
 
   switch (c.op) {
     case "exists":

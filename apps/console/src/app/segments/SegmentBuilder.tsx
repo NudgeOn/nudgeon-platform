@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { AttributeNameInput } from "@/components/attribute-name-input";
 import { EventNameInput } from "@/components/event-name-input";
 import { Label } from "@/components/ui/label";
 import {
@@ -225,11 +226,11 @@ function ConditionRow({
     <div className="flex flex-wrap items-center gap-2 rounded-md border border-border p-2">
       {condition.type === "attribute" && (
         <>
-          <Input
-            className="h-8 w-32 text-xs"
+          <AttributeNameInput
+            className="h-8 text-xs"
             placeholder={t("condition.attributeKey")}
             value={condition.key}
-            onChange={(e) => setField({ key: e.target.value })}
+            onValueChange={(key) => setField({ key })}
           />
           <Select
             value={condition.op}
