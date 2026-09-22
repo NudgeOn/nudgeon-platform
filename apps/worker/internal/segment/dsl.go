@@ -42,6 +42,7 @@ var stdAttrCols = map[string]bool{
 	"external_id": true, "first_name": true, "last_name": true, "email": true,
 	"phone": true, "language": true, "country": true, "timezone": true,
 	"created_at": true, "last_seen_at": true,
+	"dob": true, "gender": true, "home_city": true,
 }
 
 // 속성 연산자 화이트리스트 → SQL 비교 연산자

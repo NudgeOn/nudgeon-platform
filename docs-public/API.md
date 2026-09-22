@@ -361,6 +361,46 @@ HTTP 요청은 `batch` 안에 `insert_id`(UUID), `external_id` 또는 `anon_id`,
 
 React Native는 `import NudgeOn, { NudgeOnEvents } from '@nudgeon/react-native'`, Flutter는 기존 `package:nudgeon_flutter/nudgeon_flutter.dart`에서 가져옵니다.
 
+### 기본 사용자 속성
+
+콘솔 **데이터 → 속성**에서 기본 키·권장 형식·`identify` 요청 예시를 확인하고, 세그먼트·저니 조건에서도 키를 선택할 수 있습니다. 기본 목록을 보는 것만으로 속성이 수집되지는 않습니다.
+
+| 키 | 의미 | 권장 형식 / 예시 |
+|---|---|---|
+| `first_name` | 이름 | `Minji` |
+| `last_name` | 성 | `Kim` |
+| `email` | 이메일 | `minji@example.com` |
+| `phone` | 전화번호 | E.164: `+821012345678` |
+| `dob` | 생일 | 날짜 문자열 `1995-03-15` (`YYYY-MM-DD`) |
+| `gender` | 성별 | `M`, `F`, `O`, `N`, `P`, `U` |
+| `home_city` | 거주 도시 | `Seoul` |
+| `country` | 국가 | ISO 3166-1 alpha-2: `KR` |
+| `language` | 언어 | ISO 639-1: `ko` |
+| `timezone` | 시간대 | IANA: `Asia/Seoul` |
+| `created_at` | 고객 서비스 가입일 | RFC 3339: `2026-09-22T00:00:00Z` |
+
+[Braze 기본 프로필 속성](https://www.braze.com/docs/api/objects_filters/user_attributes_object#braze-user-profile-fields)을 참고한 공통 규칙입니다. Braze의 `time_zone`은 NudgeOn의 기존 `timezone` 키에 대응하며 자동 별칭 변환은 하지 않습니다. `created_at`은 NudgeOn 내부 프로필 생성 시각과 별개입니다. 생일은 문자열로 저장하며 반복 생일 조건을 자동 생성하지 않습니다. 형식은 권장 규칙이고 기존 속성 타입 등록·검증 규칙은 유지됩니다.
+
+```json
+{
+  "external_id": "user-123",
+  "attributes": {
+    "first_name": "Minji",
+    "dob": "1995-03-15",
+    "country": "KR",
+    "timezone": "Asia/Seoul",
+    "membership_level": "gold",
+    "phone": null
+  }
+}
+```
+
+`POST /v1/identify` 또는 Server Key를 사용하는 `POST /v1/users/attributes`로 설정합니다. 위 예시의 `phone: null`은 값을 삭제합니다. 새 기본 키인 `dob`, `gender`, `home_city`를 이전에 커스텀 속성으로 저장한 고객도 세그먼트·저니에서 계속 읽을 수 있습니다. 이후 정상 갱신 시 기본 속성 저장 영역으로 이동하고, 삭제 시 이전 값까지 제거합니다.
+
+네 SDK에는 기존 `setUserAttributes`와 함께 사용하는 `NudgeOnAttributes` 키 상수를 추가했습니다(다음 SDK 릴리스용). iOS·React Native·Flutter는 `NudgeOnAttributes.firstName`·`dateOfBirth`, Android는 `NudgeOnAttributes.FIRST_NAME`·`DOB` 형태입니다. SDK를 초기화하고 `identify`를 호출한 뒤 사용하세요. 현재 익명 사용자 속성 설정과 속성 요청의 영속 오프라인 재시도는 지원하지 않습니다. 기존 버전에서도 문자열 키를 직접 전달할 수 있습니다.
+
+수신 동의는 일반 프로필 속성이 아닙니다. `push_subscribe`·`email_subscribe`를 설정해도 동의 상태가 바뀌지 않으며, 푸시는 SDK `setPushSubscription` 등 기존 구독 API를 사용합니다.
+
 ### 접수와 재시도
 
 | API | `202`의 의미 | 공개된 중복 제거 계약 |

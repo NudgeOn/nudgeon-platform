@@ -109,12 +109,20 @@ func compileAttribute(c *Condition, p *params) (string, error) {
 	if stdAttrCols[c.Key] {
 		col = "std_attrs"
 	}
+	promoted := c.Key == "dob" || c.Key == "gender" || c.Key == "home_city"
+	jsonExtract := func(fn string) string {
+		if promoted {
+			return fmt.Sprintf("if(JSONHas(std_attrs, %s), %s(std_attrs, %s), %s(custom_attrs, %s))",
+				p.add(c.Key), fn, p.add(c.Key), fn, p.add(c.Key))
+		}
+		return fmt.Sprintf("%s(%s, %s)", fn, col, p.add(c.Key))
+	}
 	// JSONExtractString(col, key) — key는 인자 바인딩(문자열 삽입 아님)
 	extract := func() string {
-		return fmt.Sprintf("JSONExtractString(%s, %s)", col, p.add(c.Key))
+		return jsonExtract("JSONExtractString")
 	}
 	extractRaw := func() string {
-		return fmt.Sprintf("JSONExtractRaw(%s, %s)", col, p.add(c.Key))
+		return jsonExtract("JSONExtractRaw")
 	}
 
 	switch c.Op {

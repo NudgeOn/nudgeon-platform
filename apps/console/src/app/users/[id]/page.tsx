@@ -68,7 +68,7 @@ export default function UserDetailPage() {
             <CardTitle className="text-sm">{t("attributes")}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0 text-xs">
-            {Object.entries({ ...d.user.std_attrs, ...d.user.custom_attrs }).map(([k, v]) => (
+            {Object.entries({ ...d.user.custom_attrs, ...d.user.std_attrs }).map(([k, v]) => (
               <div key={k} className="flex justify-between border-b border-border/30 py-1">
                 <span className="text-muted-foreground">{k}</span>
                 <span>{JSON.stringify(v)}</span>

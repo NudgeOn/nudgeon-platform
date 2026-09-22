@@ -8,6 +8,7 @@ import { useAppId } from "../use-app-id";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StandardAttributes } from "./StandardAttributes";
 import { Events } from "./Events";
 
 export default function DataPage() {
@@ -35,12 +36,14 @@ export default function DataPage() {
           {t("tabEvents")}
         </button>
         <button
+          aria-pressed={tab === "attributes"}
           className={`rounded-md px-3 py-1 text-sm ${tab === "attributes" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
           onClick={() => setTab("attributes")}
         >
           {t("tabAttributes")}
         </button>
         <button
+          aria-pressed={tab === "errors"}
           className={`rounded-md px-3 py-1 text-sm ${tab === "errors" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
           onClick={() => setTab("errors")}
         >
@@ -69,55 +72,59 @@ function Attributes({ appId }: { appId: string }) {
   });
 
   return (
-    <Card>
-      <CardContent className="p-0">
-        <table className="w-full text-sm">
-          <thead className="border-b border-border text-left text-xs text-muted-foreground">
-            <tr>
-              <th className="p-3">{t("attr.key")}</th>
-              <th className="p-3">{t("attr.type")}</th>
-              <th className="p-3">{t("attr.segments")}</th>
-              <th className="p-3">{t("attr.lastSeen")}</th>
-              <th className="p-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {attrs.data?.attributes.map((a) => (
-              <tr key={a.key} className="border-b border-border/50">
-                <td className="p-3 font-medium">{a.key}</td>
-                <td className="p-3 text-xs">{a.type}</td>
-                <td className="p-3 text-xs">{a.seg_ref_count}</td>
-                <td className="p-3 text-xs text-muted-foreground">
-                  {new Date(a.last_seen_at).toLocaleDateString("ko-KR")}
-                </td>
-                <td className="p-3">
-                  <button
-                    className="text-xs text-muted-foreground hover:text-destructive"
-                    onClick={() => {
-                      const r = del.data;
-                      const force = r && !r.deleted && r.referencing_segments;
-                      del.mutate({ key: a.key, force: !!force });
-                    }}
-                  >
-                    {t("attr.delete")}
-                  </button>
-                </td>
+    <div className="space-y-8">
+      <StandardAttributes />
+      <h2 className="text-lg font-semibold">{t("attr.observed")}</h2>
+      <Card>
+        <CardContent className="overflow-x-auto p-0">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="border-b border-border text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="p-3">{t("attr.key")}</th>
+                <th className="p-3">{t("attr.type")}</th>
+                <th className="p-3">{t("attr.segments")}</th>
+                <th className="p-3">{t("attr.lastSeen")}</th>
+                <th className="p-3"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {del.data && !del.data.deleted && del.data.referencing_segments && (
-          <div className="border-t border-border p-3 text-sm text-destructive">
-            {t("attr.referenced", { segments: del.data.referencing_segments.map((s) => s.name).join(", ") })}
-          </div>
-        )}
-        {attrs.data?.attributes.length === 0 && (
-          <p className="p-8 text-center text-sm text-muted-foreground">
-            {t("attr.empty")}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+            </thead>
+            <tbody>
+              {attrs.data?.attributes.map((a) => (
+                <tr key={a.key} className="border-b border-border/50">
+                  <td className="p-3 font-medium">{a.key}</td>
+                  <td className="p-3 text-xs">{a.type}</td>
+                  <td className="p-3 text-xs">{a.seg_ref_count}</td>
+                  <td className="p-3 text-xs text-muted-foreground">
+                    {new Date(a.last_seen_at).toLocaleDateString("ko-KR")}
+                  </td>
+                  <td className="p-3">
+                    <button
+                      className="text-xs text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        const r = del.data;
+                        const force = r && !r.deleted && r.referencing_segments;
+                        del.mutate({ key: a.key, force: !!force });
+                      }}
+                    >
+                      {t("attr.delete")}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {del.data && !del.data.deleted && del.data.referencing_segments && (
+            <div className="border-t border-border p-3 text-sm text-destructive">
+              {t("attr.referenced", { segments: del.data.referencing_segments.map((s) => s.name).join(", ") })}
+            </div>
+          )}
+          {attrs.data?.attributes.length === 0 && (
+            <p className="p-8 text-center text-sm text-muted-foreground">
+              {t("attr.empty")}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

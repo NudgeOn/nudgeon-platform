@@ -241,7 +241,8 @@
       "lastSeen": "Last seen",
       "delete": "Delete",
       "referenced": "Referenced by segments: {segments} — press Delete again to force.",
-      "empty": "No custom attributes collected yet."
+      "empty": "No custom attributes collected yet.",
+      "observed": "Collected attributes"
     },
     "errors": {
       "title": "Ingestion errors (type mismatch · schema rejections)",
@@ -1788,6 +1789,77 @@
       "price": "Unit price, using the same currency units as total_amount",
       "quantity": "Quantity added to the cart in this action",
       "cart_id": "Cart identifier in your service"
+    }
+  },
+  "attributeCatalog": {
+    "title": "Standard user attributes",
+    "intro": "Common profile fields for names, contact details, and demographics. Values are saved only when your integration sets them; viewing this catalog does not collect profile data.",
+    "choose": "Choose a standard attribute",
+    "name": "Attribute key",
+    "string": "String",
+    "datetime": "Date and time",
+    "example": "Attributes fragment for an identify request",
+    "copy": "Copy JSON",
+    "copied": "Copied.",
+    "copyFailed": "Copy failed. Select and copy the example manually.",
+    "integrationHelp": "Initialize the SDK, call identify, then setUserAttributes. null removes a value. Manage messaging consent through subscription APIs.",
+    "customHelp": "Custom keys remain supported. Formats are conventions; existing names and values are not automatically normalized. Birthdays are stored as date strings and do not create recurring birthday conditions.",
+    "attributes": {
+      "first_name": {
+        "label": "First name",
+        "description": "The first name supplied by the user.",
+        "format": "The first name supplied by the user."
+      },
+      "last_name": {
+        "label": "Last name",
+        "description": "The last name supplied by the user.",
+        "format": "The last name supplied by the user."
+      },
+      "email": {
+        "label": "Email",
+        "description": "Email address as a string.",
+        "format": "Email address as a string."
+      },
+      "phone": {
+        "label": "Phone",
+        "description": "E.164 format with country code is recommended: +821012345678.",
+        "format": "E.164 format with country code is recommended: +821012345678."
+      },
+      "dob": {
+        "label": "Date of birth",
+        "description": "Date string in YYYY-MM-DD format, such as 1995-03-15.",
+        "format": "Date string in YYYY-MM-DD format, such as 1995-03-15."
+      },
+      "gender": {
+        "label": "Gender",
+        "description": "Recommended codes: M, F, O (other), N (not applicable), P (prefer not to say), U (unknown).",
+        "format": "Recommended codes: M, F, O (other), N (not applicable), P (prefer not to say), U (unknown)."
+      },
+      "home_city": {
+        "label": "Home city",
+        "description": "City name, such as Seoul.",
+        "format": "City name, such as Seoul."
+      },
+      "country": {
+        "label": "Country",
+        "description": "ISO 3166-1 alpha-2 country code recommended, such as KR.",
+        "format": "ISO 3166-1 alpha-2 country code recommended, such as KR."
+      },
+      "language": {
+        "label": "Language",
+        "description": "ISO 639-1 language code recommended, such as ko.",
+        "format": "ISO 639-1 language code recommended, such as ko."
+      },
+      "timezone": {
+        "label": "Time zone",
+        "description": "IANA time zone, such as Asia/Seoul. Map Braze time_zone to NudgeOn timezone.",
+        "format": "IANA time zone, such as Asia/Seoul. Map Braze time_zone to NudgeOn timezone."
+      },
+      "created_at": {
+        "label": "Signup date",
+        "description": "Signup date in your service as an RFC 3339 string with a time zone, such as 2026-09-22T00:00:00Z.",
+        "format": "Signup date in your service as an RFC 3339 string with a time zone, such as 2026-09-22T00:00:00Z."
+      }
     }
   }
 }

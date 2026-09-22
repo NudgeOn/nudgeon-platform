@@ -470,7 +470,7 @@ func (s *Scheduler) loadDefinition(ctx context.Context, journeyID string, versio
 
 func mergeAttrs(stdRaw, customRaw []byte) map[string]string {
 	out := map[string]string{}
-	for _, raw := range [][]byte{stdRaw, customRaw} {
+	for _, raw := range [][]byte{customRaw, stdRaw} {
 		var m map[string]any
 		if json.Unmarshal(raw, &m) == nil {
 			for k, v := range m {

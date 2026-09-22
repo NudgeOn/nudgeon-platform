@@ -858,3 +858,5 @@ export interface TestPushRun {
   messages: Array<{ message_id: string; device_id: string; platform: string }>;
 }
 export interface TestPushAccepted extends Omit<TestPushRun, "queued_count" | "pending_count" | "removed_count"> { state: "accepted"; queued: number }
+
+export { STANDARD_ATTRIBUTES, type StandardAttributeKey } from "./attribute-catalog";

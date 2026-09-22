@@ -20,8 +20,12 @@ type Querier interface {
 // 표준 속성 예약 필드 (PRD-01 4.1). created_at은 고객사 기준 가입일.
 var stdAttrKeys = map[string]bool{
 	"first_name": true, "last_name": true, "email": true, "phone": true,
+	"dob": true, "gender": true, "home_city": true,
 	"language": true, "country": true, "timezone": true, "created_at": true,
 }
+
+// Newly standardized keys may still exist in custom_attrs in older profiles.
+var promotedAttrKeys = map[string]bool{"dob": true, "gender": true, "home_city": true}
 
 // InferAttrType은 JSON 디코드 값에서 속성 타입을 판정한다 (PRD-01 4.2).
 // 반환: attr_type enum 문자열, ok=false면 지원하지 않는 형태(중첩 객체 등).
@@ -90,11 +94,19 @@ func ApplyAttributes(
 			target = std
 		}
 		old, hadOld := target[key]
+		_, hadLegacy := custom[key]
+		hadLegacy = promotedAttrKeys[key] && hadLegacy
+		if !hadOld && hadLegacy {
+			old, hadOld = custom[key], true
+		}
 
 		// null = unset (PRD-01 4.2)
 		if value == nil {
 			if hadOld {
 				delete(target, key)
+				if hadLegacy {
+					delete(custom, key)
+				}
 				dirty = true
 				res.Changes = append(res.Changes, changeRow(tenantID, appID, userID, key, old, nil, "unset", source, now, requestID))
 			}
@@ -126,6 +138,13 @@ func ApplyAttributes(
 			continue
 		}
 
+		// Move accepted legacy values lazily, after type validation. Readers support both
+		// locations so existing profiles and ClickHouse mirrors need no bulk rewrite.
+		if hadLegacy {
+			delete(custom, key)
+			target[key] = value
+			dirty = true
+		}
 		if !hadOld || !jsonEqual(old, value) {
 			target[key] = value
 			dirty = true
