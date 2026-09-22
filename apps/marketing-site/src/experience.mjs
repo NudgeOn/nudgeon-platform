@@ -28,7 +28,7 @@ export const experience = {
     features: [
       [
         "Know the moment",
-        "Bring events and customer profiles together. Find the people who need to hear from you.",
+        "Start with six standard events, from signup and login to purchase, and eleven profile attributes. Connect customer actions to the right audience with your SDK integration. <a href=\"/guide/#customer-data\">Explore events and attributes →</a>",
       ],
       [
         "Build the next step",
@@ -52,7 +52,7 @@ export const experience = {
     terminal: "Install → connect → send your first push",
     beta: "Partner beta candidate",
     betaBody:
-      "iOS and Android SDK 0.2.6 are published. React Native and Flutter release preparation is complete; public publication and wider beta validation are still pending.",
+      "iOS and Android SDK 0.2.8 are published. React Native and Flutter release preparation is complete; public publication and wider beta validation are still pending.",
     checklist: "See the release checklist",
     finalTitle: "Make your next message matter.",
     finalCta: "Build your first journey",
@@ -138,7 +138,7 @@ export const experience = {
     features: [
       [
         "고객의 순간을 발견하고",
-        "이벤트와 고객 프로필을 연결하세요. 지금 메시지가 필요한 고객을 찾을 수 있습니다.",
+        "회원가입·로그인·구입 등 기본 이벤트 6개와 사용자 속성 11개로 시작하세요. SDK로 수집한 행동과 프로필을 연결해 메시지가 필요한 고객을 찾습니다. <a href=\"/ko/guide/#customer-data\">이벤트·속성 가이드 보기 →</a>",
       ],
       [
         "다음 행동을 설계하고",
@@ -162,7 +162,7 @@ export const experience = {
     terminal: "설치 → 앱 연결 → 첫 푸시 발송",
     beta: "파트너 베타 후보",
     betaBody:
-      "iOS·Android SDK 0.2.6가 공개돼 있습니다. React Native·Flutter는 배포 준비를 마쳤으며, 공개 게시와 더 넓은 베타 검증이 남아 있습니다.",
+      "iOS·Android SDK 0.2.8가 공개돼 있습니다. React Native·Flutter는 배포 준비를 마쳤으며, 공개 게시와 더 넓은 베타 검증이 남아 있습니다.",
     checklist: "출시 체크리스트 보기",
     finalTitle: "다음 메시지를, 기다려지는 메시지로.",
     finalCta: "첫 저니 시작하기",

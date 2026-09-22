@@ -165,6 +165,7 @@ const navigationGroups = [
     icon: IconBook2,
     items: [
       { label: "SDK 시작하기", href: "#sdk-quickstart" },
+      { label: "이벤트와 사용자 속성", href: "#events-attributes" },
       { label: "플랫폼 가이드", href: "#platform-guides" },
       { label: "푸시 권한 가이드", href: "#push-permissions" },
       { label: "앱 시작 전면 광고", href: "#launch-ads" },
@@ -435,6 +436,7 @@ const englishNavigationGroups = [
     icon: IconBook2,
     items: [
       { label: "SDK quickstart", href: "#sdk-quickstart" },
+      { label: "Events & user attributes", href: "#events-attributes" },
       { label: "Platform guides", href: "#platform-guides" },
       { label: "Push permissions", href: "#push-permissions" },
       { label: "App launch ads", href: "#launch-ads" },
