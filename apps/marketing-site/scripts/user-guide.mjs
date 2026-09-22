@@ -1,4 +1,5 @@
 import { launchAdGuide } from "../src/launch-ad-guide.mjs";
+import { customerDataGuide } from "../src/customer-data-guide.mjs";
 const siteUrl = 'https://nudgeon.io';
 const docsUrl = 'https://developer.nudgeon.io';
 const repoUrl = 'https://github.com/NudgeOn/nudgeon-platform';
@@ -13,7 +14,7 @@ const copy = {
     home: 'NudgeOn home', product: 'Product', deployment: 'Deployment', guide: 'User guide', developer: 'Developer center', language: 'Language', navigation: 'Main navigation', skip: 'Skip to the guide',
     heading: 'A clear path to\nyour first message.',
     intro: 'Start with one test customer. Check the audience, shape the message, and follow the result before opening the journey to more people.',
-    scope: 'For operators working with a team that has installed NudgeOn and connected its app. NudgeOn is a partner beta candidate; native iOS and Android SDK 0.2.6 are published.',
+    scope: 'For operators working with a team that has installed NudgeOn and connected its app. NudgeOn is a partner beta candidate; native iOS and Android SDK 0.2.8 are published.',
     toc: 'In this guide', start: 'Start with your app', sectionLabel: 'Step', where: 'In the console', checkpoint: 'Before you continue', technical: 'Developer reference',
     sections: [
       {
@@ -28,6 +29,9 @@ const copy = {
         check: 'The intended app is selected, its first event is visible, and your developer has confirmed the push channel connection.',
         note: 'Keep provider credentials and server keys with the person responsible for the integration. Screenshots and support requests should contain only the information needed to identify the issue.',
         links: [['SDK setup', 'sdk-quickstart'], ['Push permissions', 'push-permissions'], ['Self-hosting', 'self-hosting']],
+      },
+      {
+        ...customerDataGuide.en,
       },
       {
         id: 'audience', nav: 'Find your audience', title: 'Know who should receive it.',
@@ -89,7 +93,7 @@ const copy = {
     home: 'NudgeOn 홈', product: '제품', deployment: '도입 방식', guide: '유저가이드', developer: '개발자센터', language: '언어 선택', navigation: '메인 메뉴', skip: '가이드 본문으로 이동',
     heading: '첫 메시지까지,\n순서대로 시작하세요.',
     intro: '테스트 고객 한 명으로 시작하세요. 대상을 확인하고 메시지를 만든 뒤, 실제 결과를 살펴보며 저니의 범위를 넓혀가세요.',
-    scope: 'NudgeOn을 설치하고 앱을 연결한 팀의 운영자를 위한 가이드입니다. 현재 파트너 베타 후보이며 iOS·Android SDK 0.2.6가 공개되어 있습니다.',
+    scope: 'NudgeOn을 설치하고 앱을 연결한 팀의 운영자를 위한 가이드입니다. 현재 파트너 베타 후보이며 iOS·Android SDK 0.2.8가 공개되어 있습니다.',
     toc: '가이드 순서', start: '앱 준비부터 보기', sectionLabel: '단계', where: '콘솔에서 찾기', checkpoint: '다음 단계로 가기 전', technical: '개발자 참고 문서',
     sections: [
       {
@@ -104,6 +108,9 @@ const copy = {
         check: '작업할 앱이 맞고 첫 이벤트가 표시되며, 개발 담당자가 푸시 채널 연결을 확인했습니다.',
         note: '공급자 인증 정보와 서버 키는 연동 담당자가 관리하세요. 화면을 공유하거나 문의할 때는 문제를 확인하는 데 필요한 정보만 남깁니다.',
         links: [['SDK 연동', 'sdk-quickstart'], ['푸시 권한', 'push-permissions'], ['직접 설치·운영', 'self-hosting']],
+      },
+      {
+        ...customerDataGuide.ko,
       },
       {
         id: 'audience', nav: '고객과 세그먼트', title: '누구에게 보낼지 확인합니다.',

@@ -397,7 +397,7 @@ React Native는 `import NudgeOn, { NudgeOnEvents } from '@nudgeon/react-native'`
 
 `POST /v1/identify` 또는 Server Key를 사용하는 `POST /v1/users/attributes`로 설정합니다. 위 예시의 `phone: null`은 값을 삭제합니다. 새 기본 키인 `dob`, `gender`, `home_city`를 이전에 커스텀 속성으로 저장한 고객도 세그먼트·저니에서 계속 읽을 수 있습니다. 이후 정상 갱신 시 기본 속성 저장 영역으로 이동하고, 삭제 시 이전 값까지 제거합니다.
 
-네 SDK에는 기존 `setUserAttributes`와 함께 사용하는 `NudgeOnAttributes` 키 상수를 추가했습니다(다음 SDK 릴리스용). iOS·React Native·Flutter는 `NudgeOnAttributes.firstName`·`dateOfBirth`, Android는 `NudgeOnAttributes.FIRST_NAME`·`DOB` 형태입니다. SDK를 초기화하고 `identify`를 호출한 뒤 사용하세요. 현재 익명 사용자 속성 설정과 속성 요청의 영속 오프라인 재시도는 지원하지 않습니다. 기존 버전에서도 문자열 키를 직접 전달할 수 있습니다.
+네 SDK에는 기존 `setUserAttributes`와 함께 사용하는 `NudgeOnAttributes` 키 상수를 추가했습니다. iOS SPM·Android Maven Central **0.2.8**에 공개됐으며 RN·Flutter 0.1.3은 소스 반영 후 공개 게시 대기 중입니다. iOS·React Native·Flutter는 `NudgeOnAttributes.firstName`·`dateOfBirth`, Android는 `NudgeOnAttributes.FIRST_NAME`·`DOB` 형태입니다. SDK를 초기화하고 `identify`를 호출한 뒤 사용하세요. 현재 익명 사용자 속성 설정과 속성 요청의 영속 오프라인 재시도는 지원하지 않습니다. 기존 버전에서도 문자열 키를 직접 전달할 수 있지만 Android의 `null` 전송 수정은 0.2.8에 포함됩니다. [네 SDK 연동 예제](https://developer.nudgeon.io/#events-attributes)를 참고하세요.
 
 수신 동의는 일반 프로필 속성이 아닙니다. `push_subscribe`·`email_subscribe`를 설정해도 동의 상태가 바뀌지 않으며, 푸시는 SDK `setPushSubscription` 등 기존 구독 API를 사용합니다.
 
