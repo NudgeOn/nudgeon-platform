@@ -50,10 +50,20 @@ import { JourneysController } from "./journeys/journeys.controller";
 import { RateLimitGuard } from "./rate-limit/rate-limit.guard";
 import { RateLimitService } from "./rate-limit/rate-limit.service";
 import { PermissionGuard } from "./authz/permission.guard";
+import { AnalysisController } from "./analytics/analysis.controller";
+import { AnalysisService } from "./analytics/analysis.service";
+import { SegmentDraftsController } from "./segments/segment-drafts.controller";
+import { SegmentDrafts } from "./segments/segment-drafts.service";
+import { JourneyDrafts } from "./journeys/journey-drafts.service";
+import { McpOAuth } from "./mcp/mcp-oauth.service";
+import { McpOAuthController, McpConnectionsController } from "./mcp/mcp-oauth.controller";
+import { McpController } from "./mcp/mcp.controller";
+import { McpRead } from "./mcp/mcp-read.service";
 
 @Module({
   imports: [InfraModule],
   controllers: [
+    AnalysisController, SegmentDraftsController, McpOAuthController, McpConnectionsController, McpController,
     InAppWorkbenchController, InAppTestSdkController, InAppCampaignController, InAppDeliveryController,
     HealthController,
     ConnectorCatalogController,
@@ -84,6 +94,7 @@ import { PermissionGuard } from "./authz/permission.guard";
     DataController,
   ],
   providers: [
+    AnalysisService, SegmentDrafts, JourneyDrafts, McpOAuth, McpRead,
     InAppAssets, InAppWorkbench, InAppCampaigns, InAppDelivery,
     TestPushService,
     ApiKeyGuard,

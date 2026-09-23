@@ -1,6 +1,7 @@
 import { launchAdContent } from "./launchAdContent.js";
 import { guideContentByLanguage } from "./guideContent.js";
 import { customerDataContent } from "./customerDataContent.js";
+import { mcpContent } from "./mcpContent.js";
 
 const koDocuments = [
   {
@@ -672,6 +673,7 @@ const documentOrder = [
   "push-create",
   "journeys",
   "segments",
+  "mcp",
   "authentication",
   "push-api",
   "journey-api",
@@ -692,6 +694,6 @@ function orderDocuments(supplemental, existing) {
 }
 
 export const documentContentByLanguage = {
-  ko: orderDocuments([...koDocuments, launchAdContent.ko, customerDataContent.ko], guideContentByLanguage.ko),
-  en: orderDocuments([...enDocuments, launchAdContent.en, customerDataContent.en], guideContentByLanguage.en),
+  ko: orderDocuments([...koDocuments, launchAdContent.ko, customerDataContent.ko, mcpContent.ko], guideContentByLanguage.ko),
+  en: orderDocuments([...enDocuments, launchAdContent.en, customerDataContent.en, mcpContent.en], guideContentByLanguage.en),
 };

@@ -16,9 +16,12 @@
   },
   "dependencies": {
     "@clickhouse/client": "^1.10.0",
+    "@modelcontextprotocol/node": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@nudgeon/api-client": "workspace:*",
     "@nudgeon/journey-model": "workspace:*",
     "@nudgeon/libqueue": "workspace:*",
     "@nudgeon/queue-schemas": "workspace:*",
@@ -36,7 +39,8 @@
     "postcss-value-parser": "4.2.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.0",
-    "zod": "^3.24.0"
+    "zod": "^3.24.0",
+    "zod-to-json-schema": "3.24.6"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.8",

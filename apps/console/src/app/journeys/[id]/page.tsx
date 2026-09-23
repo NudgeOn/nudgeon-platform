@@ -35,6 +35,7 @@ function JourneyDetailView({ appId, id }: { appId: string; id: string }) {
   return <JourneyEditor key={`${appId}:${journey.data.id}`} appId={appId}
     journeyId={journey.data.id} initialName={journey.data.name}
     initialDef={journey.data.draft_definition as JourneyDefinition}
+    initialRevision={journey.data.revision}
     capabilities={journey.data.capabilities} publishedABNodes={journey.data.published_ab_nodes}
     status={journey.data.status} />;
 }

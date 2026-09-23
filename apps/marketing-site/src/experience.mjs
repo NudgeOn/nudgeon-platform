@@ -36,7 +36,7 @@ export const experience = {
       ],
       [
         "See what happened",
-        "Trace messages from send to delivery and open. Understand why a message was skipped.",
+        "Trace messages from send to delivery and open. With optional MCP enabled, analyze aggregates with AI and prepare drafts for console review. <a href=\"/guide/#mcp\">Explore AI analysis and MCP →</a>",
       ],
     ],
     sample: "Illustrative product examples",
@@ -146,7 +146,7 @@ export const experience = {
       ],
       [
         "그 이후까지 확인하세요",
-        "발송부터 도달과 열기까지 따라가세요. 메시지를 보내지 못한 이유도 확인합니다.",
+        "발송부터 도달과 열기까지 따라가세요. 선택 기능인 MCP를 활성화하면 AI로 집계를 분석하고 콘솔에서 검토할 초안을 준비할 수 있습니다. <a href=\"/ko/guide/#mcp\">AI 분석·MCP 가이드 보기 →</a>",
       ],
     ],
     sample: "제품 이해를 돕기 위한 예시 화면",

@@ -19,6 +19,9 @@ jobs:
     env:
       NUDGEON_TEST_PUSH_DATABASE_URL: postgres://nudgeon:nudgeon@localhost:5432/nudgeon_test
       NUDGEON_IN_APP_TEST_DATABASE_URL: postgres://nudgeon:nudgeon@localhost:5432/nudgeon_test
+      NUDGEON_MCP_TEST_DATABASE_URL: postgres://nudgeon:nudgeon@localhost:5432/nudgeon_test
+      NUDGEON_ANALYTICS_TEST_CLICKHOUSE_URL: http://nudgeon:nudgeon@127.0.0.1:8123/nudgeon
+      NUDGEON_MCP_TEST_CLICKHOUSE_URL: http://nudgeon:nudgeon@127.0.0.1:8123/nudgeon
     services:
       postgres:
         image: postgres:16
@@ -32,6 +35,20 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+      clickhouse:
+        image: clickhouse/clickhouse-server:24.8
+        env:
+          CLICKHOUSE_DB: nudgeon
+          CLICKHOUSE_USER: nudgeon
+          CLICKHOUSE_PASSWORD: nudgeon
+          CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+        ports: ["8123:8123"]
+        options: >-
+          --ulimit nofile=262144:262144
+          --health-cmd "wget -qO- http://localhost:8123/ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -40,6 +57,14 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Initialize ClickHouse schema for MCP integration tests
+        env:
+          CLICKHOUSE_SERVICE_ID: ${{ job.services.clickhouse.id }}
+        run: |
+          set -euo pipefail
+          for schema in db/clickhouse/*.sql; do
+            docker exec -i "$CLICKHOUSE_SERVICE_ID" clickhouse-client --user nudgeon --password nudgeon --multiquery < "$schema"
+          done
       - name: Capacity resource preflight contract
         run: node --test tests/ops/capacity-preflight/preflight.test.mjs
       - name: Offline failed-request evidence contract

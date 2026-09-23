@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SegmentsPage() {
   const t = useTranslations("segments");
+  const drafts = useTranslations("segmentDrafts");
   const locale = useLocale();
   const appId = useAppId();
   const segments = useQuery({
@@ -33,6 +34,8 @@ export default function SegmentsPage() {
           <Button>{t("new")}</Button>
         </Link>
       </header>
+
+      <Link href="/segments/drafts" className="mb-5 inline-block text-sm text-primary underline">{drafts("title")}</Link>
 
       {segments.isPending && <p className="text-sm text-muted-foreground">{t("loading")}</p>}
       {segments.data?.segments.length === 0 && (

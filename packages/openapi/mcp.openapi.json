@@ -1,0 +1,67 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "NudgeOn MCP connections and segment drafts", "version": "1.0.0", "description": "Console endpoints require the existing login session and completed mandatory two-factor enrollment. MCP tools use OAuth bearer tokens bound to one member, tenant and app. Effective access is the intersection of current role, consented scopes and current administrator approval." },
+  "security": [{ "sessionCookie": [] }],
+  "paths": {
+    "/v1/mcp/status": {
+      "get": { "security": [{ "sessionCookie": [] }], "operationId": "mcpStatus", "responses": { "200": { "description": "Installation availability", "content": { "application/json": { "schema": { "type": "object", "required": ["enabled", "endpoint"], "properties": { "enabled": { "type": "boolean" }, "endpoint": { "type": "string", "format": "uri" } } } } } } } }
+    },
+    "/v1/mcp/connections": {
+      "get": { "security": [{ "sessionCookie": [] }], "operationId": "listMcpConnections", "description": "Members see their own connections. Admin and Owner see the current tenant's connections.", "responses": { "200": { "description": "Connections", "content": { "application/json": { "schema": { "type": "object", "required": ["connections"], "properties": { "connections": { "type": "array", "items": { "$ref": "#/components/schemas/McpConnection" } } } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } } }
+    },
+    "/v1/mcp/connections/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "delete": { "security": [{ "sessionCookie": [] }], "operationId": "revokeMcpConnection", "description": "Revoke your own connection, or any connection in your tenant as Admin or Owner. Access is denied from the next request.", "responses": { "200": { "$ref": "#/components/responses/Ok" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } } },
+      "patch": { "security": [{ "sessionCookie": [] }], "operationId": "approveMcpCustomerAccess", "description": "Admin and Owner only. Approval alone does not grant the customers scope: the member must subsequently consent via OAuth.", "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["customer_access_approved"], "properties": { "customer_access_approved": { "type": "boolean" } } } } } }, "responses": { "200": { "$ref": "#/components/responses/Ok" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } } }
+    },
+    "/v1/mcp/authorization/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": { "security": [{ "sessionCookie": [] }], "operationId": "getMcpAuthorization", "responses": { "200": { "description": "OAuth request awaiting explicit user consent", "content": { "application/json": { "schema": { "type": "object", "required": ["client_id", "client_name", "requested_scopes", "apps", "expires_at", "redirect_uri", "client_verified"], "properties": { "client_id": { "type": "string", "format": "uuid" }, "client_name": { "type": "string", "description": "Self-registered application name, not verified identity." }, "redirect_uri": { "type": "string", "format": "uri" }, "client_verified": { "const": false }, "requested_scopes": { "$ref": "#/components/schemas/McpScopes" }, "apps": { "type": "array", "items": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "string", "format": "uuid" }, "name": { "type": "string" } } } }, "expires_at": { "type": "string", "format": "date-time" } } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "404": { "$ref": "#/components/responses/NotFound" } } },
+      "post": { "security": [{ "sessionCookie": [] }], "operationId": "decideMcpAuthorization", "description": "Approve or deny once. The server checks requested scopes, live role and selected app. Customer access is bound to the exact member, OAuth client and app; Admin and Owner can approve their own access with explicit customer consent. Only the returned server-validated registered redirect URI is followed.", "requestBody": { "required": true, "content": { "application/json": { "schema": { "oneOf": [{ "type": "object", "required": ["approve"], "properties": { "approve": { "const": false } } }, { "type": "object", "required": ["app_id", "scopes", "approve"], "properties": { "app_id": { "type": "string", "format": "uuid" }, "scopes": { "$ref": "#/components/schemas/McpScopes" }, "approve": { "const": true } } }] } } } }, "responses": { "200": { "description": "Continue at the registered OAuth client callback", "content": { "application/json": { "schema": { "type": "object", "required": ["redirect_uri"], "properties": { "redirect_uri": { "type": "string", "format": "uri" } } } } } }, "400": { "$ref": "#/components/responses/Invalid" }, "403": { "$ref": "#/components/responses/Forbidden" } } }
+    },
+    "/v1/apps/{appId}/segment-drafts": {
+      "parameters": [{ "$ref": "#/components/parameters/AppId" }],
+      "get": { "security": [{ "sessionCookie": [] }], "operationId": "listSegmentDrafts", "responses": { "200": { "description": "Latest 100 drafts including converted drafts", "content": { "application/json": { "schema": { "type": "object", "required": ["drafts"], "properties": { "drafts": { "type": "array", "items": { "$ref": "#/components/schemas/SegmentDraft" } } } } } } } } },
+      "post": { "security": [{ "sessionCookie": [] }], "operationId": "createSegmentDraft", "description": "Editor, Admin or Owner. A draft is excluded from scheduled evaluation and cannot be used as an operational segment. request_id makes identical retries idempotent.", "requestBody": { "required": true, "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/DraftInput" }, { "type": "object", "properties": { "request_id": { "type": "string", "format": "uuid" } } }] } } } }, "responses": { "201": { "$ref": "#/components/responses/Draft" }, "400": { "$ref": "#/components/responses/Invalid" }, "403": { "$ref": "#/components/responses/Forbidden" }, "409": { "$ref": "#/components/responses/Conflict" } } }
+    },
+    "/v1/apps/{appId}/segment-drafts/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/AppId" }, { "$ref": "#/components/parameters/Id" }],
+      "get": { "security": [{ "sessionCookie": [] }], "operationId": "getSegmentDraft", "responses": { "200": { "$ref": "#/components/responses/Draft" }, "404": { "$ref": "#/components/responses/NotFound" } } },
+      "patch": { "security": [{ "sessionCookie": [] }], "operationId": "updateSegmentDraft", "description": "Editor, Admin or Owner. Compares the saved revision and checks the promotion lock atomically. Conflicts preserve the saved draft.", "requestBody": { "required": true, "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/DraftInput" }, { "$ref": "#/components/schemas/ExpectedRevision" }] } } } }, "responses": { "200": { "$ref": "#/components/responses/Draft" }, "400": { "$ref": "#/components/responses/Invalid" }, "403": { "$ref": "#/components/responses/Forbidden" }, "409": { "$ref": "#/components/responses/Conflict" }, "412": { "$ref": "#/components/responses/RevisionConflict" } } }
+    },
+    "/v1/apps/{appId}/segment-drafts/{id}/preview": {
+      "parameters": [{ "$ref": "#/components/parameters/AppId" }, { "$ref": "#/components/parameters/Id" }],
+      "post": { "security": [{ "sessionCookie": [] }], "operationId": "previewSegmentDraft", "responses": { "201": { "description": "Approximate count for the saved draft; excludes raw customer samples", "content": { "application/json": { "schema": { "type": "object", "required": ["approx_count", "revision"], "properties": { "approx_count": { "type": "number", "minimum": 0 }, "revision": { "type": "integer", "minimum": 1 } } } } } }, "404": { "$ref": "#/components/responses/NotFound" } } }
+    },
+    "/v1/apps/{appId}/segment-drafts/{id}/promote": {
+      "parameters": [{ "$ref": "#/components/parameters/AppId" }, { "$ref": "#/components/parameters/Id" }],
+      "post": { "security": [{ "sessionCookie": [] }], "operationId": "promoteSegmentDraft", "description": "Console-only action, never exposed as an MCP tool. Editor, Admin or Owner. Creates a new operational segment and locks the draft. A repeat request returns the same segment without creating duplicates.", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpectedRevision" } } } }, "responses": { "201": { "description": "New or previously created segment", "content": { "application/json": { "schema": { "type": "object", "required": ["segment_id", "draft_id"], "properties": { "segment_id": { "type": "string", "format": "uuid" }, "draft_id": { "type": "string", "format": "uuid" } } } } } }, "403": { "$ref": "#/components/responses/Forbidden" }, "409": { "$ref": "#/components/responses/Conflict" }, "412": { "$ref": "#/components/responses/RevisionConflict" } } }
+    }
+  },
+  "components": {
+    "securitySchemes": { "sessionCookie": { "type": "apiKey", "in": "cookie", "name": "nudgeon_session" } },
+    "parameters": {
+      "AppId": { "name": "appId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "Id": { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+    },
+    "schemas": {
+      "McpScopes": { "type": "array", "uniqueItems": true, "items": { "type": "string", "enum": ["mcp:read", "mcp:drafts:write", "mcp:customers:read"] } },
+      "McpConnection": { "type": "object", "required": ["id", "client_id", "app_id", "app_name", "client_name", "member_id", "member_email", "scopes", "customer_access_approved", "last_used_at", "created_at", "revoked_at"], "properties": {
+        "id": { "type": "string", "format": "uuid" }, "client_id": { "type": "string", "format": "uuid" }, "app_id": { "type": "string", "format": "uuid" }, "app_name": { "type": "string" }, "client_name": { "type": "string" }, "member_id": { "type": "string", "format": "uuid" }, "member_email": { "type": "string" }, "scopes": { "$ref": "#/components/schemas/McpScopes" }, "customer_access_approved": { "type": "boolean" }, "last_used_at": { "type": ["string", "null"], "format": "date-time" }, "created_at": { "type": "string", "format": "date-time" }, "revoked_at": { "type": ["string", "null"], "format": "date-time" }
+      } },
+      "DraftInput": { "type": "object", "required": ["name", "definition"], "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 200 }, "definition": { "type": "object", "description": "Segment DSL v1, validated by the shared segment compiler.", "required": ["version", "operator", "groups"], "properties": { "version": { "const": 1 }, "operator": { "enum": ["AND", "OR"] }, "groups": { "type": "array", "items": { "type": "object" } } } } } },
+      "ExpectedRevision": { "type": "object", "required": ["expected_revision"], "properties": { "expected_revision": { "type": "integer", "minimum": 1 } } },
+      "SegmentDraft": { "allOf": [{ "$ref": "#/components/schemas/DraftInput" }, { "type": "object", "required": ["id", "revision", "promoted_segment_id", "created_at", "updated_at"], "properties": { "id": { "type": "string", "format": "uuid" }, "revision": { "type": "integer", "minimum": 1 }, "promoted_segment_id": { "type": ["string", "null"], "format": "uuid" }, "created_at": { "type": "string", "format": "date-time" }, "updated_at": { "type": "string", "format": "date-time" } } }] }
+    },
+    "responses": {
+      "Ok": { "description": "Success", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "const": true } } } } } },
+      "Draft": { "description": "Saved draft", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SegmentDraft" } } } },
+      "Unauthorized": { "description": "A valid console login session is required." },
+      "Forbidden": { "description": "Current role, mandatory 2FA enrollment or consent scope does not permit this action." },
+      "NotFound": { "description": "Resource is unavailable within the current tenant and app." },
+      "Invalid": { "description": "Invalid request or segment definition." },
+      "Conflict": { "description": "Draft already converted, conflicting name, or idempotency key reused for a different request." },
+      "RevisionConflict": { "description": "Saved revision changed; read the latest draft before applying edits." }
+    }
+  }
+}
