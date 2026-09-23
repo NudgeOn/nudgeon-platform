@@ -31,6 +31,8 @@ async function bootstrap() {
     }),
   );
   app.use(cookieParser());
+  // OAuth clients post token/revocation requests as application/x-www-form-urlencoded.
+  app.use("/oauth", express.urlencoded({ extended: false, limit: "16kb" }));
   app.enableCors({ origin: cfg.corsOrigin, credentials: true });
   installShutdown(app, shutdown);
   await app.listen(cfg.port);

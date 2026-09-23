@@ -50,7 +50,7 @@ describe.skipIf(!databaseUrl || !clickhouseUrl)("journey management / actual Pos
   });
   afterAll(async () => {
     if (!pg) return;
-    for (const table of ["journey_node_executions", "journey_states", "journey_outbox"]) await pg.query(`DELETE FROM ${table} WHERE tenant_id = $1`, [tenantId]);
+    for (const table of ["journey_node_executions", "journey_states", "journey_outbox", "audit_logs"]) await pg.query(`DELETE FROM ${table} WHERE tenant_id = $1`, [tenantId]);
     await pg.query("DELETE FROM journey_versions WHERE journey_id IN (SELECT id FROM journeys WHERE tenant_id=$1)", [tenantId]);
     for (const table of ["journeys", "segments", "users", "members", "apps", "tenants"]) await pg.query(`DELETE FROM ${table} WHERE ${table === "tenants" ? "id" : "tenant_id"} = $1`, [tenantId]);
     await pg.end(); await ch.close();

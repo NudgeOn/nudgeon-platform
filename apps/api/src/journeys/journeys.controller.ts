@@ -7,8 +7,10 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  Headers,
   Inject,
   NotFoundException,
+  Optional,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -18,28 +20,21 @@ import {
 } from "@nestjs/common";
 import type { ClickHouseClient } from "@clickhouse/client";
 import type { Pool } from "pg";
-import { z } from "zod";
 import { QueueProducer } from "@nudgeon/libqueue";
 import { STREAMS, type JourneyEntryPayload } from "@nudgeon/queue-schemas";
 import {
-  compile,
   toClickHouse,
-  type Category,
   type Compiled,
-  type SegmentDSL,
 } from "@nudgeon/segment-dsl";
 import {
   hasErrors,
-  validateJourney,
-  collectPublishedABNodes,
-  validatePublishedABNodes,
-  type PublishedABNodes,
   type JourneyDefinition,
 } from "@nudgeon/journey-model";
 import { CLICKHOUSE, PG, QUEUE, CONFIG } from "../infra/infra.module";
 import { SessionGuard, type SessionRequest } from "../auth/session.guard";
 import type { AppConfig } from "../config";
-import { activationSchema, draftRevision, journeyCapabilities, upsertSchema } from "./journey-contract";
+import { activationSchema, draftRevision } from "./journey-contract";
+import { JourneyDrafts, parseJourneyIfMatch } from "./journey-drafts.service";
 
 const EDITOR_ROLES = ["owner", "admin", "editor"];
 
@@ -47,22 +42,18 @@ const EDITOR_ROLES = ["owner", "admin", "editor"];
 @Controller("v1/apps/:appId/journeys")
 @UseGuards(SessionGuard)
 export class JourneysController {
+  private readonly drafts: JourneyDrafts;
   constructor(
     @Inject(PG) private readonly pg: Pool,
     @Inject(CLICKHOUSE) private readonly ch: ClickHouseClient,
     @Inject(QUEUE) private readonly queue: QueueProducer,
     @Inject(CONFIG) private readonly config: AppConfig,
-  ) {}
+    @Optional() drafts?: JourneyDrafts,
+  ) { this.drafts = drafts ?? new JourneyDrafts(pg, ch, config); }
 
   @Get()
   async list(@Param("appId", ParseUUIDPipe) appId: string, @Req() req: SessionRequest) {
-    await this.assertApp(appId, req);
-    const { rows } = await this.pg.query(
-      `SELECT id, name, status, category, active_version, updated_at
-         FROM journeys WHERE tenant_id = $1 AND app_id = $2 ORDER BY updated_at DESC`,
-      [req.member.tenantId, appId],
-    );
-    return { journeys: rows, capabilities: journeyCapabilities(this.config.journeyGraphV2Enabled) };
+    return this.drafts.list(req.member, appId);
   }
 
   @Get(":id")
@@ -71,19 +62,7 @@ export class JourneysController {
     @Param("id", ParseUUIDPipe) id: string,
     @Req() req: SessionRequest,
   ) {
-    await this.assertApp(appId, req);
-    const { rows } = await this.pg.query(
-      `SELECT id, name, status, category, draft_definition, active_version, updated_at
-         FROM journeys WHERE id = $1 AND tenant_id = $2 AND app_id = $3`,
-      [id, req.member.tenantId, appId],
-    );
-    if (!rows[0]) throw new NotFoundException();
-    const journey = rows[0];
-    return { ...journey,
-      revision: draftRevision(journey.name, journey.draft_definition),
-      published_ab_nodes: await this.publishedABNodes(this.pg, req.member.tenantId, appId, id),
-      capabilities: journeyCapabilities(this.config.journeyGraphV2Enabled),
-    };
+    return this.drafts.get(req.member, appId, id);
   }
 
   @Post()
@@ -92,24 +71,7 @@ export class JourneysController {
     @Body() body: unknown,
     @Req() req: SessionRequest,
   ) {
-    await this.assertApp(appId, req);
-    this.assertEditor(req);
-    const data = this.parse(body);
-    const { rows } = await this.pg
-      .query(
-        `INSERT INTO journeys (tenant_id, app_id, name, category, draft_definition, status, created_by)
-         VALUES ($1, $2, $3, $4, $5, 'draft', $6) RETURNING id`,
-        [
-          req.member.tenantId,
-          appId,
-          data.name,
-          data.definition.settings.category,
-          data.definition,
-          req.member.memberId,
-        ],
-      )
-      .catch(this.mapUnique);
-    return { id: rows[0].id, revision: draftRevision(data.name, data.definition) };
+    return this.drafts.create(req.member, appId, body);
   }
 
   @Patch(":id")
@@ -118,19 +80,9 @@ export class JourneysController {
     @Param("id", ParseUUIDPipe) id: string,
     @Body() body: unknown,
     @Req() req: SessionRequest,
+    @Headers("if-match") ifMatch?: string,
   ) {
-    await this.assertApp(appId, req);
-    this.assertEditor(req);
-    const data = this.parse(body);
-    const { rowCount } = await this.pg
-      .query(
-        `UPDATE journeys SET name = $4, category = $5, draft_definition = $6, updated_at = now()
-          WHERE id = $1 AND tenant_id = $2 AND app_id = $3 AND status IN ('draft', 'paused')`,
-        [id, req.member.tenantId, appId, data.name, data.definition.settings.category, data.definition],
-      )
-      .catch(this.mapUnique);
-    if (!rowCount) throw new NotFoundException("수정 가능한 저니를 찾을 수 없습니다 (활성 저니는 새 버전으로만 변경)");
-    return { ok: true, revision: draftRevision(data.name, data.definition) };
+    return this.drafts.update(req.member, appId, id, body, { expectedRevision: parseJourneyIfMatch(ifMatch) });
   }
 
   /** 검증만 수행 (활성화 전 경고·예상 카운트 모달용) */
@@ -140,14 +92,7 @@ export class JourneysController {
     @Param("id", ParseUUIDPipe) id: string,
     @Req() req: SessionRequest,
   ) {
-    const journey = await this.load(appId, id, req);
-    const def = journey.draft_definition as JourneyDefinition;
-    const issues = await this.definitionIssues(this.pg, req.member.tenantId, appId, id, def);
-    let estimatedCount: number | null = null;
-    if (!hasErrors(issues) && def.entry.type === "blast" && def.entry.segment_id) {
-      estimatedCount = await this.audienceCount(req.member.tenantId, appId, def.entry.segment_id, def.settings.category);
-    }
-    return { issues, estimated_count: estimatedCount, revision: draftRevision(journey.name, def) };
+    return this.drafts.validate(req.member, appId, id);
   }
 
   /**
@@ -183,7 +128,7 @@ export class JourneysController {
           (parsed.data.revision && parsed.data.revision !== revision)) {
         throw new ConflictException("검증 이후 초안이 변경되었습니다. 다시 검증해 주세요");
       }
-      const issues = await this.definitionIssues(client, tenantId, appId, id, def);
+      const issues = await this.drafts.definitionIssues(client, tenantId, appId, id, def);
       if (hasErrors(issues)) throw new BadRequestException({ message: "검증 실패로 활성화할 수 없습니다", issues });
       const verRes = await client.query(
         `SELECT COALESCE(MAX(v.version), 0) + 1 AS next FROM journey_versions v
@@ -280,7 +225,7 @@ export class JourneysController {
     segmentId: string,
     category: string,
   ): Promise<string> {
-    const compiled = await this.compileSegment(tenantId, appId, segmentId, category);
+    const compiled = await this.drafts.compileSegment(tenantId, appId, segmentId, category);
     const audienceRef = randomUUID();
     // INSERT SELECT: 스냅샷 = 세그먼트 조건 user_id 집합 (push_reachable 미적용 — PRD-02 4.2 v0.2)
     const insert = toClickHouse({
@@ -302,71 +247,7 @@ export class JourneysController {
     return audienceRef;
   }
 
-  private async audienceCount(
-    tenantId: string,
-    appId: string,
-    segmentId: string,
-    category: string,
-  ): Promise<number> {
-    const compiled = await this.compileSegment(tenantId, appId, segmentId, category);
-    const q = toClickHouse({
-      sql: `SELECT uniqCombined(user_id) AS c FROM (${compiled.sql})`,
-      args: compiled.args,
-    } satisfies Compiled);
-    const res = await this.ch.query({ ...q, format: "JSONEachRow" });
-    const rows = (await res.json()) as Array<{ c: string }>;
-    return Number(rows[0]?.c ?? 0);
-  }
-
-  private async compileSegment(
-    tenantId: string,
-    appId: string,
-    segmentId: string,
-    category: string,
-  ): Promise<Compiled> {
-    const { rows } = await this.pg.query(
-      `SELECT definition, status FROM segments WHERE id = $1 AND tenant_id = $2 AND app_id = $3`,
-      [segmentId, tenantId, appId],
-    );
-    if (!rows[0]) throw new BadRequestException("세그먼트를 찾을 수 없습니다");
-    if (rows[0].status === "broken") throw new BadRequestException("broken 세그먼트로는 활성화할 수 없습니다");
-    return compile(
-      rows[0].definition as unknown as SegmentDSL,
-      tenantId,
-      appId,
-      category as Category,
-    );
-  }
-
   // --- 공통 ---
-
-  private async publishedABNodes(db: Pick<Pool, "query">, tenantId: string, appId: string, id: string): Promise<PublishedABNodes> {
-    const { rows } = await db.query(
-      `SELECT v.definition FROM journey_versions v JOIN journeys j ON j.id = v.journey_id
-        WHERE j.id = $1 AND j.tenant_id = $2 AND j.app_id = $3 ORDER BY v.version`,
-      [id, tenantId, appId],
-    );
-    return collectPublishedABNodes(rows.map(row => row.definition as JourneyDefinition));
-  }
-
-  private async definitionIssues(db: Pick<Pool, "query">, tenantId: string, appId: string, id: string, def: JourneyDefinition) {
-    const issues = validateJourney(def);
-    if (def.schema_version === 2 && !this.config.journeyGraphV2Enabled) {
-      issues.push({ level: "error", field: "schema_version", message: "모든 워커를 업데이트한 뒤 JOURNEY_GRAPH_V2_ENABLED=true로 활성화하세요" });
-    }
-    issues.push(...validatePublishedABNodes(def, await this.publishedABNodes(db, tenantId, appId, id)));
-    return issues;
-  }
-
-  private async load(appId: string, id: string, req: SessionRequest) {
-    const { rows } = await this.pg.query(
-      `SELECT id, name, status, category, draft_definition FROM journeys
-        WHERE id = $1 AND tenant_id = $2 AND app_id = $3`,
-      [id, req.member.tenantId, appId],
-    );
-    if (!rows[0]) throw new NotFoundException("저니를 찾을 수 없습니다");
-    return rows[0];
-  }
 
   private async setStatus(
     appId: string,
@@ -383,19 +264,6 @@ export class JourneysController {
     );
     if (!rowCount) throw new ConflictException(`현재 상태에서 ${status}로 전환할 수 없습니다`);
   }
-
-  private parse(body: unknown): z.infer<typeof upsertSchema> {
-    const r = upsertSchema.safeParse(body);
-    if (!r.success) throw new BadRequestException(r.error.flatten());
-    return r.data;
-  }
-
-  private mapUnique = (e: unknown): never => {
-    if ((e as { code?: string }).code === "23505") {
-      throw new BadRequestException("같은 이름의 저니가 이미 있습니다");
-    }
-    throw e;
-  };
 
   private async assertApp(appId: string, req: SessionRequest) {
     const { rowCount } = await this.pg.query(`SELECT 1 FROM apps WHERE id = $1 AND tenant_id = $2`, [

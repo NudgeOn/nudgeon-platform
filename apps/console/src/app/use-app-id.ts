@@ -1,10 +1,15 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { createContext, useContext } from "react";
 import { api } from "@/lib/api";
 
-/** 현재 테넌트의 첫 앱 id. MVP는 앱 선택 UI 없이 기본 앱 사용 (IA는 v1.5). */
+const AppScope = createContext<string | undefined>(undefined);
+export const AppIdProvider = AppScope.Provider;
+
+/** Deep-linked editors retain their verified app scope; other screens keep the existing first-app default. */
 export function useAppId(): string | undefined {
-  const apps = useQuery({ queryKey: ["apps"], queryFn: () => api.apps.list() });
-  return apps.data?.apps[0]?.id;
+  const selected = useContext(AppScope);
+  const apps = useQuery({ queryKey: ["apps"], queryFn: () => api.apps.list(), enabled: !selected });
+  return selected ?? apps.data?.apps[0]?.id;
 }

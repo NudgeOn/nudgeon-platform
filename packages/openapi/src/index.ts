@@ -1,4 +1,6 @@
 import { inAppCampaignClient } from "./in-app-campaigns";
+import { mcpClient, segmentDraftClient } from "./mcp";
+export * from "./mcp";
 export { STANDARD_EVENTS, type StandardEventName } from "./event-catalog";
 export * from "./in-app-campaigns";
 import { inAppClient } from "./in-app";
@@ -109,6 +111,8 @@ export class NudgeOnClient {
 
   readonly inAppCampaigns = inAppCampaignClient(this.request.bind(this));
   readonly inApp = inAppClient(this.request.bind(this));
+  readonly mcp = mcpClient(this.request.bind(this));
+  readonly segmentDrafts = segmentDraftClient(this.request.bind(this));
 
   readonly auth = {
     signup: (input: {
@@ -233,8 +237,9 @@ export class NudgeOnClient {
       this.request<JourneyDetail>("GET", `/v1/apps/${appId}/journeys/${id}`),
     create: (appId: string, input: { name: string; definition: unknown }) =>
       this.request<{ id: string; revision: string }>("POST", `/v1/apps/${appId}/journeys`, input),
-    update: (appId: string, id: string, input: { name: string; definition: unknown }) =>
-      this.request<{ ok: true; revision: string }>("PATCH", `/v1/apps/${appId}/journeys/${id}`, input),
+    update: (appId: string, id: string, input: { name: string; definition: unknown }, revision?: string) =>
+      this.request<{ ok: true; revision: string }>("PATCH", `/v1/apps/${appId}/journeys/${id}`, input,
+        revision ? { "If-Match": `"${revision}"` } : undefined),
     validate: (appId: string, id: string) =>
       this.request<JourneyValidation>("POST", `/v1/apps/${appId}/journeys/${id}/validate`),
     activate: (appId: string, id: string, input?: { revision: string }) =>

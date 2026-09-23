@@ -18,8 +18,10 @@ export function createJourneyDraftSession(
   client: JourneyDraftClient,
   appId: string,
   initialId?: string,
+  initialRevision?: string,
 ): JourneyDraftSession {
   let savedId = initialId;
+  let revision = initialRevision;
   let pending: Promise<void> = Promise.resolve();
 
   function enqueue<T>(operation: () => Promise<T>): Promise<T> {
@@ -31,12 +33,14 @@ export function createJourneyDraftSession(
 
   async function persist(input: JourneyDraftInput): Promise<{ id: string; revision: string }> {
     if (savedId) {
-      const saved = await client.update(appId, savedId, input);
+      const saved = await client.update(appId, savedId, input, revision);
+      revision = saved.revision;
       return { id: savedId, revision: saved.revision };
     }
 
     const created = await client.create(appId, input);
     savedId = created.id;
+    revision = created.revision;
     return created;
   }
 

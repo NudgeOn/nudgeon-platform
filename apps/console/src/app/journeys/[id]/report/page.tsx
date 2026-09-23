@@ -66,7 +66,7 @@ function JourneyReportView({ appId, id }: { appId: string; id: string }) {
     return [edge.id, t("report.times", { count: number(count) })];
   }));
 
-  if (detail.isError || report.isError) return <main className="journey-report jr-empty"><h1>{t("report.errorTitle")}</h1><p>{t("report.errorBody")}</p><button onClick={() => { void detail.refetch(); void report.refetch(); }}>{t("gate.retry")}</button><Link href={`/journeys/${id}`}>{t("report.backToEditor")}</Link></main>;
+  if (detail.isError || report.isError) return <main className="journey-report jr-empty"><h1>{t("report.errorTitle")}</h1><p>{t("report.errorBody")}</p><button onClick={() => { void detail.refetch(); void report.refetch(); }}>{t("gate.retry")}</button><Link href={`/journeys/${id}?app_id=${encodeURIComponent(appId)}`}>{t("report.backToEditor")}</Link></main>;
   if (!appId || detail.isPending || report.isPending || !r) return <main className="journey-report jr-empty" aria-busy="true">{t("report.loading")}</main>;
 
   const executions = Object.values(r.state_distribution).reduce((sum, count) => sum + count, 0);
@@ -76,7 +76,7 @@ function JourneyReportView({ appId, id }: { appId: string; id: string }) {
 
   return <main className="journey-report">
     <header className="jr-header">
-      <div><Link className="jr-back" href={`/journeys/${id}`}><ArrowLeft size={15} /> {t("report.editorLink")}</Link><div className="jr-title"><span className="jr-mark"><BarChart3 size={22} /></span><div><p>JOURNEY INSIGHTS</p><h1>{r.name}</h1></div></div></div>
+      <div><Link className="jr-back" href={`/journeys/${id}?app_id=${encodeURIComponent(appId)}`}><ArrowLeft size={15} /> {t("report.editorLink")}</Link><div className="jr-title"><span className="jr-mark"><BarChart3 size={22} /></span><div><p>JOURNEY INSIGHTS</p><h1>{r.name}</h1></div></div></div>
       <div className="jr-actions">
         <label className="jr-version"><span>{t("report.version")}</span><select aria-label={t("report.versionSelect")} value={r.version ?? ""} disabled={!r.versions.length} onChange={event => { setSelection({ journeyId: id, version: Number(event.target.value) }); setSelectedId("entry"); }}>
           {!r.versions.length && <option value="">{t("report.notActivated")}</option>}
@@ -120,7 +120,7 @@ function JourneyReportView({ appId, id }: { appId: string; id: string }) {
         {!executions && <p className="jr-hint">{t("report.states.empty")}</p>}
         {Object.entries(r.state_distribution).map(([status, count]) => <div className="jr-row" key={status}><span><i className={`jr-dot jr-dot-${status}`} />{t.has(`report.state.${status}`) ? t(`report.state.${status}`) : status}</span><strong>{t("report.times", { count: number(count) })}</strong></div>)}
       </div>
-      <div className="jr-panel"><div className="jr-panel-title"><h2>{t("report.sends.title")}</h2><Link href={`/journeys/${id}`}>{t("report.sends.viewJourney")} <ArrowUpRight size={13} /></Link></div>
+      <div className="jr-panel"><div className="jr-panel-title"><h2>{t("report.sends.title")}</h2><Link href={`/journeys/${id}?app_id=${encodeURIComponent(appId)}`}>{t("report.sends.viewJourney")} <ArrowUpRight size={13} /></Link></div>
         {!r.sends.length && <p className="jr-hint">{t("report.sends.empty")}</p>}
         {r.sends.map((send, index) => <div className="jr-row" key={`${send.node_index}-${send.status}-${index}`}><span>{graph?.nodes[send.node_index] ? label(graph.nodes[send.node_index]!) : t("report.stepN", { n: send.node_index + 1 })}<small>{t.has(`report.send.${send.status}`) ? t(`report.send.${send.status}`) : send.status}</small></span><strong>{t("report.countOf", { count: number(send.count) })}</strong></div>)}
         <p className="jr-footnote">{t("report.sends.footnote")}</p>

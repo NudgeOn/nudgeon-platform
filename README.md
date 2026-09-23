@@ -158,7 +158,7 @@ If the diagram above is the full wiring, the one below keeps only **the main pat
 
 NudgeOn is a **partner-beta candidate**: a real-device push has round-tripped (receive → open → report reconciliation) and the send, journey, install, isolation and backup gates are closed by automated runs. What remains before beta needs people, credentials or a production-like environment — see the [release checklist](docs-public/RELEASE-CHECKLIST.md). All public docs are indexed in [`docs-public/README.md`](docs-public/README.md).
 
-For integration details and the full endpoint list, see the [API guide](docs-public/API.md).
+For integration details and the full endpoint list, see the [API guide](docs-public/API.md). Optional [MCP connections](docs-public/MCP.md) let AI clients analyze app metrics and prepare drafts with each member’s permissions.
 
 The console screens are documented with real screenshots in the [console guide](docs-public/CONSOLE-GUIDE.md). Email supports SMTP, AWS SES, NHN Cloud, and Resend; Resend additionally collects delivered, opened, and clicked events via webhooks ([Resend setup guide](docs-public/RESEND-SETUP.md)).
 

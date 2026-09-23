@@ -174,3 +174,7 @@ v2 실행이 생긴 뒤에는 구형 워커로 되돌리지 마세요. flag를 �
 - 유저 50만 · 토큰 100만의 초기 검증 후보: 8 vCPU / 32GB + NVMe (ClickHouse 볼륨 분리). 처리량 보장이나 실측된 권장 사양은 아닙니다.
 - 역할별 독립 스케일: `worker --role=channel`(발송 최다)을 별도 다수 기동.
 - 성능 한계·스케일아웃 기준은 후속 부하 테스트의 원본 결과로 확정합니다. 현재 `docs/perf/` 결과가 확보됐다는 의미는 아닙니다.
+
+## 선택적 AI MCP 서버
+
+기본 설정은 `MCP_ENABLED=false`입니다. 현재 DB 마이그레이션 적용 후 `MCP_ENABLED=true`, 공개 API origin인 `MCP_PUBLIC_URL`, 콘솔 origin인 `MCP_CONSOLE_URL`을 API에 전달하세요. HTTPS·프록시 경로·OAuth·권한·비활성화 절차는 [MCP 운영 설정](MCP.md#운영-설정)에 정리되어 있습니다. Safe Boot는 `/mcp`·OAuth·discovery를 API로, `/mcp/authorize`를 콘솔로 라우팅합니다.

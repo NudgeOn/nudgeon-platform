@@ -18,6 +18,7 @@
 | 문서 | 내용 |
 |---|---|
 | [API 가이드](API.md) | Integration API(track/identify/디바이스)와 Management API 전체 경로 |
+| [AI MCP 연결](MCP.md) | 멤버 권한별 OAuth 연결, 통계 분석, 세그먼트·저니 초안, 셀프호스팅 설정 |
 | [푸시 페이로드 계약](PUSH-CONTRACT.md) | worker와 4개 SDK가 공유하는 `message_id`·데이터 형태 |
 | [앱 시작 전면 광고](APP-LAUNCH-ADS.md) | 네이티브 SDK 연결·검수·게시와 문제 해결 |
 | [저니 그래프 v2](JOURNEY-GRAPH.md) | 조건·이벤트 대기·A/B 분기의 지원 범위와 제한 |
