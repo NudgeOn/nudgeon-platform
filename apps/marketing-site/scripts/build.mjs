@@ -43,7 +43,7 @@ export function render(lang) {
         image: socialImage, sameAs: [repoUrl],
         author: { '@id': `${siteUrl}/#organization` },
         softwareHelp: { '@type': 'CreativeWork', name: 'NudgeOn Developer Center', url: `${docsUrl}/` },
-        featureList: ['Event collection', 'Audience segmentation', 'Customer journeys', 'FCM and APNs push', 'Email', 'HTML in-app campaigns', 'Self-hosted deployment', 'Timed full-screen startup ads']
+        featureList: ['Event collection', 'Audience segmentation', 'Customer journeys', 'FCM and APNs push', 'Email', 'HTML in-app campaigns', 'Self-hosted deployment', 'Timed full-screen startup ads', 'Optional permission-scoped MCP analytics and drafts']
       },
       {
         '@type': 'WebPage', '@id': `${pageUrl}#webpage`, url: pageUrl,
