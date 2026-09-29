@@ -127,6 +127,9 @@ services:
       CONTENT_PUBLIC_ORIGIN: ${CONTENT_PUBLIC_ORIGIN:-}
       IN_APP_ASSET_DIR: /var/lib/nudgeon/assets
       API_KEY_USAGE_COALESCE_ENABLED: ${API_KEY_USAGE_COALESCE_ENABLED:-false}
+      MCP_ENABLED: ${MCP_ENABLED:-false}
+      MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-}
+      MCP_CONSOLE_URL: ${MCP_CONSOLE_URL:-}
       # 워커와 같은 디렉터리를 읽는다 — 콘솔의 벤더 목록과 실제 발송 가능 여부가 갈리지 않게.
       NUDGEON_CONNECTOR_MANIFESTS: ${NUDGEON_CONNECTOR_MANIFESTS:-/etc/nudgeon/connectors}
     volumes:

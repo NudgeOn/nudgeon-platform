@@ -44,7 +44,7 @@ describe("journey draft persistence", () => {
 
     expect(api.create).toHaveBeenCalledTimes(1);
     expect(api.update).toHaveBeenCalledTimes(2);
-    expect(api.update).toHaveBeenLastCalledWith(appId, journeyId, edited);
+    expect(api.update).toHaveBeenLastCalledWith(appId, journeyId, edited, validation.revision);
     expect(api.validate).toHaveBeenCalledWith(appId, journeyId);
   });
 
@@ -52,12 +52,12 @@ describe("journey draft persistence", () => {
     const api = client();
     const update = deferred<{ ok: true; revision: string }>();
     api.update.mockReturnValueOnce(update.promise);
-    const session = createJourneyDraftSession(api, appId, journeyId);
+    const session = createJourneyDraftSession(api, appId, journeyId, "initial-revision");
     const edited = input("활성화할 최신 내용");
 
     const result = session.validate(edited);
     await Promise.resolve();
-    expect(api.update).toHaveBeenCalledWith(appId, journeyId, edited);
+    expect(api.update).toHaveBeenCalledWith(appId, journeyId, edited, "initial-revision");
     expect(api.validate).not.toHaveBeenCalled();
 
     update.resolve({ ok: true, revision: validation.revision });
@@ -118,7 +118,7 @@ describe("journey draft persistence", () => {
     create.resolve({ id: journeyId, revision: validation.revision });
     await validationStarted.promise;
     expect(api.update).toHaveBeenCalledTimes(1);
-    expect(api.update).toHaveBeenCalledWith(appId, journeyId, duringValidation);
+    expect(api.update).toHaveBeenCalledWith(appId, journeyId, duringValidation, validation.revision);
 
     check.resolve(validation);
     await expect(second).resolves.toEqual({ ...validation, id: journeyId });
@@ -126,7 +126,7 @@ describe("journey draft persistence", () => {
     await expect(first).resolves.toBe(journeyId);
     expect(api.create).toHaveBeenCalledTimes(1);
     expect(api.update).toHaveBeenCalledTimes(2);
-    expect(api.update).toHaveBeenLastCalledWith(appId, journeyId, afterValidation);
+    expect(api.update).toHaveBeenLastCalledWith(appId, journeyId, afterValidation, validation.revision);
   });
 
   it("does not validate after a failed update and can retry the same draft", async () => {
@@ -150,5 +150,16 @@ describe("journey draft persistence", () => {
     await expect(session.validate(input())).resolves.toEqual({ ...validation, id: journeyId });
     expect(api.create).toHaveBeenCalledTimes(1);
     expect(api.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("advances compare-and-set only after a successful save, preserving it after a conflict", async () => {
+    const api = client();
+    api.update.mockResolvedValueOnce({ ok: true, revision: "next-revision" });
+    api.update.mockRejectedValueOnce(new Error("revision conflict"));
+    const session = createJourneyDraftSession(api, appId, journeyId, "initial-revision");
+    await session.save(input());
+    await expect(session.save(input("concurrent edit"))).rejects.toThrow("revision conflict");
+    await session.save(input("retry"));
+    expect(api.update.mock.calls.map((call) => call[3])).toEqual(["initial-revision", "next-revision", "next-revision"]);
   });
 });

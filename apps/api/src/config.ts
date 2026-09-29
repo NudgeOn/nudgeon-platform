@@ -2,6 +2,9 @@ import { readFileSync } from "node:fs";
 
 /** 12-Factor 설정 — 모든 외부 의존은 환경변수 (PRD-08 1장) */
 export interface AppConfig {
+  mcpEnabled?: boolean;
+  mcpPublicUrl?: string;
+  mcpConsoleUrl?: string;
   port: number;
   databaseUrl: string;
   redisUrl: string;
@@ -63,6 +66,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     );
   }
   return {
+    mcpEnabled: env.MCP_ENABLED === "true",
+    mcpPublicUrl: env.MCP_PUBLIC_URL?.trim().replace(/\/$/, "") || undefined,
+    mcpConsoleUrl: env.MCP_CONSOLE_URL?.trim().replace(/\/$/, "") || undefined,
     port: Number(env.PORT ?? 8080),
     databaseUrl,
     redisUrl,

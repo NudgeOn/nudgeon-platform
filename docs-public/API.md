@@ -15,6 +15,7 @@ NudgeOn를 처음 연동하는 개발자와 셀프호스팅 운영자를 위한 
 | 앱의 푸시 토큰을 등록하고 싶어요 | [푸시 토큰 등록](#4-푸시-토큰-등록) |
 | 백엔드에서 고객 속성을 갱신하고 싶어요 | [고객 식별과 속성 갱신](#3-고객-식별과-속성-갱신) |
 | 셀프호스팅을 처음 설정하고 싶어요 | [계정과 세션](#계정과-세션) → [배포 가이드](DEPLOY.md) |
+| AI 클라이언트에서 분석과 초안을 만들고 싶어요 | [MCP 연결·권한·분석 가이드](MCP.md) |
 | 콘솔용 API와 권한을 찾고 있어요 | [Management API 전체 목록](#management-api-전체-목록) |
 | 요청이 실패했어요 | [자주 막히는 부분](#자주-막히는-부분) → [오류 형식](#오류-형식) |
 
@@ -57,6 +58,7 @@ NudgeOn를 처음 연동하는 개발자와 셀프호스팅 운영자를 위한 
 | iOS·Android·React Native·Flutter 앱 | SDK Key | 이벤트, identify, 푸시 토큰 등록 |
 | 고객사 백엔드·서버 배치 | Server Key | 이벤트, identify, 고객 속성 일괄 갱신·삭제 |
 | NudgeOn 콘솔·관리 도구 | 로그인 세션 | 앱·키·세그먼트·저니·조직 관리 |
+| 외부 AI MCP 클라이언트 | 멤버 OAuth 연결 | 선택한 앱의 분석·조회·초안 편집 ([설정](MCP.md)) |
 
 Server Key를 모바일 앱이나 브라우저 번들에 넣으면 안 됩니다.
 
@@ -674,3 +676,11 @@ API Key, 푸시 토큰, 비밀번호, FCM 서비스 계정, APNs p8 원문은 Gi
 - 현재 OpenAPI는 이 문서의 전체 Management API를 아직 포함하지 않습니다. 생성 클라이언트와 drift CI가 완성되기 전까지 실제 컨트롤러와 입력 스키마가 현재 구현의 기준입니다.
 - [푸시 페이로드 공통 계약](PUSH-CONTRACT.md)은 worker와 각 SDK가 맞춰야 할 `message_id`·플랫폼 직렬화 형식을 설명합니다.
 - [출시 체크리스트](RELEASE-CHECKLIST.md)의 실공급자, 실기기, 장애 복구, 부하, 보안 게이트가 닫히기 전에는 공개 고객 발송의 운영 보장을 선언하지 않습니다.
+
+## MCP·분석·초안 API
+
+선택적 `/mcp` 서버는 기존 SDK 키와 별도의 멤버 OAuth 연결을 사용합니다. 연결한 앱과 현재 역할 안에서 조회·분석·초안 작업을 제공하며 발송·활성화 권한은 제공하지 않습니다. [연결과 운영 설정](MCP.md)을 참고하세요.
+
+콘솔용 세션 API는 `/v1/mcp/status`, `/v1/mcp/connections`, `/v1/mcp/authorization/:id`를 제공합니다. 앱별 분석은 `/v1/apps/:appId/analytics/catalog`, `/events`, `/messages`, `/funnel`, `/retention`, `/journey-report`이고, 세그먼트 초안은 `/v1/apps/:appId/segment-drafts` 아래의 조회·생성·수정·미리보기·승격 경로를 사용합니다. 정확한 메서드와 입력은 [MCP 스펙](../packages/openapi/mcp.openapi.json)과 [분석 스펙](../packages/openapi/mcp-analytics.openapi.json)을 확인하세요.
+
+저니 수정 `PATCH /v1/apps/:appId/journeys/:id`는 최신 `revision`을 `If-Match` 헤더로 받습니다. 값이 오래되면 HTTP 412로 거절합니다. 기존 호출자는 헤더를 생략할 수 있으나 콘솔은 항상 전송하며 MCP 수정 도구는 `expected_revision`이 필수입니다.

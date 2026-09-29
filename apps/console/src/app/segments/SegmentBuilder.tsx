@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Condition, SegmentDSL } from "@nudgeon/segment-dsl";
 import { api } from "@/lib/api";
@@ -26,13 +26,20 @@ interface Props {
   segmentId?: string;
   initialName?: string;
   initialDSL?: SegmentDSL;
+  onSave?: (input: { name: string; definition: SegmentDSL }) => Promise<void>;
+  onDirtyChange?: (dirty: boolean) => void;
+  readOnly?: boolean;
+  saveLabel?: string;
 }
 
-export function SegmentBuilder({ appId, segmentId, initialName, initialDSL }: Props) {
+export function SegmentBuilder({ appId, segmentId, initialName, initialDSL, onSave, onDirtyChange, readOnly = false, saveLabel }: Props) {
   const t = useTranslations("segmentBuilder");
   const router = useRouter();
   const [name, setName] = useState(initialName ?? "");
   const [dsl, setDsl] = useState<SegmentDSL>(initialDSL ?? emptyDSL());
+  const [saved, setSaved] = useState(() => JSON.stringify({ name: initialName ?? "", definition: initialDSL ?? emptyDSL() }));
+  const fingerprint = JSON.stringify({ name, definition: dsl });
+  useEffect(() => { onDirtyChange?.(fingerprint !== saved); }, [fingerprint, saved, onDirtyChange]);
 
   // 미리보기 — DSL 변경 500ms debounce 후 근사 카운트 (PRD-05 3.3)
   const debouncedDsl = useDebounced(dsl, 500);
@@ -45,13 +52,15 @@ export function SegmentBuilder({ appId, segmentId, initialName, initialDSL }: Pr
 
   const save = useMutation({
     mutationFn: async (): Promise<void> => {
-      if (segmentId) {
+      if (onSave) {
+        await onSave({ name, definition: dsl });
+      } else if (segmentId) {
         await api.segments.update(appId, segmentId, { name, definition: dsl });
       } else {
         await api.segments.create(appId, { name, definition: dsl });
       }
     },
-    onSuccess: () => router.push("/segments"),
+    onSuccess: () => { setSaved(fingerprint); if (!onSave) router.push("/segments"); },
   });
 
   const update = (mut: (d: SegmentDSL) => void) => {
@@ -63,7 +72,7 @@ export function SegmentBuilder({ appId, segmentId, initialName, initialDSL }: Pr
   const canSave = name.trim().length > 0 && !preview.isError;
 
   return (
-    <div className="grid gap-6 md:grid-cols-[1fr_280px]">
+    <fieldset disabled={readOnly || save.isPending} className="grid min-w-0 gap-6 md:grid-cols-[1fr_280px]">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="name">{t("name")}</Label>
@@ -180,16 +189,16 @@ export function SegmentBuilder({ appId, segmentId, initialName, initialDSL }: Pr
             )}
           </CardContent>
         </Card>
-        <Button disabled={!canSave || save.isPending} onClick={() => save.mutate()}>
-          {save.isPending ? t("saving") : segmentId ? t("save") : t("create")}
-        </Button>
+        {!readOnly && <Button disabled={!canSave || save.isPending} onClick={() => save.mutate()}>
+          {save.isPending ? t("saving") : saveLabel ?? (segmentId ? t("save") : t("create"))}
+        </Button>}
         {save.isError && (
           <p className="text-xs text-destructive">
             {t("saveFailed")}
           </p>
         )}
       </aside>
-    </div>
+    </fieldset>
   );
 }
 

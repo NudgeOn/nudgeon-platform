@@ -2,16 +2,22 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useTranslations } from "next-intl";
 import type { SegmentDSL } from "@nudgeon/segment-dsl";
-import { useAppId } from "../../use-app-id";
 import { api } from "@/lib/api";
 import { SegmentBuilder } from "../SegmentBuilder";
 
 export default function EditSegmentPage() {
+  return <Suspense><EditSegment /></Suspense>;
+}
+
+function EditSegment() {
   const t = useTranslations("segmentBuilder");
-  const appId = useAppId();
+  const requestedApp = useSearchParams().get("app_id");
+  const apps = useQuery({ queryKey: ["apps"], queryFn: () => api.apps.list() });
+  const appId = requestedApp ? apps.data?.apps.find((app) => app.id === requestedApp)?.id : apps.data?.apps[0]?.id;
   const params = useParams<{ id: string }>();
   const seg = useQuery({
     queryKey: ["segment", appId, params.id],
@@ -19,6 +25,9 @@ export default function EditSegmentPage() {
     enabled: !!appId,
   });
 
+  if (apps.isError || (apps.isSuccess && !appId)) {
+    return <main className="p-8 text-sm text-destructive">{t("notFound")}</main>;
+  }
   if (!appId || seg.isPending) {
     return <main className="p-8 text-sm text-muted-foreground">{t("loading")}</main>;
   }

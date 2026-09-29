@@ -1,5 +1,6 @@
 import { launchAdGuide } from "../src/launch-ad-guide.mjs";
 import { customerDataGuide } from "../src/customer-data-guide.mjs";
+import { mcpGuide } from "../src/mcp-guide.mjs";
 const siteUrl = 'https://nudgeon.io';
 const docsUrl = 'https://developer.nudgeon.io';
 const repoUrl = 'https://github.com/NudgeOn/nudgeon-platform';
@@ -33,6 +34,7 @@ const copy = {
       {
         ...customerDataGuide.en,
       },
+      mcpGuide.en,
       {
         id: 'audience', nav: 'Find your audience', title: 'Know who should receive it.',
         intro: 'A customer is a profile. A segment is a set of conditions that selects profiles. Start with a customer you can identify before defining a wider audience.',
@@ -112,6 +114,7 @@ const copy = {
       {
         ...customerDataGuide.ko,
       },
+      mcpGuide.ko,
       {
         id: 'audience', nav: '고객과 세그먼트', title: '누구에게 보낼지 확인합니다.',
         intro: '고객은 프로필 하나를, 세그먼트는 조건에 맞는 고객의 집합을 뜻합니다. 확인할 수 있는 고객부터 찾아보고 대상 조건을 만드세요.',

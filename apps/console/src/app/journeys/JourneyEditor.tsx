@@ -21,6 +21,7 @@ interface Props {
   journeyId?: string;
   initialName?: string;
   initialDef?: JourneyDefinition;
+  initialRevision?: string;
   status?: string;
   capabilities?: JourneyCapabilities;
   publishedABNodes?: PublishedABNodes;
@@ -34,7 +35,7 @@ type JourneyText = ReturnType<typeof useJourneyText>;
 // 모듈이 던지는 오류는 메시지 키(GraphOperationError, checkDraft, persistence)일 수 있다 — 카탈로그에 있으면 번역한다.
 function readableError(error: unknown, { t, message }: JourneyText): string {
   if (error instanceof ApiError) {
-    const known = [400, 401, 403, 404, 409] as const;
+    const known = [400, 401, 403, 404, 409, 412] as const;
     const status = known.find((code) => code === error.status);
     return t(status ? `editor.apiError.${status}` : "editor.apiError.default");
   }
@@ -60,7 +61,7 @@ export function JourneyEditor(props: Props) {
   return <JourneyEditorContent {...props} initialGraph={loaded.graph} />;
 }
 
-function JourneyEditorContent({ appId, journeyId, initialName, initialGraph, status = "draft", capabilities, publishedABNodes = {} }: Props & { initialGraph: GraphDefinition }) {
+function JourneyEditorContent({ appId, journeyId, initialName, initialGraph, initialRevision, status = "draft", capabilities, publishedABNodes = {} }: Props & { initialGraph: GraphDefinition }) {
   const text = useJourneyText();
   const { t, nodeType, nodeTypeDescription, message, duration: formatDuration, locale } = text;
   const router = useRouter();
@@ -69,7 +70,7 @@ function JourneyEditorContent({ appId, journeyId, initialName, initialGraph, sta
   const [definition, setDefinition] = useState(initialGraph);
   const [selectedId, setSelectedId] = useState(() => journeyId
     ? `node:${initialGraph.nodes.find((node) => node.type === "message")?.id ?? initialGraph.start_node_id}` : "entry");
-  const [session] = useState(() => createJourneyDraftSession(api.journeys, appId, journeyId));
+  const [session] = useState(() => createJourneyDraftSession(api.journeys, appId, journeyId, initialRevision));
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [savedFingerprint, setSavedFingerprint] = useState(() => journeyId ? JSON.stringify({ name: initialName ?? "", definition: initialGraph }) : "");
   const [history, setHistory] = useState<Snapshot[]>([]);
@@ -92,7 +93,7 @@ function JourneyEditorContent({ appId, journeyId, initialName, initialGraph, sta
   };
   const save = useMutation({
     mutationFn: (input: JourneyDraftInput) => { checkDraft(input.name, input.definition); return session.save(input); },
-    onSuccess: (id, input) => { recordSaved(id, input); if (!journeyId) router.replace(`/journeys/${id}`); },
+    onSuccess: (id, input) => { recordSaved(id, input); if (!journeyId) router.replace(`/journeys/${id}?app_id=${encodeURIComponent(appId)}`); },
   });
   const validate = useMutation({
     mutationFn: (input: JourneyDraftInput) => { checkDraft(input.name, input.definition); return session.validate(input); },
@@ -191,7 +192,7 @@ function JourneyEditorContent({ appId, journeyId, initialName, initialGraph, sta
     </> : <><span className="j-readonly-label">{t("editor.readOnly")}</span>
       {journeyId && status === "active" && <button type="button" className="j-button" disabled={busy}
         onClick={() => { clearFeedback(); pause.mutate(); }}>{pause.isPending ? t("editor.pausing") : t("editor.pauseAndEdit")}</button>}
-      {journeyId && <Link href={`/journeys/${journeyId}/report`} className="j-button"><JourneyIcon name="chart" size={16} />{t("editor.viewReport")}</Link>}
+      {journeyId && <Link href={`/journeys/${journeyId}/report?app_id=${encodeURIComponent(appId)}`} className="j-button"><JourneyIcon name="chart" size={16} />{t("editor.viewReport")}</Link>}
     </>} />
 
     {status === "paused" && <div className="j-feedback" role="status"><JourneyIcon name="info" size={18} /><span>

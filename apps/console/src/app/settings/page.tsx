@@ -2,12 +2,13 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { AppSettings } from "@nudgeon/api-client";
 import { useAppId } from "../use-app-id";
 import { api } from "@/lib/api";
+import { safeReturnPath } from "@/lib/return-path";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,11 +27,15 @@ export default function SettingsPage() {
 
 function SettingsInner() {
   const t = useTranslations("settings");
+  const mcp = useTranslations("mcp");
+  const router = useRouter();
+  const search = useSearchParams();
+  const returnTo = safeReturnPath(search.get("return_to"));
   const appId = useAppId();
   const qc = useQueryClient();
   // 조직 2FA 강제 등록 흐름 (R-09): 로그인이 enrollment_required면 ?enroll=required로 진입.
   // 이 경우 등록 완료 전까지 SessionGuard가 앱 설정 API를 차단하므로 등록 카드만 노출한다.
-  const forcedEnroll = useSearchParams().get("enroll") === "required";
+  const forcedEnroll = search.get("enroll") === "required";
   const me = useQuery({ queryKey: ["me"], queryFn: () => api.auth.me(), retry: false });
   const perms = me.data?.permissions ?? [];
   const settings = useQuery({
@@ -69,7 +74,11 @@ function SettingsInner() {
       )}
 
       <div className="flex flex-col gap-4">
-        <SecurityCard forced={forcedEnroll} />
+        <SecurityCard forced={forcedEnroll} onComplete={forcedEnroll && returnTo ? () => router.push(returnTo) : undefined} />
+        {!forcedEnroll && <Card><CardHeader className="p-4"><CardTitle className="text-sm">{mcp("title")}</CardTitle></CardHeader>
+          <CardContent className="p-4 pt-0 text-sm"><p className="mb-3 text-muted-foreground">{mcp("intro")}</p>
+            <Link className="text-primary underline" href="/settings/mcp">{mcp("manage")}</Link>
+          </CardContent></Card>}
         {!forcedEnroll && perms.includes("team:write") && (
           <OrgSecurityCard canDelete={perms.includes("tenant:delete")} />
         )}

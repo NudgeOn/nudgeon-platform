@@ -107,6 +107,9 @@ services:
       CONTENT_PORT: 8082
       IN_APP_ASSET_DIR: /var/lib/nudgeon/assets
       JOURNEY_GRAPH_V2_ENABLED: ${JOURNEY_GRAPH_V2_ENABLED:-false}
+      MCP_ENABLED: ${MCP_ENABLED:-false}
+      MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-${NUDGEON_PUBLIC_ORIGIN:-http://localhost:8080}}
+      MCP_CONSOLE_URL: ${MCP_CONSOLE_URL:-${NUDGEON_PUBLIC_ORIGIN:-http://localhost:8080}}
     volumes:
       - in-app-assets:/var/lib/nudgeon/assets
     secrets:

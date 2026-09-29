@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { ApiError } from "@nudgeon/api-client";
 import { api } from "@/lib/api";
+import { safeReturnPath } from "@/lib/return-path";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,9 @@ export default function LoginPage() {
 function LoginForm() {
   const t = useTranslations("login");
   const router = useRouter();
-  const setupLogin = useSearchParams().get("setup") === "complete";
+  const search = useSearchParams();
+  const setupLogin = search.get("setup") === "complete";
+  const returnTo = safeReturnPath(search.get("return_to"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [totp, setTotp] = useState("");
@@ -37,10 +40,10 @@ function LoginForm() {
       // 조직 2FA 강제인데 미등록 — 세션은 발급되었으나 SessionGuard가 등록 완료 전까지
       // /v1/auth/totp 외 모든 접근을 차단한다. 등록 화면으로 강제 이동한다 (T-5, R-09).
       if ("enrollment_required" in result) {
-        router.push("/settings?enroll=required");
+        router.push(`/settings?enroll=required${returnTo ? `&return_to=${encodeURIComponent(returnTo)}` : ""}`);
         return;
       }
-      router.push(setupLogin ? "/welcome" : "/");
+      router.push(returnTo ?? (setupLogin ? "/welcome" : "/"));
     },
   });
 

@@ -1,0 +1,948 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "NudgeOn remote MCP transport and OAuth",
+    "version": "1.0.0",
+    "description": "Feature gated by MCP_ENABLED. The authorization server reuses console login/2FA for consent. Tokens are bound to a member, tenant, app and approved scopes."
+  },
+  "security": [],
+  "paths": {
+    "/.well-known/oauth-authorization-server": {
+      "get": {
+        "operationId": "getMcpAuthorizationServerMetadata",
+        "security": [],
+        "description": "OAuth discovery. Addresses come from configured origins, never request Host.",
+        "responses": {
+          "200": {
+            "description": "Authorization server metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationServerMetadata"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "MCP feature is disabled."
+          }
+        }
+      }
+    },
+    "/.well-known/oauth-protected-resource/mcp": {
+      "get": {
+        "operationId": "getMcpProtectedResourceMetadata",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Resource URL, authorization server and supported scopes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtectedResourceMetadata"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "MCP feature is disabled."
+          }
+        }
+      }
+    },
+    "/.well-known/oauth-protected-resource": {
+      "get": {
+        "operationId": "getMcpProtectedResourceMetadataRoot",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Resource URL, authorization server and supported scopes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtectedResourceMetadata"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "MCP feature is disabled."
+          }
+        }
+      }
+    },
+    "/oauth/register": {
+      "post": {
+        "operationId": "registerMcpOAuthClient",
+        "security": [],
+        "description": "Public dynamic client registration. Client names are self-reported and unverified. Only public PKCE clients (token_endpoint_auth_method=none) are supported. No client secret or outbound metadata fetch.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientRegistrationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registered public client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientRegistration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, invalid_target, invalid_client or invalid_grant; no raw storage details."
+          },
+          "404": {
+            "description": "MCP feature is disabled."
+          },
+          "429": {
+            "description": "Rate limited. Retry after the indicated delay."
+          }
+        }
+      }
+    },
+    "/oauth/authorize": {
+      "get": {
+        "operationId": "beginMcpAuthorization",
+        "security": [],
+        "description": "Validate registered client, exact redirect URI, resource and PKCE S256; redirect to console login/2FA and explicit app/scope consent. This endpoint does not itself grant a token. Success callback includes state, code and issuer; code is one-use with a 60-second exchange lifetime.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "response_type",
+            "required": true,
+            "schema": {
+              "const": "code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "client_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "redirect_uri",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 2048
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "in": "query",
+            "name": "code_challenge",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code_challenge_method",
+            "required": true,
+            "schema": {
+              "const": "S256"
+            }
+          },
+          {
+            "in": "query",
+            "name": "resource",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri",
+              "description": "Must equal the configured MCP resource URL, including /mcp."
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "mcp:read",
+              "description": "Space-separated subset of mcp:read, mcp:drafts:write, mcp:customers:read. mcp:read is required."
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Continue at the configured console consent UI",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, invalid_target, invalid_client or invalid_grant; no raw storage details."
+          },
+          "404": {
+            "description": "MCP feature is disabled."
+          },
+          "429": {
+            "description": "Rate limited. Retry after the indicated delay."
+          }
+        }
+      }
+    },
+    "/oauth/token": {
+      "post": {
+        "operationId": "exchangeMcpOAuthToken",
+        "security": [],
+        "description": "PKCE code exchange or rotating refresh for the exact resource and public client. Revalidates current member, role, app, consent and approval. Access tokens live15min; refresh tokens30days. Consumed refresh replay revokes the connection.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenInput"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Opaque access/refresh tokens and effective scopes",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              },
+              "Pragma": {
+                "schema": {
+                  "const": "no-cache"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, invalid_target, invalid_client or invalid_grant; no raw storage details."
+          },
+          "404": {
+            "description": "MCP feature is disabled."
+          },
+          "429": {
+            "description": "Rate limited. Retry after the indicated delay."
+          }
+        }
+      }
+    },
+    "/oauth/revoke": {
+      "post": {
+        "operationId": "revokeMcpOAuthToken",
+        "security": [],
+        "description": "Public-client token revocation. Always returns success for an unknown token/client pair. Revokes the matching connection, immediately invalidating all of its tokens.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "client_id",
+                  "token"
+                ],
+                "properties": {
+                  "client_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "token": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Access or refresh token. Matching token revokes its entire connection."
+                  }
+                }
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "client_id",
+                  "token"
+                ],
+                "properties": {
+                  "client_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "token": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Access or refresh token. Matching token revokes its entire connection."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Revocation handled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "maxProperties": 0
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, invalid_target, invalid_client or invalid_grant; no raw storage details."
+          },
+          "404": {
+            "description": "MCP feature is disabled."
+          },
+          "429": {
+            "description": "Rate limited. Retry after the indicated delay."
+          }
+        }
+      }
+    },
+    "/mcp": {
+      "post": {
+        "operationId": "invokeMcp",
+        "security": [
+          {
+            "McpOAuth": [
+              "mcp:read"
+            ]
+          }
+        ],
+        "description": "Official SDK stateless remote MCP/Streamable HTTP. JSON-RPC initialization, tools, resources and prompts. Rechecks live authorization on every tool call. Draft tools never publish/send/delete. Tools unavailable to the connection are omitted. Tool failures use MCP isError structured content; HTTP success does not imply tool success. No pk_/sk_ authentication.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "MCP-Protocol-Version",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Protocol version negotiated with official MCP SDK;2025 compatibility is handled by the SDK."
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Clients must accept application/json and text/event-stream for legacy Streamable HTTP."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonRpcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC response or SSE response stream, depending on negotiated transport",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Notification accepted; no response body"
+          },
+          "400": {
+            "description": "Malformed JSON-RPC, protocol or transport request."
+          },
+          "401": {
+            "description": "Missing, expired or revoked OAuth token",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Bearer resource_metadata= configured /.well-known/oauth-protected-resource/mcp URL; scope=mcp:read"
+              }
+            }
+          },
+          "403": {
+            "description": "Request Host/Origin is rejected."
+          },
+          "404": {
+            "description": "MCP feature is disabled."
+          },
+          "405": {
+            "description": "Method unsupported by negotiated stateless transport."
+          },
+          "429": {
+            "description": "Connection/tenant rate limit",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "getMcpTransport",
+        "security": [
+          {
+            "McpOAuth": [
+              "mcp:read"
+            ]
+          }
+        ],
+        "description": "Compatibility transport method delegated to the official stateless MCP handler. May return405; no persistent MCP session is promised.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "MCP-Protocol-Version",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Protocol version negotiated with official MCP SDK;2025 compatibility is handled by the SDK."
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Clients must accept application/json and text/event-stream for legacy Streamable HTTP."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transport response"
+          },
+          "202": {
+            "description": "Accepted"
+          },
+          "400": {
+            "description": "Malformed JSON-RPC, protocol or transport request."
+          },
+          "401": {
+            "description": "Missing, expired or revoked OAuth token",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Bearer resource_metadata= configured /.well-known/oauth-protected-resource/mcp URL; scope=mcp:read"
+              }
+            }
+          },
+          "403": {
+            "description": "Request Host/Origin is rejected."
+          },
+          "404": {
+            "description": "MCP feature is disabled."
+          },
+          "405": {
+            "description": "Method unsupported by negotiated stateless transport."
+          },
+          "429": {
+            "description": "Connection/tenant rate limit",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "closeMcpTransport",
+        "security": [
+          {
+            "McpOAuth": [
+              "mcp:read"
+            ]
+          }
+        ],
+        "description": "Compatibility transport method delegated to the official stateless MCP handler. May return405; no persistent MCP session is promised.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "MCP-Protocol-Version",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Protocol version negotiated with official MCP SDK;2025 compatibility is handled by the SDK."
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Clients must accept application/json and text/event-stream for legacy Streamable HTTP."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transport response"
+          },
+          "202": {
+            "description": "Accepted"
+          },
+          "400": {
+            "description": "Malformed JSON-RPC, protocol or transport request."
+          },
+          "401": {
+            "description": "Missing, expired or revoked OAuth token",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Bearer resource_metadata= configured /.well-known/oauth-protected-resource/mcp URL; scope=mcp:read"
+              }
+            }
+          },
+          "403": {
+            "description": "Request Host/Origin is rejected."
+          },
+          "404": {
+            "description": "MCP feature is disabled."
+          },
+          "405": {
+            "description": "Method unsupported by negotiated stateless transport."
+          },
+          "429": {
+            "description": "Connection/tenant rate limit",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "McpOAuth": {
+        "type": "oauth2",
+        "description": "Public-client authorization code with mandatory PKCE S256 and exact resource binding.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "/oauth/authorize",
+            "tokenUrl": "/oauth/token",
+            "refreshUrl": "/oauth/token",
+            "scopes": {
+              "mcp:read": "App-bound catalog, aggregate analytics and limited diagnostics",
+              "mcp:drafts:write": "Create/edit drafts; current Editor/Admin/Owner role required",
+              "mcp:customers:read": "Profile detail; explicit consent plus current administrator approval"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "AuthorizationServerMetadata": {
+        "type": "object",
+        "required": [
+          "issuer",
+          "authorization_endpoint",
+          "token_endpoint",
+          "registration_endpoint",
+          "revocation_endpoint",
+          "scopes_supported",
+          "code_challenge_methods_supported",
+          "token_endpoint_auth_methods_supported"
+        ],
+        "properties": {
+          "issuer": {
+            "type": "string",
+            "format": "uri"
+          },
+          "authorization_endpoint": {
+            "type": "string",
+            "format": "uri"
+          },
+          "token_endpoint": {
+            "type": "string",
+            "format": "uri"
+          },
+          "registration_endpoint": {
+            "type": "string",
+            "format": "uri"
+          },
+          "revocation_endpoint": {
+            "type": "string",
+            "format": "uri"
+          },
+          "scopes_supported": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "mcp:read",
+                "mcp:drafts:write",
+                "mcp:customers:read"
+              ]
+            }
+          },
+          "response_types_supported": {
+            "const": [
+              "code"
+            ]
+          },
+          "grant_types_supported": {
+            "const": [
+              "authorization_code",
+              "refresh_token"
+            ]
+          },
+          "code_challenge_methods_supported": {
+            "const": [
+              "S256"
+            ]
+          },
+          "token_endpoint_auth_methods_supported": {
+            "const": [
+              "none"
+            ]
+          },
+          "authorization_response_iss_parameter_supported": {
+            "const": true
+          }
+        }
+      },
+      "ProtectedResourceMetadata": {
+        "type": "object",
+        "required": [
+          "resource",
+          "authorization_servers",
+          "scopes_supported",
+          "bearer_methods_supported"
+        ],
+        "properties": {
+          "resource": {
+            "type": "string",
+            "format": "uri"
+          },
+          "authorization_servers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "scopes_supported": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "mcp:read",
+                "mcp:drafts:write",
+                "mcp:customers:read"
+              ]
+            }
+          },
+          "bearer_methods_supported": {
+            "const": [
+              "header"
+            ]
+          }
+        }
+      },
+      "ClientRegistrationInput": {
+        "type": "object",
+        "required": [
+          "redirect_uris"
+        ],
+        "properties": {
+          "client_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "default": "MCP client"
+          },
+          "redirect_uris": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 2048,
+              "description": "HTTPS or loopback HTTP; no credentials/fragment. Exact registered URI matching."
+            }
+          },
+          "token_endpoint_auth_method": {
+            "const": "none",
+            "default": "none"
+          },
+          "grant_types": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "authorization_code",
+                "refresh_token"
+              ]
+            }
+          },
+          "response_types": {
+            "type": "array",
+            "items": {
+              "const": "code"
+            }
+          }
+        }
+      },
+      "ClientRegistration": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "redirect_uris"
+            ],
+            "properties": {
+              "client_name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120,
+                "default": "MCP client"
+              },
+              "redirect_uris": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "format": "uri",
+                  "maxLength": 2048,
+                  "description": "HTTPS or loopback HTTP; no credentials/fragment. Exact registered URI matching."
+                }
+              },
+              "token_endpoint_auth_method": {
+                "const": "none",
+                "default": "none"
+              },
+              "grant_types": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "authorization_code",
+                    "refresh_token"
+                  ]
+                }
+              },
+              "response_types": {
+                "type": "array",
+                "items": {
+                  "const": "code"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "client_id",
+              "client_id_issued_at",
+              "client_name",
+              "token_endpoint_auth_method",
+              "grant_types",
+              "response_types"
+            ],
+            "properties": {
+              "client_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "client_id_issued_at": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Unix time in seconds."
+              }
+            }
+          }
+        ]
+      },
+      "TokenInput": {
+        "type": "object",
+        "required": [
+          "grant_type",
+          "client_id",
+          "resource"
+        ],
+        "properties": {
+          "grant_type": {
+            "enum": [
+              "authorization_code",
+              "refresh_token"
+            ]
+          },
+          "client_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resource": {
+            "type": "string",
+            "format": "uri",
+            "description": "Must equal the configured MCP resource URL, including /mcp."
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "redirect_uri": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "code_verifier": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._~-]{43,128}$"
+          },
+          "refresh_token": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "code",
+              "redirect_uri",
+              "code_verifier"
+            ],
+            "properties": {
+              "grant_type": {
+                "const": "authorization_code"
+              }
+            }
+          },
+          {
+            "required": [
+              "refresh_token"
+            ],
+            "properties": {
+              "grant_type": {
+                "const": "refresh_token"
+              }
+            }
+          }
+        ]
+      },
+      "TokenResponse": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in",
+          "refresh_token",
+          "scope"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "Opaque bearer secret; only a hash is stored."
+          },
+          "token_type": {
+            "const": "Bearer"
+          },
+          "expires_in": {
+            "const": 900
+          },
+          "refresh_token": {
+            "type": "string",
+            "description": "Rotates on use; 30-day expiry. Reusing a consumed token revokes the connection."
+          },
+          "scope": {
+            "type": "string",
+            "default": "mcp:read",
+            "description": "Space-separated subset of mcp:read, mcp:drafts:write, mcp:customers:read. mcp:read is required."
+          }
+        }
+      },
+      "JsonRpcRequest": {
+        "type": "object",
+        "required": [
+          "jsonrpc",
+          "method"
+        ],
+        "properties": {
+          "jsonrpc": {
+            "const": "2.0"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "method": {
+            "type": "string"
+          },
+          "params": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

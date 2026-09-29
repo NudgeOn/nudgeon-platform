@@ -1,0 +1,748 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "NudgeOn exact analytics (REST/MCP shared service)",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/apps/{appId}/analytics/catalog": {
+      "get": {
+        "operationId": "getMetricCatalog",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Metric definitions, standard/collected event names, collected attribute key/types, limits and permitted dimensions; no customer values.",
+        "responses": {
+          "200": {
+            "description": "Exact aggregate response; includes calculation definitions, denominators and coverage metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input, over500 rows, or analysis_budget_exceeded. Narrow query conditions."
+          },
+          "401": {
+            "description": "Valid session required."
+          },
+          "403": {
+            "description": "analytics:read required."
+          },
+          "404": {
+            "description": "App/journey not owned by current tenant."
+          },
+          "503": {
+            "description": "analysis_unavailable; storage details redacted."
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/analytics/events": {
+      "post": {
+        "operationId": "queryEventMetrics",
+        "description": "Deduplicated app/insert_id events and exact canonical users by day/week and event or current-profile country/language. Max90 completed calendar days. Optional equal-period comparison and numeric non-negative purchase amounts per valid currency, without settlement/refund/attribution claims.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventAnalysisInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Exact aggregate response; includes calculation definitions, denominators and coverage metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input, over500 rows, or analysis_budget_exceeded. Narrow query conditions."
+          },
+          "401": {
+            "description": "Valid session required."
+          },
+          "403": {
+            "description": "analytics:read required."
+          },
+          "404": {
+            "description": "App/journey not owned by current tenant."
+          },
+          "503": {
+            "description": "analysis_unavailable; storage details redacted."
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/analytics/messages": {
+      "post": {
+        "operationId": "queryMessageMetrics",
+        "description": "First-sent cohort with SDK/lifecycle evidence through as_of, deduplicated by message_id; never-accepted attempts counted separately. Max90days. No evidence yields null outcome counts/rates (unknown support), never a claim of zero actual delivery.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageAnalysisInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Exact aggregate response; includes calculation definitions, denominators and coverage metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input, over500 rows, or analysis_budget_exceeded. Narrow query conditions."
+          },
+          "401": {
+            "description": "Valid session required."
+          },
+          "403": {
+            "description": "analytics:read required."
+          },
+          "404": {
+            "description": "App/journey not owned by current tenant."
+          },
+          "503": {
+            "description": "analysis_unavailable; storage details redacted."
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/analytics/funnel": {
+      "post": {
+        "operationId": "queryFunnelMetrics",
+        "description": "First start in max30day entry period; strictly ordered2–5 distinct events within1–30 elapsed days. Same-millisecond events are flagged, never arbitrarily ordered. Unfinished windows flagged as provisional.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FunnelAnalysisInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Exact aggregate response; includes calculation definitions, denominators and coverage metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input, over500 rows, or analysis_budget_exceeded. Narrow query conditions."
+          },
+          "401": {
+            "description": "Valid session required."
+          },
+          "403": {
+            "description": "analytics:read required."
+          },
+          "404": {
+            "description": "App/journey not owned by current tenant."
+          },
+          "503": {
+            "description": "analysis_unavailable; storage details redacted."
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/analytics/retention": {
+      "post": {
+        "operationId": "queryRetentionMetrics",
+        "description": "First cohort event in max30day entry period, exact app-local-calendar D1/D7/D30 returns. Unfinished Nth days yield null returned users/rates and not_matured status. Not lifetime-first signup.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetentionAnalysisInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Exact aggregate response; includes calculation definitions, denominators and coverage metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input, over500 rows, or analysis_budget_exceeded. Narrow query conditions."
+          },
+          "401": {
+            "description": "Valid session required."
+          },
+          "403": {
+            "description": "analytics:read required."
+          },
+          "404": {
+            "description": "App/journey not owned by current tenant."
+          },
+          "503": {
+            "description": "analysis_unavailable; storage details redacted."
+          }
+        }
+      }
+    },
+    "/v1/apps/{appId}/analytics/journey-report": {
+      "get": {
+        "operationId": "getAnalysisJourneyReport",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "journey_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ],
+        "description": "Current states and node/branch results for one version, default active version. Legacy/unpublished instrumentation explicit. Journey completion is not purchase conversion; allocation counts cannot establish experiment winners.",
+        "responses": {
+          "200": {
+            "description": "Exact aggregate response; includes calculation definitions, denominators and coverage metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "scope",
+                    "as_of",
+                    "name",
+                    "status",
+                    "instrumentation",
+                    "nodes",
+                    "data_quality"
+                  ],
+                  "properties": {
+                    "scope": {
+                      "type": "object"
+                    },
+                    "as_of": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "instrumentation": {
+                      "enum": [
+                        "available",
+                        "unsupported",
+                        "unpublished"
+                      ]
+                    },
+                    "nodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "state_distribution": {
+                      "type": "object"
+                    },
+                    "data_quality": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input, over500 rows, or analysis_budget_exceeded. Narrow query conditions."
+          },
+          "401": {
+            "description": "Valid session required."
+          },
+          "403": {
+            "description": "analytics:read required."
+          },
+          "404": {
+            "description": "App/journey not owned by current tenant."
+          },
+          "503": {
+            "description": "analysis_unavailable; storage details redacted."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "nudgeon_session"
+      }
+    },
+    "schemas": {
+      "EventAnalysisInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Exclusive. Supply both dates or neither; cannot be later than current local date."
+          },
+          "time_basis": {
+            "type": "string",
+            "enum": [
+              "client_ts",
+              "server_ts"
+            ],
+            "default": "client_ts"
+          },
+          "event_names": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "minItems": 1,
+            "maxItems": 20
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week"
+            ],
+            "default": "day"
+          },
+          "group_by": {
+            "type": "string",
+            "enum": [
+              "event_name",
+              "country",
+              "language"
+            ],
+            "default": "event_name"
+          },
+          "compare": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "MessageAnalysisInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Exclusive. Supply both dates or neither; cannot be later than current local date."
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week"
+            ],
+            "default": "day"
+          },
+          "group_by": {
+            "type": "string",
+            "enum": [
+              "channel",
+              "journey",
+              "version"
+            ],
+            "default": "channel"
+          },
+          "channel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "journey_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "journey_version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "Requires journey_id"
+          },
+          "compare": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "FunnelAnalysisInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Exclusive. Supply both dates or neither; cannot be later than current local date."
+          },
+          "time_basis": {
+            "type": "string",
+            "enum": [
+              "client_ts",
+              "server_ts"
+            ],
+            "default": "client_ts"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "minItems": 2,
+            "maxItems": 5,
+            "uniqueItems": true
+          },
+          "window_days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30,
+            "default": 7
+          }
+        },
+        "required": [
+          "steps"
+        ]
+      },
+      "RetentionAnalysisInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Exclusive. Supply both dates or neither; cannot be later than current local date."
+          },
+          "time_basis": {
+            "type": "string",
+            "enum": [
+              "client_ts",
+              "server_ts"
+            ],
+            "default": "client_ts"
+          },
+          "cohort_event": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "return_event": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "enum": [
+                1,
+                7,
+                30
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 3,
+            "uniqueItems": true,
+            "default": [
+              1,
+              7,
+              30
+            ]
+          }
+        },
+        "required": [
+          "cohort_event",
+          "return_event"
+        ]
+      },
+      "AnalysisResult": {
+        "type": "object",
+        "required": [
+          "scope",
+          "as_of",
+          "time_basis",
+          "rows",
+          "data_quality"
+        ],
+        "properties": {
+          "scope": {
+            "type": "object",
+            "required": [
+              "app_id",
+              "timezone",
+              "start_date",
+              "end_date"
+            ],
+            "properties": {
+              "app_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timezone": {
+                "type": "string"
+              },
+              "start_date": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "Exclusive. Supply both dates or neither; cannot be later than current local date."
+              }
+            }
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "computed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "time_basis": {
+            "type": "string"
+          },
+          "query": {
+            "type": "object"
+          },
+          "sampling": {
+            "const": "none"
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "max_rows": {
+                "const": 500
+              },
+              "timeout_seconds": {
+                "const": 30
+              }
+            }
+          },
+          "rows": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "type": "object"
+            }
+          },
+          "definitions": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "definition": {
+            "type": "object"
+          },
+          "totals": {
+            "type": "object"
+          },
+          "comparison": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "purchases": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "data_quality": {
+            "type": "object",
+            "required": [
+              "completeness"
+            ],
+            "properties": {
+              "completeness": {
+                "type": "string",
+                "enum": [
+                  "coverage_unknown",
+                  "available",
+                  "unsupported"
+                ]
+              },
+              "notes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

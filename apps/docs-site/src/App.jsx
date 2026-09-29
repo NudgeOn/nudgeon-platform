@@ -178,6 +178,7 @@ const navigationGroups = [
       { label: "푸시 만들기", href: "#push-create" },
       { label: "저니(시나리오)", href: "#journeys" },
       { label: "세그먼트", href: "#segments" },
+      { label: "AI 분석과 MCP", href: "#mcp" },
     ],
   },
   {
@@ -449,6 +450,7 @@ const englishNavigationGroups = [
       { label: "Create a push", href: "#push-create" },
       { label: "Journeys", href: "#journeys" },
       { label: "Segments", href: "#segments" },
+      { label: "AI analysis & MCP", href: "#mcp" },
     ],
   },
   {
