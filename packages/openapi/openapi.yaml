@@ -9,6 +9,45 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
+  /v1/integrations/connection:
+    get:
+      operationId: integrationConnection
+      summary: Read-only Server Key and push channel readiness handshake
+      description: Requires the updated self-hosted API. Does not enqueue events or send notifications. App and tenant are derived from the Server Key.
+      security:
+        - apiKey: []
+      responses:
+        "200":
+          description: Authenticated app and current credential readiness. Not a delivery guarantee.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [service, contract_version, tenant_id, app, capabilities, push]
+                properties:
+                  service: { type: string, const: nudgeon }
+                  contract_version: { type: integer, const: 1 }
+                  tenant_id: { type: string, format: uuid }
+                  app:
+                    type: object
+                    required: [id, name]
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                  capabilities:
+                    type: object
+                    required: [track]
+                    properties:
+                      track: { type: boolean, const: true }
+                  push:
+                    type: object
+                    required: [fcm, apns]
+                    properties:
+                      fcm: { type: boolean }
+                      apns: { type: boolean }
+        "401": { description: Invalid key or SDK key }
+        "404": { description: App not found }
+        "429": { description: Rate limit exceeded }
   /v1/apps/{appId}/in-app/campaigns:
     $ref: "./in-app-campaigns.openapi.json#/paths/~1v1~1apps~1{appId}~1in-app~1campaigns"
   /v1/apps/{appId}/in-app/campaigns/{id}:

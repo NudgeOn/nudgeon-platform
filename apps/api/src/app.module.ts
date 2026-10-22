@@ -1,3 +1,4 @@
+import { ConnectionController } from "./ingestion/connection.controller";
 import { InAppCampaigns } from "./in-app/campaign.service";
 import { InAppCampaignController } from "./in-app/campaign.controller";
 import { InAppDelivery } from "./in-app/delivery.service";
@@ -65,6 +66,7 @@ import { PermissionGuard } from "./authz/permission.guard";
     TenantController,
     MembersController,
     TrackController,
+    ConnectionController,
     CredentialsController,
     TestPushController,
     EmailTemplatesController,
